@@ -1,0 +1,58 @@
+version: '3'
+
+vars:
+  APP_NAME: "wails_builder"
+  BIN_DIR: "bin"
+  CGO_ENABLED: "0"
+  PRODUCTION: "false"
+  PACKAGE_MANAGER: '{{.PACKAGE_MANAGER | default "npm"}}'
+  VITE_PORT: '{{.WAILS_VITE_PORT | default 9245}}'
+
+includes:
+  common: ./build/Taskfile.yml
+  windows: ./build/windows/Taskfile.yml
+  darwin: ./build/darwin/Taskfile.yml
+  linux: ./build/linux/Taskfile.yml
+  ios: ./build/ios/Taskfile.yml
+  android: ./build/android/Taskfile.yml
+
+tasks:
+  build:
+    summary: Builds the application
+    cmds:
+      - task: "{{OS}}:build"
+        vars:
+          CGO_ENABLED: "{{.CGO_ENABLED}}"
+          PRODUCTION: "{{.PRODUCTION}}"
+
+  release:
+    summary: Builds the release application
+    cmds:
+      - task: "{{OS}}:build"
+        vars:
+          CGO_ENABLED: "{{.CGO_ENABLED}}"
+          PRODUCTION: "true"
+
+  builder:release:
+    summary: Stable backend entry used by Wails Builder
+    cmds:
+      - task: release
+
+  package:
+    summary: Packages a production build of the application
+    cmds:
+      - task: "{{OS}}:package"
+        vars:
+          CGO_ENABLED: "{{.CGO_ENABLED}}"
+          PRODUCTION: "true"
+          PACKAGE_NAME: "{{.PACKAGE_NAME}}"
+
+  run:
+    summary: Runs the application
+    cmds:
+      - task: "{{OS}}:run"
+
+  dev:
+    summary: Runs the application in development mode
+    cmds:
+      - wails3 dev -config ./build/config.yml -port {{.VITE_PORT}}
