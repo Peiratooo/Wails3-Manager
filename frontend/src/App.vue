@@ -1,5 +1,10 @@
 <template>
-    <n-config-provider :date-locale="dateZhCN" :locale="zhCN">
+    <n-config-provider
+        :date-locale="dateZhCN"
+        :locale="zhCN"
+        :theme="naiveTheme"
+        :theme-overrides="currentNaiveThemeOverrides"
+    >
         <n-modal-provider>
             <n-loading-bar-provider>
                 <n-message-provider>
@@ -14,30 +19,74 @@
 
 <script setup>
 import {useAppStore} from './store'
-import {useRoute} from 'vue-router'
 import {WML} from "@wailsio/runtime"
 import {
     dateZhCN,
+    darkTheme,
     NConfigProvider,
     NLoadingBarProvider,
     NMessageProvider,
     NModalProvider,
     NNotificationProvider,
-    useMessage,
-    useNotification,
     zhCN
 } from 'naive-ui'
-import {onMounted,provide} from "vue";
+import {computed, onMounted, provide, ref, watch} from "vue";
+import {
+    applyThemeToDocument,
+    getInitialThemeName,
+    naiveThemeOverrides,
+    normalizeThemeName,
+    storeThemeName,
+    themeCssVariables,
+    THEME_NAMES,
+} from './theme'
 
 const store = useAppStore()
-const route = useRoute()
 
+const themeName = ref(getInitialThemeName())
+const isDarkTheme = computed(() => themeName.value === THEME_NAMES.DARK)
+const naiveTheme = computed(() => isDarkTheme.value ? darkTheme : null)
+const currentNaiveThemeOverrides = computed(() => naiveThemeOverrides[themeName.value])
+const currentThemeCssVariables = computed(() => themeCssVariables[themeName.value])
+
+const setTheme = (nextThemeName) => {
+    themeName.value = normalizeThemeName(nextThemeName)
+}
+
+const toggleTheme = () => {
+    setTheme(isDarkTheme.value ? THEME_NAMES.LIGHT : THEME_NAMES.DARK)
+}
+
+watch(
+    themeName,
+    (nextThemeName) => {
+        applyThemeToDocument(nextThemeName)
+        storeThemeName(nextThemeName)
+        store.setThemeName(nextThemeName)
+    },
+    {immediate: true}
+)
 
 onMounted(()=>{
     WML.Reload()
 })
 
 provide("store",store)
+provide("theme", {
+    themeName,
+    isDarkTheme,
+    themeCssVariables: currentThemeCssVariables,
+    setTheme,
+    toggleTheme,
+})
+
+defineExpose({
+    themeName,
+    isDarkTheme,
+    themeCssVariables: currentThemeCssVariables,
+    setTheme,
+    toggleTheme,
+})
 </script>
 
 <style lang="scss" scoped>

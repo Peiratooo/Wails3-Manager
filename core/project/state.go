@@ -2,7 +2,6 @@ package project
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -36,7 +35,6 @@ func SaveUserState(state contracts.UserState) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println(path)
 	return os.WriteFile(path, append(data, '\n'), 0644)
 }
 

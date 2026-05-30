@@ -1,0 +1,297 @@
+export const THEME_NAMES = Object.freeze({
+    LIGHT: 'light',
+    DARK: 'dark',
+})
+
+export const THEME_STORAGE_KEY = 'wails3-manager-theme'
+
+export const themeCssVariables = Object.freeze({
+    [THEME_NAMES.LIGHT]: Object.freeze({
+        '--wm-color-primary': 'hsl(0, 90%, 45%)',
+        '--wm-color-primary-rgb': '218, 11, 11',
+        '--wm-color-primary-hover': 'hsl(0, 90%, 53%)',
+        '--wm-color-primary-pressed': 'hsl(0, 90%, 35%)',
+        '--wm-color-primary-soft': 'hsl(0, 85%, 95%)',
+        '--wm-color-primary-strong': 'hsl(0, 90%, 35%)',
+        '--wm-color-primary-border': 'rgba(218, 11, 11, 0.26)',
+        '--wm-color-primary-shadow': 'rgba(218, 11, 11, 0.16)',
+        '--wm-color-logo-start': '#e33232',
+        '--wm-color-logo-end': '#6b000d',
+        '--wm-color-danger': '#d92d20',
+        '--wm-color-danger-hover': '#f04438',
+        '--wm-bg-app': '#f8fafc',
+        '--wm-bg-page': '#f7f8fb',
+        '--wm-bg-page-gradient': 'radial-gradient(circle at 50% 0%, rgba(218, 11, 11, 0.10), transparent 34%), radial-gradient(circle at 18% 92%, rgba(31, 45, 61, 0.08), transparent 36%), linear-gradient(135deg, #ffffff 0%, #f6f8fc 48%, #fff7f7 100%)',
+        '--wm-surface-1': 'rgba(255, 255, 255, 0.86)',
+        '--wm-surface-2': 'rgba(255, 255, 255, 0.72)',
+        '--wm-surface-3': 'rgba(15, 23, 42, 0.045)',
+        '--wm-surface-hover': 'rgba(218, 11, 11, 0.055)',
+        '--wm-control-bg': 'rgba(15, 23, 42, 0.035)',
+        '--wm-control-bg-hover': 'rgba(218, 11, 11, 0.060)',
+        '--wm-control-bg-active': 'rgba(218, 11, 11, 0.085)',
+        '--wm-border-subtle': 'rgba(15, 23, 42, 0.070)',
+        '--wm-border-soft': 'rgba(15, 23, 42, 0.105)',
+        '--wm-border-strong': 'rgba(218, 11, 11, 0.360)',
+        '--wm-text-primary': 'rgba(15, 23, 42, 0.90)',
+        '--wm-text-secondary': 'rgba(51, 65, 85, 0.72)',
+        '--wm-text-muted': 'rgba(71, 85, 105, 0.52)',
+        '--wm-text-inverse': '#ffffff',
+        '--wm-placeholder': 'rgba(71, 85, 105, 0.40)',
+        '--wm-table-header-text': 'rgba(71, 85, 105, 0.58)',
+        '--wm-table-row-text': 'rgba(30, 41, 59, 0.76)',
+        '--wm-table-row-hover': 'rgba(218, 11, 11, 0.045)',
+        '--wm-shadow-page': 'inset 0 1px 0 rgba(255, 255, 255, 0.70), 0 24px 70px rgba(15, 23, 42, 0.10)',
+        '--wm-shadow-primary': '0 8px 18px rgba(218, 11, 11, 0.22)',
+    }),
+    [THEME_NAMES.DARK]: Object.freeze({
+        '--wm-color-primary': 'hsl(0, 90%, 50%)',
+        '--wm-color-primary-rgb': '242, 13, 13',
+        '--wm-color-primary-hover': 'hsl(0, 90%, 60%)',
+        '--wm-color-primary-pressed': 'hsl(0, 90%, 42%)',
+        '--wm-color-primary-soft': 'hsl(0, 85%, 15%)',
+        '--wm-color-primary-strong': 'hsl(0, 90%, 60%)',
+        '--wm-color-primary-border': 'rgba(242, 13, 13, 0.34)',
+        '--wm-color-primary-shadow': 'rgba(242, 13, 13, 0.18)',
+        '--wm-color-logo-start': '#e33232',
+        '--wm-color-logo-end': '#6b000d',
+        '--wm-color-danger': '#ff5f57',
+        '--wm-color-danger-hover': '#ff7a73',
+        '--wm-bg-app': '#0f1115',
+        '--wm-bg-page': '#111419',
+        '--wm-bg-page-gradient': 'radial-gradient(circle at 50% 0%, rgba(242, 13, 13, 0.16), transparent 34%), radial-gradient(circle at 18% 92%, rgba(120, 130, 150, 0.10), transparent 36%), linear-gradient(135deg, #15181d 0%, #101318 48%, #15181d 100%)',
+        '--wm-surface-1': 'rgba(255, 255, 255, 0.045)',
+        '--wm-surface-2': 'rgba(255, 255, 255, 0.060)',
+        '--wm-surface-3': 'rgba(255, 255, 255, 0.035)',
+        '--wm-surface-hover': 'rgba(255, 255, 255, 0.075)',
+        '--wm-control-bg': 'rgba(255, 255, 255, 0.035)',
+        '--wm-control-bg-hover': 'rgba(255, 255, 255, 0.075)',
+        '--wm-control-bg-active': 'rgba(255, 255, 255, 0.055)',
+        '--wm-border-subtle': 'rgba(255, 255, 255, 0.055)',
+        '--wm-border-soft': 'rgba(255, 255, 255, 0.080)',
+        '--wm-border-strong': 'rgba(242, 13, 13, 0.46)',
+        '--wm-text-primary': 'rgba(245, 247, 250, 0.88)',
+        '--wm-text-secondary': 'rgba(225, 230, 238, 0.70)',
+        '--wm-text-muted': 'rgba(210, 216, 225, 0.48)',
+        '--wm-text-inverse': '#ffffff',
+        '--wm-placeholder': 'rgba(210, 216, 225, 0.34)',
+        '--wm-table-header-text': 'rgba(210, 216, 225, 0.48)',
+        '--wm-table-row-text': 'rgba(225, 230, 238, 0.70)',
+        '--wm-table-row-hover': 'rgba(255, 255, 255, 0.035)',
+        '--wm-shadow-page': 'inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 24px 80px rgba(0, 0, 0, 0.35)',
+        '--wm-shadow-primary': '0 8px 18px rgba(242, 13, 13, 0.24)',
+    }),
+})
+
+export const naiveThemeOverrides = Object.freeze({
+    [THEME_NAMES.LIGHT]: Object.freeze({
+        common: {
+            primaryColor: '#da0b0b',
+            primaryColorHover: '#f31b1b',
+            primaryColorPressed: '#aa0909',
+            primaryColorSuppl: '#e33232',
+            borderRadius: '4px',
+            borderColor: 'rgba(15, 23, 42, 0.105)',
+            textColorBase: '#0f172a',
+            textColor1: 'rgba(15, 23, 42, 0.90)',
+            textColor2: 'rgba(51, 65, 85, 0.72)',
+            textColor3: 'rgba(71, 85, 105, 0.52)',
+            bodyColor: '#f8fafc',
+            cardColor: '#ffffff',
+            modalColor: '#ffffff',
+            popoverColor: '#ffffff',
+            tableColor: 'transparent',
+        },
+        Button: {
+            borderRadiusTiny: '4px',
+            borderRadiusSmall: '4px',
+            borderRadiusMedium: '4px',
+            borderRadiusLarge: '4px',
+            textColor: 'rgba(51, 65, 85, 0.72)',
+            textColorHover: '#f31b1b',
+            textColorPressed: '#aa0909',
+            textColorFocus: '#f31b1b',
+            textColorPrimary: '#ffffff',
+            textColorHoverPrimary: '#ffffff',
+            textColorPressedPrimary: '#ffffff',
+            textColorFocusPrimary: '#ffffff',
+            border: '1px solid rgba(15, 23, 42, 0.105)',
+            borderHover: '1px solid rgba(218, 11, 11, 0.26)',
+            borderPressed: '1px solid rgba(218, 11, 11, 0.36)',
+            borderFocus: '1px solid rgba(218, 11, 11, 0.26)',
+            borderPrimary: '1px solid rgba(218, 11, 11, 0.34)',
+            borderHoverPrimary: '1px solid rgba(218, 11, 11, 0.42)',
+            borderPressedPrimary: '1px solid rgba(218, 11, 11, 0.34)',
+            color: 'rgba(15, 23, 42, 0.035)',
+            colorHover: 'rgba(218, 11, 11, 0.060)',
+            colorPressed: 'rgba(218, 11, 11, 0.085)',
+            colorFocus: 'rgba(218, 11, 11, 0.060)',
+            colorPrimary: '#da0b0b',
+            colorHoverPrimary: '#f31b1b',
+            colorPressedPrimary: '#aa0909',
+            colorFocusPrimary: '#f31b1b',
+            rippleColor: '#da0b0b',
+        },
+        Input: {
+            borderRadius: '4px',
+            color: 'rgba(15, 23, 42, 0.035)',
+            colorFocus: 'rgba(218, 11, 11, 0.060)',
+            textColor: 'rgba(51, 65, 85, 0.72)',
+            caretColor: '#da0b0b',
+            placeholderColor: 'rgba(71, 85, 105, 0.40)',
+            border: '1px solid rgba(15, 23, 42, 0.105)',
+            borderHover: '1px solid rgba(218, 11, 11, 0.26)',
+            borderFocus: '1px solid rgba(218, 11, 11, 0.36)',
+            boxShadowFocus: '0 0 0 2px rgba(218, 11, 11, 0.16)',
+        },
+        DataTable: {
+            borderColor: 'rgba(15, 23, 42, 0.070)',
+            thColor: 'transparent',
+            thColorHover: 'transparent',
+            tdColor: 'transparent',
+            tdColorHover: 'rgba(218, 11, 11, 0.045)',
+            thTextColor: 'rgba(71, 85, 105, 0.58)',
+            tdTextColor: 'rgba(30, 41, 59, 0.76)',
+        },
+        Modal: {
+            color: '#ffffff',
+            textColor: 'rgba(15, 23, 42, 0.90)',
+        },
+        Dialog: {
+            color: '#ffffff',
+            textColor: 'rgba(15, 23, 42, 0.90)',
+        },
+        Notification: {
+            color: '#ffffff',
+            textColor: 'rgba(15, 23, 42, 0.90)',
+            closeIconColorHover: '#f31b1b',
+        },
+    }),
+    [THEME_NAMES.DARK]: Object.freeze({
+        common: {
+            primaryColor: '#f20d0d',
+            primaryColorHover: '#f75c5c',
+            primaryColorPressed: '#cc0b0b',
+            primaryColorSuppl: '#ff3d3d',
+            borderRadius: '4px',
+            borderColor: 'rgba(255, 255, 255, 0.080)',
+            textColorBase: '#f5f7fa',
+            textColor1: 'rgba(245, 247, 250, 0.88)',
+            textColor2: 'rgba(225, 230, 238, 0.70)',
+            textColor3: 'rgba(210, 216, 225, 0.48)',
+            bodyColor: '#0f1115',
+            cardColor: '#181c22',
+            modalColor: '#181c22',
+            popoverColor: '#181c22',
+            tableColor: 'transparent',
+        },
+        Button: {
+            borderRadiusTiny: '4px',
+            borderRadiusSmall: '4px',
+            borderRadiusMedium: '4px',
+            borderRadiusLarge: '4px',
+            textColor: 'rgba(225, 230, 238, 0.70)',
+            textColorHover: '#f75c5c',
+            textColorPressed: '#cc0b0b',
+            textColorFocus: '#f75c5c',
+            textColorPrimary: '#ffffff',
+            textColorHoverPrimary: '#ffffff',
+            textColorPressedPrimary: '#ffffff',
+            textColorFocusPrimary: '#ffffff',
+            border: '1px solid rgba(255, 255, 255, 0.080)',
+            borderHover: '1px solid rgba(242, 13, 13, 0.34)',
+            borderPressed: '1px solid rgba(242, 13, 13, 0.46)',
+            borderFocus: '1px solid rgba(242, 13, 13, 0.34)',
+            borderPrimary: '1px solid rgba(242, 13, 13, 0.42)',
+            borderHoverPrimary: '1px solid rgba(242, 13, 13, 0.54)',
+            borderPressedPrimary: '1px solid rgba(242, 13, 13, 0.42)',
+            color: 'rgba(255, 255, 255, 0.035)',
+            colorHover: 'rgba(255, 255, 255, 0.075)',
+            colorPressed: 'rgba(255, 255, 255, 0.055)',
+            colorFocus: 'rgba(255, 255, 255, 0.075)',
+            colorPrimary: '#f20d0d',
+            colorHoverPrimary: '#f75c5c',
+            colorPressedPrimary: '#cc0b0b',
+            colorFocusPrimary: '#f75c5c',
+            rippleColor: '#f20d0d',
+        },
+        Input: {
+            borderRadius: '4px',
+            color: 'rgba(255, 255, 255, 0.035)',
+            colorFocus: 'rgba(255, 255, 255, 0.075)',
+            textColor: 'rgba(225, 230, 238, 0.70)',
+            caretColor: '#f20d0d',
+            placeholderColor: 'rgba(210, 216, 225, 0.34)',
+            border: '1px solid rgba(255, 255, 255, 0.080)',
+            borderHover: '1px solid rgba(242, 13, 13, 0.34)',
+            borderFocus: '1px solid rgba(242, 13, 13, 0.46)',
+            boxShadowFocus: '0 0 0 2px rgba(242, 13, 13, 0.18)',
+        },
+        DataTable: {
+            borderColor: 'rgba(255, 255, 255, 0.055)',
+            thColor: 'transparent',
+            thColorHover: 'transparent',
+            tdColor: 'transparent',
+            tdColorHover: 'rgba(255, 255, 255, 0.035)',
+            thTextColor: 'rgba(210, 216, 225, 0.48)',
+            tdTextColor: 'rgba(225, 230, 238, 0.70)',
+        },
+        Modal: {
+            color: '#181c22',
+            textColor: 'rgba(245, 247, 250, 0.88)',
+        },
+        Dialog: {
+            color: '#181c22',
+            textColor: 'rgba(245, 247, 250, 0.88)',
+        },
+        Notification: {
+            color: '#181c22',
+            textColor: 'rgba(245, 247, 250, 0.88)',
+            closeIconColorHover: '#f75c5c',
+        },
+    }),
+})
+
+export function normalizeThemeName(themeName) {
+    return themeName === THEME_NAMES.DARK ? THEME_NAMES.DARK : THEME_NAMES.LIGHT
+}
+
+export function getInitialThemeName() {
+    if (typeof window === 'undefined') {
+        return THEME_NAMES.LIGHT
+    }
+
+    try {
+        const storedTheme = window.localStorage.getItem(THEME_STORAGE_KEY)
+        if (storedTheme) {
+            return normalizeThemeName(storedTheme)
+        }
+    } catch {
+        return THEME_NAMES.LIGHT
+    }
+
+    return window.matchMedia?.('(prefers-color-scheme: dark)').matches
+        ? THEME_NAMES.DARK
+        : THEME_NAMES.LIGHT
+}
+
+export function applyThemeToDocument(themeName) {
+    if (typeof document === 'undefined') {
+        return
+    }
+
+    const normalizedThemeName = normalizeThemeName(themeName)
+    document.documentElement.dataset.theme = normalizedThemeName
+    document.documentElement.style.colorScheme = normalizedThemeName
+}
+
+export function storeThemeName(themeName) {
+    if (typeof window === 'undefined') {
+        return
+    }
+
+    try {
+        window.localStorage.setItem(THEME_STORAGE_KEY, normalizeThemeName(themeName))
+    } catch {
+        // Ignore storage failures in restricted webviews.
+    }
+}

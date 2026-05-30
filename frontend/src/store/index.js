@@ -5,11 +5,15 @@ export const useAppStore = defineStore('app', {
 		return {
 			projectDir: '',
             icons:{},
+			themeName: '',
 		}
 	},
 	actions: {
 		setProjectDir(projectDir) {
 			this.projectDir = projectDir
+		},
+		setThemeName(themeName) {
+			this.themeName = themeName
 		},
 	},
 })

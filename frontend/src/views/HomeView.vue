@@ -11,19 +11,23 @@
                 </div>
                 <div class="right">
                     <div class="search">
-                        <n-input :placeholder="t('home.searchProject')" v-model:value="keywords" />
-                        <n-button>{{ t('home.search') }}</n-button>
+                        <n-input v-model:value="keywords" :placeholder="t('home.searchProject')" />
                     </div>
-                    <n-button>
-                        <n-icon></n-icon>
-                        <label>
-                            {{ t('home.importProject') }}
-                        </label>
-                    </n-button>
+                    <div class="import">
+                        <n-button @click="importProject()">
+                            <n-icon size="18" style="margin-right: 8px">
+                                <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 48 48"><g fill="none"><path d="M40.75 24c.69 0 1.25-.56 1.25-1.25v-9.5A7.25 7.25 0 0 0 34.75 6h-21.5A7.25 7.25 0 0 0 6 13.25v21.5A7.25 7.25 0 0 0 13.25 42h9.5a1.25 1.25 0 1 0 0-2.5h-9.5a4.75 4.75 0 0 1-4.75-4.75v-21.5a4.75 4.75 0 0 1 4.75-4.75h21.5a4.75 4.75 0 0 1 4.75 4.75v9.5c0 .69.56 1.25 1.25 1.25zm-21.5-6c-.69 0-1.25.56-1.25 1.25v13.5a1.25 1.25 0 1 0 2.5 0V22.268l15.366 15.366a1.25 1.25 0 1 0 1.768-1.768L22.268 20.5H32.75a1.25 1.25 0 1 0 0-2.5h-13.5z" fill="currentColor"></path></g></svg>
+                            </n-icon>
+                            <label>
+                                {{ t('home.importProject') }}
+                            </label>
+                        </n-button>
+                    </div>
+
                 </div>
             </div>
             <div class="project-table">
-                <n-data-table :columns="columns" :data="projects" />
+                <n-data-table :columns="columns" :data="filteredProjects" :rowProps="rowProps"/>
             </div>
         </div>
     </div>
@@ -34,6 +38,7 @@ import { useI18n } from '../i18n'
 import {onMounted, ref, computed, h, inject} from "vue";
 import {ProjectService} from "../../bindings/wails3-manager/core/project"
 import {SettingsService} from "../../bindings/wails3-manager/core/settings"
+import {AppService} from "../../bindings/wails3-manager/desktop"
 import {NInput,NButton,NIcon,NImage,NDataTable} from "naive-ui"
 const { t } = useI18n()
 
@@ -41,40 +46,93 @@ const keywords = ref("")
 
 const projects = ref([])
 const store = inject("store")
+const rowProps = (row) => {
+    return {
+        style: {
+            cursor: 'pointer'
+        },
+        onClick: (event) => {
+            const delEl =  event.target.closest('[data-action="delete"]')
+            if (delEl) {
+                removeProject(row)
+            } else {
+                handleRowClick( row)
+            }
+
+        }
+    }
+}
+
+const handleRowClick = (row) => {
+    console.log(row)
+
+}
+async function importProject() {
+    // ProjectService.ImportProject()
+    const res = await AppService.ChooseFolder()
+    if (res) {
+       await ProjectService.ImportProject(res).then((resp)=>{
+           if (resp) {
+               initProjects()
+           }
+       }).catch(e=>{
+           console.error(e)
+       })
+    }
+}
+
+function removeProject(project) {
+    SettingsService.RemoveProject(project.projectDir,true).then((res)=>{
+
+    }).finally(()=>{
+        initProjects()
+    })
+
+}
+
 const columns = computed(() => [
     {
         title: t('home.projectIcon'),
         key: 'projectIcon',
         render(row) {
             return h(NImage, {
-                src: "/local/file?"+ row.iconPath
+                src: "/local/file?"+ row.iconPath,
+                width: 32,
+                height: 32,
+                showToolbar: false
             })
-        }
+        },
+        width: 64
     },
     {
         title: t('home.projectName'),
         key: 'projectName',
         render(row) {
             return row.project.wailsConfig.info.productName || '-'
-        }
+        },
+        width: 150
     },
     {
         title: t('home.projectPath'),
-        key: 'projectDir'
+        key: 'projectDir',
+        width: 380,
     },
     {
         title: t('home.openTime'),
         key: 'lastOpenedAt',
         render(row) {
             return formatTimestamp(row.lastOpenedAt)
-        }
+        },
+        width: 150
+
     },
     {
         title: t('home.importTime'),
         key: 'importedAt',
         render(row) {
             return formatTimestamp(row.importedAt)
-        }
+        },
+        width: 150
     },
     {
         title: '',
@@ -84,6 +142,7 @@ const columns = computed(() => [
                 NIcon,
                 {
                     class: 'delete-icon',
+                    'data-action': 'delete'
                 },
                 {
                     default: () => h('span',{
@@ -94,6 +153,17 @@ const columns = computed(() => [
         }
     }
 ])
+const filteredProjects = computed(() => {
+    const keyword = keywords.value.trim().toLowerCase()
+
+    if (!keyword) {
+        return projects.value
+    }
+
+    return projects.value.filter((item) => {
+        return JSON.stringify(item).toLowerCase().includes(keyword)
+    })
+})
 
 const formatTimestamp = (timestamp) => {
     if (!timestamp) return '-'
@@ -110,14 +180,23 @@ const formatTimestamp = (timestamp) => {
 
     return `${year}-${month}-${day} ${hour}:${minute}`
 }
-onMounted(()=>{
-   SettingsService.ListProjects().then(async (res)=>{
-       for (let i of res) {
-           i["iconPath"] = await SettingsService.GetABSPath(i.projectDir,i.project.wailsConfig.icon)
-           projects.value.push(i)
 
-       }
-   })
+function initProjects() {
+    SettingsService.ListProjects().then(async (res)=>{
+        projects.value = []
+        for (let i of res) {
+            console.log(i)
+            i["iconPath"] = await SettingsService.GetABSPath(i.projectDir,i.project.wailsConfig.icon)
+            projects.value.push(i)
+        }
+    })
+}
+
+onMounted(()=>{
+    initProjects()
+    SettingsService.GetSettings().then((res)=>{
+        console.log(res)
+    })
 })
 </script>
 
@@ -125,25 +204,14 @@ onMounted(()=>{
 
 
 .selector {
-    background: #0f1115;
     position: relative;
     width: 100%;
     min-height: 100vh;
     box-sizing: border-box;
     padding: 48px 38px 44px;
     overflow: hidden;
-
-    color: rgba(235, 239, 245, 0.86);
-    background:
-        radial-gradient(circle at 50% 0%, rgba(80, 90, 110, 0.18), transparent 34%),
-        radial-gradient(circle at 18% 92%, rgba(80, 90, 110, 0.10), transparent 36%),
-        linear-gradient(135deg, #15181d 0%, #101318 48%, #15181d 100%);
-
-    border: 1px solid rgba(255, 255, 255, 0.07);
-
-    box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.04),
-        0 24px 80px rgba(0, 0, 0, 0.35);
+    color: var(--wm-text-secondary);
+    background: var(--wm-bg-page-gradient);
 }
 
 .title {
@@ -152,22 +220,20 @@ onMounted(()=>{
     margin-bottom: 66px;
 
     .welcome {
-        font-size: 21px;
-        font-weight: 500;
+        font-size: 32px;
         letter-spacing: 0.02em;
-        color: rgba(245, 247, 250, 0.88);
+        color: var(--wm-text-primary);
     }
 
     .desc {
         margin-top: 10px;
-        font-size: 12px;
-        line-height: 1.4;
-        color: rgba(210, 216, 225, 0.48);
+        font-size: 16px;
+        color: var(--wm-text-muted);
     }
 }
 
 .panel {
-    width: min(760px, 100%);
+    width: min(80%, 100%);
     margin: 0 auto;
 }
 
@@ -175,20 +241,20 @@ onMounted(()=>{
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 24px;
+
     margin-bottom: 24px;
 
     .left {
         flex: 0 0 auto;
-        font-size: 13px;
+        font-size: 16px;
         font-weight: 500;
-        color: rgba(245, 247, 250, 0.86);
+        color: var(--wm-text-primary);
     }
 
     .right {
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: 12px;
     }
 }
 
@@ -197,56 +263,51 @@ onMounted(()=>{
     align-items: center;
     gap: 8px;
 
-    :deep(.n-input) {
-        width: 130px;
-    }
+
 }
 
 :deep(.n-input) {
-    --n-height: 28px !important;
-    --n-color: rgba(255, 255, 255, 0.035) !important;
-    --n-color-focus: rgba(255, 255, 255, 0.05) !important;
-    --n-border: 1px solid rgba(255, 255, 255, 0.08) !important;
-    --n-border-hover: 1px solid rgba(255, 255, 255, 0.14) !important;
-    --n-border-focus: 1px solid rgba(70, 130, 255, 0.52) !important;
-    --n-box-shadow-focus: 0 0 0 2px rgba(70, 130, 255, 0.12) !important;
-    --n-text-color: rgba(240, 244, 250, 0.84) !important;
-    --n-placeholder-color: rgba(210, 216, 225, 0.34) !important;
-    --n-border-radius: 4px !important;
 
-    font-size: 11px;
+    --n-color: var(--wm-control-bg) !important;
+    --n-color-focus: var(--wm-control-bg-hover) !important;
+    --n-border: 1px solid var(--wm-border-soft) !important;
+    --n-border-hover: 1px solid var(--wm-color-primary-border) !important;
+    --n-border-focus: 1px solid var(--wm-border-strong) !important;
+    --n-box-shadow-focus: 0 0 0 2px var(--wm-color-primary-shadow) !important;
+    --n-text-color: var(--wm-text-secondary) !important;
+    --n-placeholder-color: var(--wm-placeholder) !important;
+
+
+
 }
 
 :deep(.n-button) {
-    --n-height: 28px !important;
-    --n-padding: 0 12px !important;
-    --n-font-size: 11px !important;
     --n-border-radius: 4px !important;
-    --n-text-color: rgba(235, 239, 245, 0.86) !important;
-    --n-text-color-hover: rgba(255, 255, 255, 0.96) !important;
-    --n-text-color-pressed: rgba(255, 255, 255, 0.96) !important;
-    --n-color: rgba(255, 255, 255, 0.045) !important;
-    --n-color-hover: rgba(255, 255, 255, 0.075) !important;
-    --n-color-pressed: rgba(255, 255, 255, 0.055) !important;
-    --n-border: 1px solid rgba(255, 255, 255, 0.08) !important;
-    --n-border-hover: 1px solid rgba(255, 255, 255, 0.14) !important;
-    --n-border-pressed: 1px solid rgba(255, 255, 255, 0.12) !important;
+    --n-text-color: var(--wm-text-secondary) !important;
+    --n-text-color-hover: var(--wm-color-primary-hover) !important;
+    --n-text-color-pressed: var(--wm-color-primary-pressed) !important;
+    --n-color: var(--wm-control-bg) !important;
+    --n-color-hover: var(--wm-control-bg-hover) !important;
+    --n-color-pressed: var(--wm-control-bg-active) !important;
+    --n-border: 1px solid var(--wm-border-soft) !important;
+    --n-border-hover: 1px solid var(--wm-color-primary-border) !important;
+    --n-border-pressed: 1px solid var(--wm-border-strong) !important;
 
     backdrop-filter: blur(12px);
 }
 
 .operator > .right > :deep(.n-button:last-child) {
-    --n-color: linear-gradient(180deg, #3f78ff 0%, #2861df 100%) !important;
-    --n-color-hover: linear-gradient(180deg, #4a82ff 0%, #306beb 100%) !important;
-    --n-color-pressed: linear-gradient(180deg, #2e64e6 0%, #2356c8 100%) !important;
-    --n-border: 1px solid rgba(105, 150, 255, 0.36) !important;
-    --n-border-hover: 1px solid rgba(132, 170, 255, 0.48) !important;
-    --n-border-pressed: 1px solid rgba(105, 150, 255, 0.32) !important;
-    --n-text-color: #ffffff !important;
-    --n-text-color-hover: #ffffff !important;
-    --n-text-color-pressed: #ffffff !important;
+    --n-color: linear-gradient(180deg, var(--wm-color-logo-start) 0%, var(--wm-color-primary) 100%) !important;
+    --n-color-hover: linear-gradient(180deg, var(--wm-color-primary-hover) 0%, var(--wm-color-primary) 100%) !important;
+    --n-color-pressed: linear-gradient(180deg, var(--wm-color-primary) 0%, var(--wm-color-primary-pressed) 100%) !important;
+    --n-border: 1px solid var(--wm-color-primary-border) !important;
+    --n-border-hover: 1px solid var(--wm-border-strong) !important;
+    --n-border-pressed: 1px solid var(--wm-color-primary-border) !important;
+    --n-text-color: var(--wm-text-inverse) !important;
+    --n-text-color-hover: var(--wm-text-inverse) !important;
+    --n-text-color-pressed: var(--wm-text-inverse) !important;
 
-    box-shadow: 0 8px 18px rgba(43, 98, 220, 0.22);
+    box-shadow: var(--wm-shadow-primary);
 }
 
 .project-table {
@@ -254,15 +315,14 @@ onMounted(()=>{
 }
 
 :deep(.n-data-table) {
-    --n-font-size: 11px !important;
+
     --n-th-color: transparent !important;
     --n-th-color-hover: transparent !important;
     --n-td-color: transparent !important;
-    --n-td-color-hover: rgba(255, 255, 255, 0.035) !important;
-    --n-border-color: rgba(255, 255, 255, 0.055) !important;
-    --n-th-text-color: rgba(210, 216, 225, 0.48) !important;
-    --n-td-text-color: rgba(225, 230, 238, 0.70) !important;
-
+    --n-td-color-hover: var(--wm-table-row-hover) !important;
+    --n-border-color: var(--wm-border-subtle) !important;
+    --n-th-text-color: var(--wm-table-header-text) !important;
+    --n-td-text-color: var(--wm-table-row-text) !important;
     background: transparent;
 }
 
@@ -275,52 +335,30 @@ onMounted(()=>{
 }
 
 :deep(.n-data-table-th) {
-    height: 34px;
-    padding: 0 12px;
-    font-size: 11px;
+    height: 52px;
+
+
     font-weight: 400;
-    color: rgba(210, 216, 225, 0.48);
+    color: var(--wm-table-header-text);
     background: transparent;
     border-bottom: none;
 }
 
 :deep(.n-data-table-td) {
-    height: 46px;
-    padding: 0 12px;
-    font-size: 11px;
-    color: rgba(225, 230, 238, 0.70);
+    font-size: 12px;
+    color: var(--wm-table-row-text);
     background: transparent;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.052);
+    border-bottom: 1px solid var(--wm-border-subtle);
+    cursor: pointer;
 }
 
 :deep(.n-data-table-tr:hover .n-data-table-td) {
-    background: rgba(255, 255, 255, 0.035);
-}
-
-:deep(.n-data-table-th:first-child),
-:deep(.n-data-table-td:first-child) {
-    width: 68px;
-    padding-left: 12px;
-}
-
-:deep(.n-image) {
-    width: 24px;
-    height: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-:deep(.n-image img) {
-    width: 24px;
-    height: 24px;
-    object-fit: contain;
-    border-radius: 6px;
+    background: var(--wm-table-row-hover);
 }
 
 .delete-icon {
     cursor: pointer;
-    color: rgba(210, 216, 225, 0.32);
+    color: var(--wm-text-muted);
     font-size: 17px;
     transition:
         color 0.18s ease,
@@ -329,36 +367,10 @@ onMounted(()=>{
 }
 
 .delete-icon:hover {
-    color: #ff5f57;
+    color: var(--wm-color-danger);
     transform: scale(1.06);
 }
-
-@media (max-width: 720px) {
-    .selector {
-        padding: 42px 22px 32px;
-    }
-
-    .title {
-        margin-bottom: 42px;
-    }
-
-    .operator {
-        align-items: flex-start;
-        flex-direction: column;
-        gap: 14px;
-
-        .right {
-            width: 100%;
-            justify-content: space-between;
-        }
-    }
-
-    .search {
-        flex: 1;
-
-        :deep(.n-input) {
-            width: 100%;
-        }
-    }
+.import *{
+    cursor: pointer !important;
 }
 </style>
