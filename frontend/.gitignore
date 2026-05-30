@@ -1,24 +1,153 @@
+# =========================
+# OS / System
+# =========================
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# =========================
+# IDE
+# =========================
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# =========================
 # Logs
-logs
+# =========================
 *.log
+logs/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
+# =========================
+# Environment
+# =========================
+.env
+.env.*
+!.env.example
+!.env.template
 
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
-.DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
+# =========================
+# Go
+# =========================
+
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Coverage output
+*.out
+coverage.out
+coverage.txt
+coverage.html
+
+# Go workspace file
+go.work
+go.work.sum
+
+# Optional dependency directory
+# vendor/
+
+# =========================
+# Node / Frontend
+# =========================
+node_modules/
+.pnpm-store/
+.npm/
+.yarn/
+.yarn-cache/
+.yarn/install-state.gz
+
+# Vue / Vite / frontend build output
+dist/
+frontend/dist/
+frontend/.vite/
+.vite/
+.cache/
+.parcel-cache/
+.rollup.cache/
+
+# TypeScript / tooling cache
+*.tsbuildinfo
+eslintcache
+.eslintcache
+stylelintcache
+.stylelintcache
+
+# =========================
+# Wails / Build Output
+# =========================
+
+# Wails generated binaries
+bin/
+build/bin/
+
+# Wails dev/runtime temporary files
+wailsjs/runtime/
+frontend/wailsjs/runtime/
+
+# Generated bindings can be ignored only if you regenerate them automatically.
+# 如果你的前端代码已经直接 import bindings，建议先不要忽略 bindings。
+# bindings/
+
+# =========================
+# Packaging / Builder Output
+# =========================
+.builder/cache/
+.builder/release/
+.builder/logs/
+.builder/temp/
+.builder/tmp/
+
+# Installer / release artifacts
+*.zip
+*.7z
+*.tar
+*.tar.gz
+*.rar
+*.dmg
+*.pkg
+*.msi
+*.msix
+*.appx
+*.deb
+*.rpm
+*.AppImage
+
+# Inno / NSIS temporary output
+Output/
+output/
+installer-output/
+*.iss.bak
+
+# =========================
+# Temporary / Cache
+# =========================
+tmp/
+temp/
+.tmp/
+*.tmp
+*.bak
+*.old
+
+# =========================
+# Local project data
+# =========================
+*.local
+*.db
+*.sqlite
+*.sqlite3
