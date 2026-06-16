@@ -4,6 +4,8 @@ import (
 	"embed"
 	"log"
 
+	"wails3-manager/core/contracts"
+	"wails3-manager/core/creator"
 	"wails3-manager/core/environment"
 	"wails3-manager/core/packaging"
 	"wails3-manager/core/project"
@@ -17,17 +19,25 @@ var App *application.App
 
 func Run(assets embed.FS) {
 	logSink := runlog.New()
+	logSink.SetRecordLogs(settings.LoadManagerSettings().RecordLogs)
 	settingsService := settings.NewService(logSink)
 	projectService := project.NewService(logSink)
+	packagingService := packaging.NewService(logSink)
+	projectService.InitPackagingFn = func(projectDir string) error {
+		_, err := packagingService.InitPackaging(projectDir)
+		return err
+	}
+	application.RegisterEvent[contracts.LogLineEvent]("manager:log-line")
 	App = application.New(application.Options{
 		Name:        "Wails Manager",
 		Description: "Universal Wails3 manager",
 		Services: []application.Service{
 			application.NewService(&AppService{}),
+			application.NewServiceWithOptions(creator.NewService(logSink), application.ServiceOptions{Name: "CreatorService"}),
 			application.NewServiceWithOptions(projectService, application.ServiceOptions{Name: "ProjectService"}),
 			application.NewServiceWithOptions(environment.NewService(), application.ServiceOptions{Name: "EnvironmentService"}),
 			application.NewServiceWithOptions(settingsService, application.ServiceOptions{Name: "SettingsService"}),
-			application.NewServiceWithOptions(packaging.NewService(logSink), application.ServiceOptions{Name: "PackagingService"}),
+			application.NewServiceWithOptions(packagingService, application.ServiceOptions{Name: "PackagingService"}),
 		},
 		Assets: application.AssetOptions{
 			Handler:    application.AssetFileServerFS(assets),
@@ -35,6 +45,12 @@ func Run(assets embed.FS) {
 		},
 		Mac: application.MacOptions{ApplicationShouldTerminateAfterLastWindowClosed: true},
 	})
+	logSink.OnLine = func(line string) {
+		app := application.Get()
+		if app != nil {
+			app.Event.Emit("manager:log-line", contracts.LogLineEvent{Line: line})
+		}
+	}
 	App.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title: "Wails Manager",
 		Width: 1280, Height: 820, MinWidth: 980, MinHeight: 680,

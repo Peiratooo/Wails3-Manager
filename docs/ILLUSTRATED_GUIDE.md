@@ -52,7 +52,7 @@ flowchart LR
 
 | 模块 | 负责 | 不负责 |
 | --- | --- | --- |
-| `core/project` | 扫描目录、导入项目、保存项目对象、替换图标、维护本地项目索引 | 打包配置、环境检测、主题语言设置 |
+| `core/project` | 扫描目录、导入项目、保存 Wails 基础信息、替换图标、维护本地项目索引 | 打包配置、打包 build 参数、环境检测、主题语言设置 |
 | `core/settings` | 暴露项目列表/打开/删除入口、恢复导入前快照、主题语言设置、日志读取 | 新项目导入、写 `build/config.yml`、打包运行 |
 | `core/environment` | 检测 Go、Node、Wails3、Inno、create-dmg 等工具 | 写任何项目文件 |
 | `core/packaging` | 初始化 `builder/packaging.json`、生成 Inno/DMG 模板、运行打包 | 修改项目基础信息、维护项目列表 |
@@ -70,6 +70,7 @@ sequenceDiagram
   participant Scanner as project/scanner
   participant Backup as core/project backup
   participant WailsCfg as core/project Wails config
+  participant PKG as PackagingService
   participant State as core/project state
   participant Disk as 目标项目
 
@@ -84,18 +85,20 @@ sequenceDiagram
   WailsCfg->>Disk: 读取 build/config.yml 和 Taskfile.yml
   PS->>Backup: SaveProjectRecord
   Backup->>Disk: 写 builder/project.json
+  PS->>PKG: InitPackaging(projectDir)
+  PKG->>Disk: 写 builder/packaging.json 和打包模板
   PS->>State: UpsertProjectRecord(record)
   State->>State: 写本地 state.json
-  PS-->>FE: ProjectRecord
+  PS-->>FE: nil error
 ```
 
-导入只做项目管理初始化：
+导入会完成项目管理和默认打包初始化：
 
 - 创建 `builder/project.json`。
 - 创建 `builder/backup/initial`。
+- 创建或读取 `builder/packaging.json`。
+- 生成当前运行系统的默认打包模板：Windows 为 Inno，macOS 为 DMG。
 - 写入本地项目列表。
-- 不创建 `builder/packaging.json`。
-- 不生成 Inno 或 DMG 模板。
 
 ## 4. 文件存储关系
 
@@ -113,7 +116,7 @@ flowchart TB
 
   subgraph UserConfig["本地管理器配置目录"]
     StateJSON["state.json<br/>ProjectRecord[]"]
-    SettingsJSON["settings.json<br/>theme / language / logs"]
+    SettingsJSON["settings.json<br/>isDark / language / recordLogs"]
   end
 
   Builder --> ProjectJSON
@@ -132,15 +135,12 @@ flowchart TB
 flowchart TD
   Save["ProjectService.SaveProject(record)"]
   WriteConfig["写回 build/config.yml"]
-  WriteTaskfile["写回 Taskfile.yml"]
   UpdateAssets["执行 wails3 task common:update:build-assets"]
   SaveRecord["更新 builder/project.json"]
   SaveState["更新本地 state.json"]
 
   Save --> WriteConfig
-  Save --> WriteTaskfile
   WriteConfig --> UpdateAssets
-  WriteTaskfile --> UpdateAssets
   UpdateAssets --> SaveRecord
   SaveRecord --> SaveState
 ```
@@ -152,9 +152,8 @@ flowchart TD
 | `record.project.wailsConfig.info.productName` | `build/config.yml` |
 | `record.project.wailsConfig.info.version` | `build/config.yml`，保存时自动补 `v` 前缀 |
 | `record.project.wailsConfig.info.productIdentifier` | `build/config.yml` |
-| `record.project.taskVars.appName` | `Taskfile.yml` 的 `APP_NAME` |
-| `record.project.taskVars.production` | `Taskfile.yml` 的 `PRODUCTION` |
-| `record.project.taskVars.cgoEnabled` | `Taskfile.yml` 的 `CGO_ENABLED` |
+
+`APP_NAME` / `PRODUCTION` / `CGO_ENABLED` 不再保存在 `project.json` 的 `taskVars` 中。首次初始化 packaging 时会从 Taskfile 读取旧默认值，之后以 `builder/packaging.json` 的 `build` 字段为准；默认打包构建会把这些字段作为 Task 变量和环境变量传入。
 
 保存项目和替换图标不会生成额外备份；恢复只使用导入时创建的 `builder/backup/initial`。
 
@@ -176,8 +175,11 @@ sequenceDiagram
     PKG->>Config: 创建默认配置
     Config->>Disk: 写 builder/packaging.json
   end
-  PKG->>Inno: 生成 builder/windows/inno.iss
-  PKG->>DMG: 生成 builder/macos/dmg.sh 和 background.png
+  alt 当前系统为 Windows
+    PKG->>Inno: 生成 builder/windows/inno.iss
+  else 当前系统为 macOS
+    PKG->>DMG: 生成 builder/macos/dmg.sh 和 background.png
+  end
   PKG-->>FE: PackagingConfig
 
   FE->>PKG: Package({ projectDir, platform, dryRun, runBuild })
@@ -187,7 +189,7 @@ sequenceDiagram
   PKG-->>FE: PackageResult
 ```
 
-打包模块会读取 `core/project` 的 `builder/project.json` 工具函数来生成默认配置，但不会修改项目管理数据。
+打包模块会读取 `core/project` 的 `builder/project.json` 工具函数来生成当前系统的打包模板，但不会把项目基础信息写入 `packaging.json`。产品名、版本、bundleId、图标等来自 `project.json`；`build.appName` / `production` / `cgoEnabled` 是打包 build 的唯一配置源。
 
 打包阶段不支持 before/after 脚本字段；自定义构建只通过 `builder/packaging.json` 的 `build.command` 表达。
 
@@ -198,7 +200,7 @@ flowchart LR
   AppService["src/services/appService.js"]
 
   AppService --> Project["project<br/>ScanProject<br/>ImportProject<br/>SaveProject<br/>ReplaceProjectIcon"]
-  AppService --> Settings["settings<br/>ListProjects<br/>OpenProject<br/>RemoveProject<br/>GetSettings<br/>SaveSettings<br/>LogsSince"]
+  AppService --> Settings["settings<br/>ListProjects<br/>OpenProject<br/>RemoveProject<br/>GetSettings<br/>SaveSettings<br/>ClearLogs"]
   AppService --> Environment["environment<br/>CheckEnvironment"]
   AppService --> Packaging["packaging<br/>InitPackaging<br/>LoadPackagingConfig<br/>SavePackagingConfig<br/>Package<br/>Artifacts"]
 ```
@@ -209,7 +211,9 @@ flowchart LR
 import { appService } from '@/services/appService'
 
 const scan = await appService.ScanProject(projectDir)
-const record = await appService.ImportProject(projectDir)
+await appService.ImportProject(projectDir)
+const projects = await appService.ListProjects()
+const record = await appService.OpenProject(projectDir)
 
 record.project.wailsConfig.info.productName = 'New Name'
 const saved = await appService.SaveProject(record)

@@ -22,10 +22,10 @@ export function Artifacts(projectDir) {
 
 /**
  * @param {string} projectDir
- * @returns {$CancellablePromise<contracts$0.PackagingConfig>}
+ * @returns {$CancellablePromise<contracts$0.PackagingRuntimeInfo>}
  */
-export function InitPackaging(projectDir) {
-    return $Call.ByID(3023897689, projectDir).then(/** @type {($result: any) => any} */(($result) => {
+export function GetPackagingRuntimeInfo(projectDir) {
+    return $Call.ByID(390323093, projectDir).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType2($result);
     }));
 }
@@ -34,10 +34,16 @@ export function InitPackaging(projectDir) {
  * @param {string} projectDir
  * @returns {$CancellablePromise<contracts$0.PackagingConfig>}
  */
+export function InitPackaging(projectDir) {
+    return $Call.ByID(3023897689, projectDir);
+}
+
+/**
+ * @param {string} projectDir
+ * @returns {$CancellablePromise<contracts$0.PackagingConfig>}
+ */
 export function LoadPackagingConfig(projectDir) {
-    return $Call.ByID(1696901017, projectDir).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType2($result);
-    }));
+    return $Call.ByID(1696901017, projectDir);
 }
 
 /**
@@ -56,13 +62,11 @@ export function Package(req) {
  * @returns {$CancellablePromise<contracts$0.PackagingConfig>}
  */
 export function SavePackagingConfig(projectDir, cfg) {
-    return $Call.ByID(3548482574, projectDir, cfg).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType2($result);
-    }));
+    return $Call.ByID(3548482574, projectDir, cfg);
 }
 
 // Private type creation functions
 const $$createType0 = contracts$0.Artifact.createFrom;
 const $$createType1 = $Create.Array($$createType0);
-const $$createType2 = contracts$0.PackagingConfig.createFrom;
+const $$createType2 = contracts$0.PackagingRuntimeInfo.createFrom;
 const $$createType3 = contracts$0.PackageResult.createFrom;

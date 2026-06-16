@@ -47,7 +47,7 @@ func EnsureInitialSnapshot(projectDir string) (string, error) {
 		break
 	}
 	if len(manifest.Files) == 0 {
-		return "", fmt.Errorf("没有可备份的初始项目文件")
+		return "", fmt.Errorf("no initial project files are available for backup")
 	}
 	data, err := json.MarshalIndent(manifest, "", "  ")
 	if err != nil {
@@ -59,7 +59,7 @@ func EnsureInitialSnapshot(projectDir string) (string, error) {
 func RestoreInitialSnapshot(projectDir string) error {
 	dir := filepath.Join(BackupRoot(projectDir), "initial")
 	if !fsx.FileExists(filepath.Join(dir, "manifest.json")) {
-		return fmt.Errorf("未找到导入前快照")
+		return fmt.Errorf("initial import snapshot was not found")
 	}
 	buildSrc := filepath.Join(dir, "build")
 	if fsx.DirExists(buildSrc) {
@@ -84,7 +84,7 @@ func RestoreInitialSnapshot(projectDir string) error {
 		break
 	}
 	if !restoredTaskfile {
-		return fmt.Errorf("导入前快照缺少 Taskfile")
+		return fmt.Errorf("initial import snapshot is missing the Taskfile")
 	}
 	return nil
 }

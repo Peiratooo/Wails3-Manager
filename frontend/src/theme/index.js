@@ -3,8 +3,6 @@ export const THEME_NAMES = Object.freeze({
     DARK: 'dark',
 })
 
-export const THEME_STORAGE_KEY = 'wails3-manager-theme'
-
 export const themeCssVariables = Object.freeze({
     [THEME_NAMES.LIGHT]: Object.freeze({
         '--wm-color-primary': 'hsl(0, 90%, 45%)',
@@ -251,27 +249,8 @@ export const naiveThemeOverrides = Object.freeze({
     }),
 })
 
-export function normalizeThemeName(themeName) {
-    return themeName === THEME_NAMES.DARK ? THEME_NAMES.DARK : THEME_NAMES.LIGHT
-}
-
-export function getInitialThemeName() {
-    if (typeof window === 'undefined') {
-        return THEME_NAMES.LIGHT
-    }
-
-    try {
-        const storedTheme = window.localStorage.getItem(THEME_STORAGE_KEY)
-        if (storedTheme) {
-            return normalizeThemeName(storedTheme)
-        }
-    } catch {
-        return THEME_NAMES.LIGHT
-    }
-
-    return window.matchMedia?.('(prefers-color-scheme: dark)').matches
-        ? THEME_NAMES.DARK
-        : THEME_NAMES.LIGHT
+export function themeNameFromIsDark(isDark) {
+    return isDark ? THEME_NAMES.DARK : THEME_NAMES.LIGHT
 }
 
 export function applyThemeToDocument(themeName) {
@@ -279,19 +258,7 @@ export function applyThemeToDocument(themeName) {
         return
     }
 
-    const normalizedThemeName = normalizeThemeName(themeName)
+    const normalizedThemeName = themeName === THEME_NAMES.DARK ? THEME_NAMES.DARK : THEME_NAMES.LIGHT
     document.documentElement.dataset.theme = normalizedThemeName
     document.documentElement.style.colorScheme = normalizedThemeName
-}
-
-export function storeThemeName(themeName) {
-    if (typeof window === 'undefined') {
-        return
-    }
-
-    try {
-        window.localStorage.setItem(THEME_STORAGE_KEY, normalizeThemeName(themeName))
-    } catch {
-        // Ignore storage failures in restricted webviews.
-    }
 }

@@ -18,21 +18,28 @@ func DefaultBackgroundPNG() []byte {
 	return data
 }
 
-func GenerateScript(projectDir string, cfg contracts.PackagingConfig) (string, error) {
+func GenerateScript(projectDir string, cfg contracts.PackagingConfig, projectConfig contracts.WailsProjectConfig) (string, error) {
 	path := fsx.Resolve(projectDir, cfg.MacOS.DMGScript)
 	if path == "" {
-		return "", fmt.Errorf("未配置 DMG 脚本路径")
+		return "", fmt.Errorf("DMG script path is not configured")
 	}
-	appBundle := config.RenderPlaceholders(cfg.MacOS.AppBundle, cfg)
-	outputDir := config.MacOSOutputDir(cfg)
-	outputName := config.RenderPlaceholders(cfg.MacOS.OutputName, cfg)
+	projectName := config.ProjectName(projectConfig)
+	if projectName == "" {
+		return "", fmt.Errorf("project productName is required for macOS packaging")
+	}
+	if config.ProjectVersion(projectConfig) == "" {
+		return "", fmt.Errorf("project version is required for macOS packaging")
+	}
+	appBundle := config.MacOSAppBundlePath(cfg, projectConfig)
+	outputDir := config.MacOSOutputDir(cfg, projectConfig)
+	outputName := config.RenderPlaceholders(cfg.MacOS.OutputName, cfg, projectConfig)
 	extraFiles := buildExtraFiles(projectDir, cfg)
 	content := strings.NewReplacer(
-		"{{appName}}", cfg.Project.Name,
+		"{{appName}}", projectName,
 		"{{appBundle}}", filepath.ToSlash(appBundle),
 		"{{outputDir}}", filepath.ToSlash(outputDir),
 		"{{outputName}}", outputName,
-		"{{background}}", filepath.ToSlash(config.RenderPlaceholders(cfg.MacOS.Background, cfg)),
+		"{{background}}", filepath.ToSlash(config.RenderPlaceholders(cfg.MacOS.Background, cfg, projectConfig)),
 		"{{windowWidth}}", fmt.Sprint(cfg.MacOS.WindowWidth),
 		"{{windowHeight}}", fmt.Sprint(cfg.MacOS.WindowHeight),
 		"{{iconSize}}", fmt.Sprint(cfg.MacOS.IconSize),
@@ -40,7 +47,7 @@ func GenerateScript(projectDir string, cfg contracts.PackagingConfig) (string, e
 		"{{appY}}", fmt.Sprint(cfg.MacOS.AppY),
 		"{{applicationsX}}", fmt.Sprint(cfg.MacOS.ApplicationsX),
 		"{{applicationsY}}", fmt.Sprint(cfg.MacOS.ApplicationsY),
-		"{{createDmg}}", fsx.FirstNonEmpty(cfg.MacOS.CreateDMGPath, "create-dmg"),
+		"{{createDmg}}", cfg.MacOS.CreateDMGPath,
 		"{{extraFiles}}", extraFiles,
 	).Replace(defaultTemplate)
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {

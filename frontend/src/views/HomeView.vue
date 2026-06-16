@@ -1,5 +1,10 @@
 <template>
 	<div class="selector">
+        <n-button class="settings-button" circle quaternary @click="store.panels.settings = true">
+            <n-icon size="20">
+                <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 32 32"><g fill="none"><path d="M16 11a5 5 0 1 0 0 10a5 5 0 0 0 0-10zm-3 5a3 3 0 1 1 6 0a3 3 0 0 1-6 0zm-.16 13.628c1.035.247 2.096.372 3.16.372a13.643 13.643 0 0 0 3.156-.375a1.478 1.478 0 0 0 1.13-1.276l.234-2.13a1.471 1.471 0 0 1 2.066-1.2l1.955.856a1.472 1.472 0 0 0 1.671-.345a14.245 14.245 0 0 0 3.156-5.443a1.478 1.478 0 0 0-.535-1.627l-1.729-1.275a1.481 1.481 0 0 1 .003-2.396l1.72-1.27a1.474 1.474 0 0 0 .537-1.63a14.199 14.199 0 0 0-3.157-5.443a1.48 1.48 0 0 0-1.674-.345l-1.946.856a1.483 1.483 0 0 1-2.067-1.2l-.236-2.12a1.476 1.476 0 0 0-1.147-1.283a15.123 15.123 0 0 0-3.127-.363a15.395 15.395 0 0 0-3.146.363a1.469 1.469 0 0 0-1.147 1.28l-.237 2.122a1.493 1.493 0 0 1-2.073 1.206l-1.946-.857a1.493 1.493 0 0 0-1.67.35a14.245 14.245 0 0 0-3.16 5.446a1.478 1.478 0 0 0 .536 1.625l1.725 1.272a1.488 1.488 0 0 1 0 2.397L3.167 18.47a1.477 1.477 0 0 0-.535 1.63a14.253 14.253 0 0 0 3.16 5.45a1.458 1.458 0 0 0 1.077.465c.203 0 .404-.042.591-.123l1.955-.859a1.485 1.485 0 0 1 2.065 1.2l.235 2.126a1.476 1.476 0 0 0 1.125 1.27zm5.501-1.866a11.638 11.638 0 0 1-4.677 0l-.195-1.74a3.48 3.48 0 0 0-1.14-2.208a3.534 3.534 0 0 0-3.718-.6l-1.606.7a12.237 12.237 0 0 1-2.348-4.05l1.424-1.052a3.488 3.488 0 0 0 0-5.616L4.66 12.147a12.243 12.243 0 0 1 2.348-4.046l1.6.7a3.45 3.45 0 0 0 1.4.294a3.5 3.5 0 0 0 3.467-3.108l.194-1.747c.774-.15 1.56-.23 2.347-.24c.782.01 1.562.09 2.33.24l.186 1.74a3.48 3.48 0 0 0 1.137 2.216a3.525 3.525 0 0 0 3.727.6l1.6-.7a12.212 12.212 0 0 1 2.35 4.047l-1.423 1.046a3.48 3.48 0 0 0 0 5.62l1.422 1.05A12.273 12.273 0 0 1 25 23.901l-1.6-.7a3.473 3.473 0 0 0-4.866 2.81l-.193 1.75z" fill="currentColor"></path></g></svg>
+            </n-icon>
+        </n-button>
         <div class="title">
             <div class="welcome">{{ t('home.welcome') }}</div>
             <div class="desc">{{ t('home.desc') }}</div>
@@ -30,6 +35,7 @@
                 <n-data-table :columns="columns" :data="filteredProjects" :rowProps="rowProps"/>
             </div>
         </div>
+        <Settings v-model:show="store.panels.settings" />
     </div>
 </template>
 
@@ -39,13 +45,16 @@ import {onMounted, ref, computed, h, inject} from "vue";
 import {ProjectService} from "../../bindings/wails3-manager/core/project"
 import {SettingsService} from "../../bindings/wails3-manager/core/settings"
 import {AppService} from "../../bindings/wails3-manager/desktop"
-import {NInput,NButton,NIcon,NImage,NDataTable} from "naive-ui"
+import {NInput,NButton,NIcon,NImage,NDataTable,useMessage} from "naive-ui"
+import Settings from '../components/Settings.vue'
+import router from "../router/index.js";
 const { t } = useI18n()
-
-const keywords = ref("")
-
-const projects = ref([])
+const message = useMessage()
 const store = inject("store")
+const route = inject("route")
+const keywords = ref("")
+const formatTimestamp = inject("formatTimestamp")
+const projects = ref([])
 const rowProps = (row) => {
     return {
         style: {
@@ -56,37 +65,36 @@ const rowProps = (row) => {
             if (delEl) {
                 removeProject(row)
             } else {
-                handleRowClick( row)
+                router.push({
+                    name: "project",
+                    query: {
+                        projectDir: encodeURIComponent(row.projectDir)
+                    }
+                })
             }
 
         }
     }
 }
 
-const handleRowClick = (row) => {
-    console.log(row)
-
-}
 async function importProject() {
-    // ProjectService.ImportProject()
-    const res = await AppService.ChooseFolder()
-    if (res) {
-       await ProjectService.ImportProject(res).then((resp)=>{
-           if (resp) {
-               initProjects()
-           }
-       }).catch(e=>{
-           console.error(e)
-       })
+    try {
+        const res = await AppService.ChooseFolder()
+        if (res) {
+            await ProjectService.ImportProject(res)
+            await initProjects()
+        }
+    } catch (error) {
+        message.error(error?.message || String(error))
     }
 }
 
 function removeProject(project) {
-    SettingsService.RemoveProject(project.projectDir,true).then((res)=>{
-
-    }).finally(()=>{
-        initProjects()
-    })
+    SettingsService.RemoveProject(project.projectDir,true)
+        .then(() => initProjects())
+        .catch((error) => {
+            message.error(error?.message || String(error))
+        })
 
 }
 
@@ -165,37 +173,20 @@ const filteredProjects = computed(() => {
     })
 })
 
-const formatTimestamp = (timestamp) => {
-    if (!timestamp) return '-'
 
-    const date = new Date(timestamp * 1000)
 
-    const pad = (n) => String(n).padStart(2, '0')
-
-    const year = date.getFullYear()
-    const month = pad(date.getMonth() + 1)
-    const day = pad(date.getDate())
-    const hour = pad(date.getHours())
-    const minute = pad(date.getMinutes())
-
-    return `${year}-${month}-${day} ${hour}:${minute}`
-}
-
-function initProjects() {
-    SettingsService.ListProjects().then(async (res)=>{
-        projects.value = []
-        for (let i of res) {
-            console.log(i)
-            i["iconPath"] = await SettingsService.GetABSPath(i.projectDir,i.project.wailsConfig.icon)
-            projects.value.push(i)
-        }
-    })
+async function initProjects() {
+    const res = await SettingsService.ListProjects()
+    projects.value = []
+    for (let i of res) {
+        i["iconPath"] = await SettingsService.GetABSPath(i.projectDir,i.project.wailsConfig.icon)
+        projects.value.push(i)
+    }
 }
 
 onMounted(()=>{
-    initProjects()
-    SettingsService.GetSettings().then((res)=>{
-        console.log(res)
+    initProjects().catch((error) => {
+        message.error(error?.message || String(error))
     })
 })
 </script>
@@ -212,6 +203,19 @@ onMounted(()=>{
     overflow: hidden;
     color: var(--wm-text-secondary);
     background: var(--wm-bg-page-gradient);
+}
+
+.settings-button {
+    position: absolute;
+    top: 24px;
+    right: 28px;
+    color: var(--wm-text-secondary);
+    display: flex;
+    align-items: center;
+}
+
+.settings-button:hover {
+    color: var(--wm-color-primary-hover);
 }
 
 .title {

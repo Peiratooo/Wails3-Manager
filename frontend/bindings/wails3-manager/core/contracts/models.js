@@ -62,98 +62,136 @@ export class Artifact {
     }
 }
 
-export class ArtifactConfig {
+export class CreateWailsProjectRequest {
     /**
-     * Creates a new ArtifactConfig instance.
-     * @param {Partial<ArtifactConfig>} [$$source = {}] - The source object to create the ArtifactConfig.
+     * Creates a new CreateWailsProjectRequest instance.
+     * @param {Partial<CreateWailsProjectRequest>} [$$source = {}] - The source object to create the CreateWailsProjectRequest.
      */
     constructor($$source = {}) {
-        if (!("outputRoot" in $$source)) {
+        if (!("name" in $$source)) {
             /**
              * @member
              * @type {string}
              */
-            this["outputRoot"] = "";
+            this["name"] = "";
+        }
+        if (!("dir" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["dir"] = "";
+        }
+        if (!("template" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["template"] = "";
+        }
+        if (!("packageName" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["packageName"] = "";
+        }
+        if (!("goModule" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["goModule"] = "";
+        }
+        if (!("git" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["git"] = "";
+        }
+        if (!("productName" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["productName"] = "";
+        }
+        if (!("productDescription" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["productDescription"] = "";
+        }
+        if (!("productVersion" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["productVersion"] = "";
+        }
+        if (!("productCompany" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["productCompany"] = "";
+        }
+        if (!("productCopyright" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["productCopyright"] = "";
+        }
+        if (!("productComments" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["productComments"] = "";
+        }
+        if (!("productIdentifier" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["productIdentifier"] = "";
+        }
+        if (!("quiet" in $$source)) {
+            /**
+             * @member
+             * @type {boolean}
+             */
+            this["quiet"] = false;
+        }
+        if (!("skipRemoteTemplateWarning" in $$source)) {
+            /**
+             * @member
+             * @type {boolean}
+             */
+            this["skipRemoteTemplateWarning"] = false;
+        }
+        if (!("skipGoModTidy" in $$source)) {
+            /**
+             * @member
+             * @type {boolean}
+             */
+            this["skipGoModTidy"] = false;
         }
 
         Object.assign(this, $$source);
     }
 
     /**
-     * Creates a new ArtifactConfig instance from a string or object.
+     * Creates a new CreateWailsProjectRequest instance from a string or object.
      * @param {any} [$$source = {}]
-     * @returns {ArtifactConfig}
+     * @returns {CreateWailsProjectRequest}
      */
     static createFrom($$source = {}) {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new ArtifactConfig(/** @type {Partial<ArtifactConfig>} */($$parsedSource));
-    }
-}
-
-export class BuildSettings {
-    /**
-     * Creates a new BuildSettings instance.
-     * @param {Partial<BuildSettings>} [$$source = {}] - The source object to create the BuildSettings.
-     */
-    constructor($$source = {}) {
-        if (!("taskfile" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["taskfile"] = "";
-        }
-        if (!("task" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["task"] = "";
-        }
-        if (!("command" in $$source)) {
-            /**
-             * @member
-             * @type {string[]}
-             */
-            this["command"] = [];
-        }
-        if (!("production" in $$source)) {
-            /**
-             * @member
-             * @type {boolean}
-             */
-            this["production"] = false;
-        }
-        if (!("cgoEnabled" in $$source)) {
-            /**
-             * @member
-             * @type {boolean}
-             */
-            this["cgoEnabled"] = false;
-        }
-        if (!("appName" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["appName"] = "";
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new BuildSettings instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {BuildSettings}
-     */
-    static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType0;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("command" in $$parsedSource) {
-            $$parsedSource["command"] = $$createField2_0($$parsedSource["command"]);
-        }
-        return new BuildSettings(/** @type {Partial<BuildSettings>} */($$parsedSource));
+        return new CreateWailsProjectRequest(/** @type {Partial<CreateWailsProjectRequest>} */($$parsedSource));
     }
 }
 
@@ -201,7 +239,7 @@ export class EnvironmentReport {
      * @returns {EnvironmentReport}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType2;
+        const $$createField3_0 = $$createType1;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("checks" in $$parsedSource) {
             $$parsedSource["checks"] = $$createField3_0($$parsedSource["checks"]);
@@ -210,154 +248,31 @@ export class EnvironmentReport {
     }
 }
 
-export class LogSnapshot {
+export class LogLineEvent {
     /**
-     * Creates a new LogSnapshot instance.
-     * @param {Partial<LogSnapshot>} [$$source = {}] - The source object to create the LogSnapshot.
+     * Creates a new LogLineEvent instance.
+     * @param {Partial<LogLineEvent>} [$$source = {}] - The source object to create the LogLineEvent.
      */
     constructor($$source = {}) {
-        if (!("cursor" in $$source)) {
+        if (!("line" in $$source)) {
             /**
              * @member
-             * @type {number}
+             * @type {string}
              */
-            this["cursor"] = 0;
-        }
-        if (!("lines" in $$source)) {
-            /**
-             * @member
-             * @type {string[]}
-             */
-            this["lines"] = [];
+            this["line"] = "";
         }
 
         Object.assign(this, $$source);
     }
 
     /**
-     * Creates a new LogSnapshot instance from a string or object.
+     * Creates a new LogLineEvent instance from a string or object.
      * @param {any} [$$source = {}]
-     * @returns {LogSnapshot}
-     */
-    static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType0;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("lines" in $$parsedSource) {
-            $$parsedSource["lines"] = $$createField1_0($$parsedSource["lines"]);
-        }
-        return new LogSnapshot(/** @type {Partial<LogSnapshot>} */($$parsedSource));
-    }
-}
-
-export class MacOSConfig {
-    /**
-     * Creates a new MacOSConfig instance.
-     * @param {Partial<MacOSConfig>} [$$source = {}] - The source object to create the MacOSConfig.
-     */
-    constructor($$source = {}) {
-        if (!("enabled" in $$source)) {
-            /**
-             * @member
-             * @type {boolean}
-             */
-            this["enabled"] = false;
-        }
-        if (!("appBundle" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["appBundle"] = "";
-        }
-        if (!("dmgScript" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["dmgScript"] = "";
-        }
-        if (!("background" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["background"] = "";
-        }
-        if (!("outputName" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["outputName"] = "";
-        }
-        if (!("createDmgPath" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["createDmgPath"] = "";
-        }
-        if (!("windowWidth" in $$source)) {
-            /**
-             * @member
-             * @type {number}
-             */
-            this["windowWidth"] = 0;
-        }
-        if (!("windowHeight" in $$source)) {
-            /**
-             * @member
-             * @type {number}
-             */
-            this["windowHeight"] = 0;
-        }
-        if (!("iconSize" in $$source)) {
-            /**
-             * @member
-             * @type {number}
-             */
-            this["iconSize"] = 0;
-        }
-        if (!("appX" in $$source)) {
-            /**
-             * @member
-             * @type {number}
-             */
-            this["appX"] = 0;
-        }
-        if (!("appY" in $$source)) {
-            /**
-             * @member
-             * @type {number}
-             */
-            this["appY"] = 0;
-        }
-        if (!("applicationsX" in $$source)) {
-            /**
-             * @member
-             * @type {number}
-             */
-            this["applicationsX"] = 0;
-        }
-        if (!("applicationsY" in $$source)) {
-            /**
-             * @member
-             * @type {number}
-             */
-            this["applicationsY"] = 0;
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new MacOSConfig instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {MacOSConfig}
+     * @returns {LogLineEvent}
      */
     static createFrom($$source = {}) {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new MacOSConfig(/** @type {Partial<MacOSConfig>} */($$parsedSource));
+        return new LogLineEvent(/** @type {Partial<LogLineEvent>} */($$parsedSource));
     }
 }
 
@@ -367,12 +282,12 @@ export class ManagerSettings {
      * @param {Partial<ManagerSettings>} [$$source = {}] - The source object to create the ManagerSettings.
      */
     constructor($$source = {}) {
-        if (!("theme" in $$source)) {
+        if (!("isDark" in $$source)) {
             /**
              * @member
-             * @type {string}
+             * @type {boolean}
              */
-            this["theme"] = "";
+            this["isDark"] = false;
         }
         if (!("language" in $$source)) {
             /**
@@ -503,8 +418,8 @@ export class PackageResult {
      * @returns {PackageResult}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType4;
-        const $$createField4_0 = $$createType0;
+        const $$createField3_0 = $$createType3;
+        const $$createField4_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("artifacts" in $$parsedSource) {
             $$parsedSource["artifacts"] = $$createField3_0($$parsedSource["artifacts"]);
@@ -516,150 +431,49 @@ export class PackageResult {
     }
 }
 
-export class PackagingAsset {
+/**
+ * @typedef {any} PackagingConfig
+ */
+
+export class PackagingRuntimeInfo {
     /**
-     * Creates a new PackagingAsset instance.
-     * @param {Partial<PackagingAsset>} [$$source = {}] - The source object to create the PackagingAsset.
+     * Creates a new PackagingRuntimeInfo instance.
+     * @param {Partial<PackagingRuntimeInfo>} [$$source = {}] - The source object to create the PackagingRuntimeInfo.
      */
     constructor($$source = {}) {
-        if (!("src" in $$source)) {
+        if (!("defaultExecutablePath" in $$source)) {
             /**
              * @member
              * @type {string}
              */
-            this["src"] = "";
+            this["defaultExecutablePath"] = "";
         }
-        if (!("type" in $$source)) {
+        if (!("effectiveExecutablePath" in $$source)) {
             /**
              * @member
              * @type {string}
              */
-            this["type"] = "";
+            this["effectiveExecutablePath"] = "";
         }
-        if (!("required" in $$source)) {
+        if (!("usingDefaultExecutable" in $$source)) {
             /**
              * @member
              * @type {boolean}
              */
-            this["required"] = false;
+            this["usingDefaultExecutable"] = false;
         }
 
         Object.assign(this, $$source);
     }
 
     /**
-     * Creates a new PackagingAsset instance from a string or object.
+     * Creates a new PackagingRuntimeInfo instance from a string or object.
      * @param {any} [$$source = {}]
-     * @returns {PackagingAsset}
+     * @returns {PackagingRuntimeInfo}
      */
     static createFrom($$source = {}) {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new PackagingAsset(/** @type {Partial<PackagingAsset>} */($$parsedSource));
-    }
-}
-
-export class PackagingConfig {
-    /**
-     * Creates a new PackagingConfig instance.
-     * @param {Partial<PackagingConfig>} [$$source = {}] - The source object to create the PackagingConfig.
-     */
-    constructor($$source = {}) {
-        if (!("schemaVersion" in $$source)) {
-            /**
-             * @member
-             * @type {number}
-             */
-            this["schemaVersion"] = 0;
-        }
-        if (!("project" in $$source)) {
-            /**
-             * @member
-             * @type {ProjectInfo}
-             */
-            this["project"] = (new ProjectInfo());
-        }
-        if (!("build" in $$source)) {
-            /**
-             * @member
-             * @type {BuildSettings}
-             */
-            this["build"] = (new BuildSettings());
-        }
-        if (!("entry" in $$source)) {
-            /**
-             * @member
-             * @type {ProgramEntry}
-             */
-            this["entry"] = (new ProgramEntry());
-        }
-        if (!("assets" in $$source)) {
-            /**
-             * @member
-             * @type {PackagingAsset[]}
-             */
-            this["assets"] = [];
-        }
-        if (!("windows" in $$source)) {
-            /**
-             * @member
-             * @type {WindowsConfig}
-             */
-            this["windows"] = (new WindowsConfig());
-        }
-        if (!("macos" in $$source)) {
-            /**
-             * @member
-             * @type {MacOSConfig}
-             */
-            this["macos"] = (new MacOSConfig());
-        }
-        if (!("artifacts" in $$source)) {
-            /**
-             * @member
-             * @type {ArtifactConfig}
-             */
-            this["artifacts"] = (new ArtifactConfig());
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new PackagingConfig instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {PackagingConfig}
-     */
-    static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType5;
-        const $$createField2_0 = $$createType6;
-        const $$createField3_0 = $$createType7;
-        const $$createField4_0 = $$createType9;
-        const $$createField5_0 = $$createType10;
-        const $$createField6_0 = $$createType11;
-        const $$createField7_0 = $$createType12;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("project" in $$parsedSource) {
-            $$parsedSource["project"] = $$createField1_0($$parsedSource["project"]);
-        }
-        if ("build" in $$parsedSource) {
-            $$parsedSource["build"] = $$createField2_0($$parsedSource["build"]);
-        }
-        if ("entry" in $$parsedSource) {
-            $$parsedSource["entry"] = $$createField3_0($$parsedSource["entry"]);
-        }
-        if ("assets" in $$parsedSource) {
-            $$parsedSource["assets"] = $$createField4_0($$parsedSource["assets"]);
-        }
-        if ("windows" in $$parsedSource) {
-            $$parsedSource["windows"] = $$createField5_0($$parsedSource["windows"]);
-        }
-        if ("macos" in $$parsedSource) {
-            $$parsedSource["macos"] = $$createField6_0($$parsedSource["macos"]);
-        }
-        if ("artifacts" in $$parsedSource) {
-            $$parsedSource["artifacts"] = $$createField7_0($$parsedSource["artifacts"]);
-        }
-        return new PackagingConfig(/** @type {Partial<PackagingConfig>} */($$parsedSource));
+        return new PackagingRuntimeInfo(/** @type {Partial<PackagingRuntimeInfo>} */($$parsedSource));
     }
 }
 
@@ -678,125 +492,6 @@ export const Platform = {
     PlatformMacOS: "darwin",
     PlatformAll: "all",
 };
-
-export class ProgramEntry {
-    /**
-     * Creates a new ProgramEntry instance.
-     * @param {Partial<ProgramEntry>} [$$source = {}] - The source object to create the ProgramEntry.
-     */
-    constructor($$source = {}) {
-        if (!("executablePath" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["executablePath"] = "";
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new ProgramEntry instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {ProgramEntry}
-     */
-    static createFrom($$source = {}) {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new ProgramEntry(/** @type {Partial<ProgramEntry>} */($$parsedSource));
-    }
-}
-
-export class ProjectInfo {
-    /**
-     * Creates a new ProjectInfo instance.
-     * @param {Partial<ProjectInfo>} [$$source = {}] - The source object to create the ProjectInfo.
-     */
-    constructor($$source = {}) {
-        if (!("name" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["name"] = "";
-        }
-        if (!("version" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["version"] = "";
-        }
-        if (!("bundleId" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["bundleId"] = "";
-        }
-        if (!("author" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["author"] = "";
-        }
-        if (!("publisher" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["publisher"] = "";
-        }
-        if (!("homepage" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["homepage"] = "";
-        }
-        if (!("copyright" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["copyright"] = "";
-        }
-        if (!("description" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["description"] = "";
-        }
-        if (!("buildOutputDir" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["buildOutputDir"] = "";
-        }
-        if (!("icon" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["icon"] = "";
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new ProjectInfo instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {ProjectInfo}
-     */
-    static createFrom($$source = {}) {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new ProjectInfo(/** @type {Partial<ProjectInfo>} */($$parsedSource));
-    }
-}
 
 export class ProjectRecord {
     /**
@@ -842,7 +537,7 @@ export class ProjectRecord {
      * @returns {ProjectRecord}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType13;
+        const $$createField1_0 = $$createType5;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("project" in $$parsedSource) {
             $$parsedSource["project"] = $$createField1_0($$parsedSource["project"]);
@@ -1145,8 +840,8 @@ export class WailsProjectConfig {
      * @returns {WailsProjectConfig}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType14;
-        const $$createField2_0 = $$createType16;
+        const $$createField0_0 = $$createType6;
+        const $$createField2_0 = $$createType8;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("info" in $$parsedSource) {
             $$parsedSource["info"] = $$createField0_0($$parsedSource["info"]);
@@ -1185,13 +880,6 @@ export class WailsProjectManager {
              */
             this["wailsConfig"] = (new WailsProjectConfig());
         }
-        if (!("taskVars" in $$source)) {
-            /**
-             * @member
-             * @type {WailsTaskVars}
-             */
-            this["taskVars"] = (new WailsTaskVars());
-        }
 
         Object.assign(this, $$source);
     }
@@ -1202,155 +890,23 @@ export class WailsProjectManager {
      * @returns {WailsProjectManager}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType17;
-        const $$createField3_0 = $$createType18;
+        const $$createField2_0 = $$createType9;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("wailsConfig" in $$parsedSource) {
             $$parsedSource["wailsConfig"] = $$createField2_0($$parsedSource["wailsConfig"]);
-        }
-        if ("taskVars" in $$parsedSource) {
-            $$parsedSource["taskVars"] = $$createField3_0($$parsedSource["taskVars"]);
         }
         return new WailsProjectManager(/** @type {Partial<WailsProjectManager>} */($$parsedSource));
     }
 }
 
-export class WailsTaskVars {
-    /**
-     * Creates a new WailsTaskVars instance.
-     * @param {Partial<WailsTaskVars>} [$$source = {}] - The source object to create the WailsTaskVars.
-     */
-    constructor($$source = {}) {
-        if (!("appName" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["appName"] = "";
-        }
-        if (!("production" in $$source)) {
-            /**
-             * @member
-             * @type {boolean}
-             */
-            this["production"] = false;
-        }
-        if (!("cgoEnabled" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["cgoEnabled"] = "";
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new WailsTaskVars instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {WailsTaskVars}
-     */
-    static createFrom($$source = {}) {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new WailsTaskVars(/** @type {Partial<WailsTaskVars>} */($$parsedSource));
-    }
-}
-
-export class WindowsConfig {
-    /**
-     * Creates a new WindowsConfig instance.
-     * @param {Partial<WindowsConfig>} [$$source = {}] - The source object to create the WindowsConfig.
-     */
-    constructor($$source = {}) {
-        if (!("enabled" in $$source)) {
-            /**
-             * @member
-             * @type {boolean}
-             */
-            this["enabled"] = false;
-        }
-        if (!("innoScript" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["innoScript"] = "";
-        }
-        if (!("isccPath" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["isccPath"] = "";
-        }
-        if (!("defaultDirName" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["defaultDirName"] = "";
-        }
-        if (!("privilegesRequired" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["privilegesRequired"] = "";
-        }
-        if (!("setupIcon" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["setupIcon"] = "";
-        }
-        if (!("outputBaseName" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["outputBaseName"] = "";
-        }
-        if (!("createDesktopShortcut" in $$source)) {
-            /**
-             * @member
-             * @type {boolean}
-             */
-            this["createDesktopShortcut"] = false;
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new WindowsConfig instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {WindowsConfig}
-     */
-    static createFrom($$source = {}) {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new WindowsConfig(/** @type {Partial<WindowsConfig>} */($$parsedSource));
-    }
-}
-
 // Private type creation functions
-const $$createType0 = $Create.Array($Create.Any);
-const $$createType1 = ToolCheck.createFrom;
-const $$createType2 = $Create.Array($$createType1);
-const $$createType3 = Artifact.createFrom;
-const $$createType4 = $Create.Array($$createType3);
-const $$createType5 = ProjectInfo.createFrom;
-const $$createType6 = BuildSettings.createFrom;
-const $$createType7 = ProgramEntry.createFrom;
-const $$createType8 = PackagingAsset.createFrom;
-const $$createType9 = $Create.Array($$createType8);
-const $$createType10 = WindowsConfig.createFrom;
-const $$createType11 = MacOSConfig.createFrom;
-const $$createType12 = ArtifactConfig.createFrom;
-const $$createType13 = WailsProjectManager.createFrom;
-const $$createType14 = WailsAppInfo.createFrom;
-const $$createType15 = WailsFileAssociation.createFrom;
-const $$createType16 = $Create.Array($$createType15);
-const $$createType17 = WailsProjectConfig.createFrom;
-const $$createType18 = WailsTaskVars.createFrom;
+const $$createType0 = ToolCheck.createFrom;
+const $$createType1 = $Create.Array($$createType0);
+const $$createType2 = Artifact.createFrom;
+const $$createType3 = $Create.Array($$createType2);
+const $$createType4 = $Create.Array($Create.Any);
+const $$createType5 = WailsProjectManager.createFrom;
+const $$createType6 = WailsAppInfo.createFrom;
+const $$createType7 = WailsFileAssociation.createFrom;
+const $$createType8 = $Create.Array($$createType7);
+const $$createType9 = WailsProjectConfig.createFrom;

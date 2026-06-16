@@ -12,21 +12,19 @@ import * as contracts$0 from "../contracts/models.js";
 
 /**
  * @param {string} projectDir
- * @returns {$CancellablePromise<contracts$0.ProjectRecord>}
+ * @returns {$CancellablePromise<void>}
  */
 export function ImportProject(projectDir) {
-    return $Call.ByID(3467381582, projectDir).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType0($result);
-    }));
+    return $Call.ByID(3467381582, projectDir);
 }
 
 /**
  * @param {string} projectDir
- * @param {string} sourcePath
+ * @param {string} pngBase64
  * @returns {$CancellablePromise<contracts$0.ProjectRecord>}
  */
-export function ReplaceProjectIcon(projectDir, sourcePath) {
-    return $Call.ByID(1035802352, projectDir, sourcePath).then(/** @type {($result: any) => any} */(($result) => {
+export function ReplaceProjectIcon(projectDir, pngBase64) {
+    return $Call.ByID(1035802352, projectDir, pngBase64).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType0($result);
     }));
 }

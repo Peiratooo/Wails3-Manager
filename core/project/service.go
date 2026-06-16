@@ -5,7 +5,8 @@ import (
 )
 
 type ProjectService struct {
-	Log *runlog.Logger
+	Log             *runlog.Logger
+	InitPackagingFn func(projectDir string) error
 }
 
 func NewService(log *runlog.Logger) *ProjectService {

@@ -41,23 +41,11 @@
 
 ## PackagingConfig
 
-`PackagingConfig` 是唯一的打包配置结构，固定保存为 `builder/packaging.json`。
+`PackagingConfig` 是唯一的打包配置结构，固定保存为 `builder/packaging.json`。初始化只写当前系统的平台配置；下面示例为 Windows。
 
 ```json
 {
   "schemaVersion": 1,
-  "project": {
-    "name": "demo-desktop",
-    "version": "1.2.3",
-    "bundleId": "com.acme.demo",
-    "author": "Acme Team",
-    "publisher": "Acme Inc.",
-    "homepage": "https://example.com/demo",
-    "copyright": "Copyright 2026 Acme Inc.",
-    "description": "Demo Wails desktop app",
-    "buildOutputDir": "build/bin",
-    "icon": "build/appicon.png"
-  },
   "build": {
     "taskfile": "Taskfile.yml",
     "task": "builder:release",
@@ -67,7 +55,7 @@
     "appName": "demo-desktop"
   },
   "entry": {
-    "executablePath": "bin/demo-desktop.exe"
+    "executablePath": ""
   },
   "assets": [
     {
@@ -85,26 +73,12 @@
     "enabled": true,
     "innoScript": "builder/windows/inno.iss",
     "isccPath": "C:/Program Files (x86)/Inno Setup 6/ISCC.exe",
-    "defaultDirName": "{autopf}/Demo Desktop",
+    "defaultDirName": "{autopf}/${project.name}",
     "privilegesRequired": "lowest",
     "setupIcon": "build/windows/icon.ico",
     "outputBaseName": "${build.appName}-${project.version}-windows-setup",
+    "appURL": "https://example.com/demo",
     "createDesktopShortcut": true
-  },
-  "macos": {
-    "enabled": true,
-    "appBundle": "bin/Demo Desktop.app",
-    "dmgScript": "builder/macos/dmg.sh",
-    "background": "builder/macos/background.png",
-    "outputName": "${build.appName}-${project.version}",
-    "createDmgPath": "create-dmg",
-    "windowWidth": 640,
-    "windowHeight": 420,
-    "iconSize": 96,
-    "appX": 180,
-    "appY": 210,
-    "applicationsX": 460,
-    "applicationsY": 210
   },
   "artifacts": {
     "outputRoot": "builder/release"
@@ -112,26 +86,9 @@
 }
 ```
 
-## ProjectInfo
-
-```json
-{
-  "name": "demo-desktop",
-  "version": "1.2.3",
-  "bundleId": "com.acme.demo",
-  "author": "Acme Team",
-  "publisher": "Acme Inc.",
-  "homepage": "https://example.com/demo",
-  "copyright": "Copyright 2026 Acme Inc.",
-  "description": "Demo Wails desktop app",
-  "buildOutputDir": "build/bin",
-  "icon": "build/appicon.png"
-}
-```
-
 ## BuildSettings
 
-`appName` 来自项目 Taskfile 的 `APP_NAME`，用于安装包文件名占位符 `${build.appName}`。
+`appName` 是打包构建的应用名来源，用于安装包文件名占位符 `${build.appName}`；默认构建会把它作为 `APP_NAME` Task 变量和环境变量传入。
 
 ```json
 {
@@ -148,9 +105,11 @@
 
 ```json
 {
-  "executablePath": "bin/demo-desktop.exe"
+  "executablePath": ""
 }
 ```
+
+为空时 Windows 默认使用 `bin/${build.appName}.exe`。
 
 ## PackagingAsset
 
@@ -171,10 +130,11 @@
   "enabled": true,
   "innoScript": "builder/windows/inno.iss",
   "isccPath": "C:/Program Files (x86)/Inno Setup 6/ISCC.exe",
-  "defaultDirName": "{autopf}/Demo Desktop",
+  "defaultDirName": "{autopf}/${project.name}",
   "privilegesRequired": "lowest",
   "setupIcon": "build/windows/icon.ico",
   "outputBaseName": "${build.appName}-${project.version}-windows-setup",
+  "appURL": "https://example.com/demo",
   "createDesktopShortcut": true
 }
 ```
@@ -184,7 +144,7 @@
 ```json
 {
   "enabled": true,
-  "appBundle": "bin/Demo Desktop.app",
+  "appBundle": "bin/${build.appName}.app",
   "dmgScript": "builder/macos/dmg.sh",
   "background": "builder/macos/background.png",
   "outputName": "${build.appName}-${project.version}",
@@ -407,16 +367,6 @@
 }
 ```
 
-## WailsTaskVars
-
-```json
-{
-  "appName": "demo-desktop",
-  "production": true,
-  "cgoEnabled": "1"
-}
-```
-
 ## WailsFileAssociation
 
 ```json
@@ -448,11 +398,6 @@
     },
     "icon": "build/appicon.png",
     "fileAssociations": []
-  },
-  "taskVars": {
-    "appName": "demo-desktop",
-    "production": true,
-    "cgoEnabled": "1"
   }
 }
 ```
@@ -477,11 +422,6 @@
       },
       "icon": "build/appicon.png",
       "fileAssociations": []
-    },
-    "taskVars": {
-      "appName": "demo-desktop",
-      "production": true,
-      "cgoEnabled": "1"
     }
   },
   "importedAt": 1770000000,
@@ -511,11 +451,6 @@
           },
           "icon": "build/appicon.png",
           "fileAssociations": []
-        },
-        "taskVars": {
-          "appName": "demo-desktop",
-          "production": true,
-          "cgoEnabled": "1"
         }
       },
       "importedAt": 1770000000,
@@ -529,7 +464,7 @@
 
 ```json
 {
-  "theme": "dark",
+  "isDark": true,
   "language": "zh-CN",
   "recordLogs": true
 }
@@ -575,12 +510,11 @@
 }
 ```
 
-## LogSnapshot
+## LogLineEvent
 
 ```json
 {
-  "cursor": 42,
-  "lines": ["running wails3 task builder:release", "generated installer"]
+  "line": "[12:00:00] running wails3 task builder:release"
 }
 ```
 

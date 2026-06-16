@@ -2,6 +2,7 @@ package project
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"sort"
@@ -45,15 +46,14 @@ func SortProjects(projects []contracts.ProjectRecord) {
 }
 
 func UpsertProjectRecord(record contracts.ProjectRecord) error {
-	projectDir, err := NormalizeProjectDir(record)
-	if err != nil {
-		return err
+	if record.ProjectDir == "" {
+		return errors.New("project path is required")
 	}
-	record = NormalizeProjectRecord(record, projectDir)
+	record.Project.ProjectDir = record.ProjectDir
 	state := LoadUserState()
 	found := false
 	for i := range state.Projects {
-		if SameProjectPath(state.Projects[i].ProjectDir, projectDir) {
+		if SameProjectPath(state.Projects[i].ProjectDir, record.ProjectDir) {
 			state.Projects[i] = record
 			found = true
 			break

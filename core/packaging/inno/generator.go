@@ -11,27 +11,38 @@ import (
 	"wails3-manager/core/packaging/config"
 )
 
-func Generate(projectDir string, cfg contracts.PackagingConfig) (string, error) {
-	main := cfg.Entry
-	outputDir := config.WindowsOutputDir(cfg)
-	outputBase := config.RenderPlaceholders(cfg.Windows.OutputBaseName, cfg)
-	if outputBase == "" {
-		outputBase = config.RenderPlaceholders("${project.name}-${project.version}-windows-setup", cfg)
+func Generate(projectDir string, cfg contracts.PackagingConfig, projectConfig contracts.WailsProjectConfig) (string, error) {
+	main := config.WindowsExecutablePath(cfg, projectConfig)
+	outputDir := config.WindowsOutputDir(cfg, projectConfig)
+	outputBase := config.RenderPlaceholders(cfg.Windows.OutputBaseName, cfg, projectConfig)
+	projectName := config.ProjectName(projectConfig)
+	if projectName == "" {
+		return "", fmt.Errorf("project productName is required for Windows packaging")
 	}
-	files := buildFiles(projectDir, cfg)
-	icons := buildIcons(cfg, main)
+	projectVersion := config.ProjectVersion(projectConfig)
+	if projectVersion == "" {
+		return "", fmt.Errorf("project version is required for Windows packaging")
+	}
+	appID := config.ProjectBundleID(projectConfig)
+	if strings.TrimSpace(appID) == "" {
+		return "", fmt.Errorf("project productIdentifier is required for Windows packaging")
+	}
+	files := buildFiles(cfg, projectConfig)
+	icons := buildIcons(cfg, projectConfig, main)
 	run := ""
-	if main.ExecutablePath != "" {
-		run = fmt.Sprintf(`Filename: "{app}\%s"; Description: "{cm:LaunchProgram,%s}"; Flags: nowait postinstall skipifsilent`, filepath.Base(main.ExecutablePath), cfg.Project.Name)
+	appExeName := filepath.Base(main)
+	if main != "" {
+		run = fmt.Sprintf(`Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,%s}"; Flags: nowait postinstall skipifsilent`, projectName)
 	}
 	content := strings.NewReplacer(
-		"{{appName}}", cfg.Project.Name,
-		"{{appVersion}}", fsx.StripVersionPrefix(cfg.Project.Version),
-		"{{appPublisher}}", cfg.Project.Publisher,
-		"{{appURL}}", cfg.Project.Homepage,
-		"{{appId}}", fsx.FirstNonEmpty(cfg.Project.BundleID, cfg.Project.Name),
-		"{{defaultDirName}}", config.RenderPlaceholders(cfg.Windows.DefaultDirName, cfg),
-		"{{privilegesRequired}}", fsx.FirstNonEmpty(cfg.Windows.PrivilegesRequired, "lowest"),
+		"{{appName}}", projectName,
+		"{{appVersion}}", projectVersion,
+		"{{appPublisher}}", config.ProjectPublisher(projectConfig),
+		"{{appURL}}", config.RenderPlaceholders(cfg.Windows.AppURL, cfg, projectConfig),
+		"{{appExeName}}", appExeName,
+		"{{appId}}", appID,
+		"{{defaultDirName}}", config.RenderPlaceholders(cfg.Windows.DefaultDirName, cfg, projectConfig),
+		"{{privilegesRequired}}", cfg.Windows.PrivilegesRequired,
 		"{{outputDir}}", filepath.ToSlash(fsx.Resolve(projectDir, outputDir)),
 		"{{outputBaseFilename}}", outputBase,
 		"{{setupIconFile}}", filepath.ToSlash(fsx.Resolve(projectDir, cfg.Windows.SetupIcon)),
@@ -46,15 +57,15 @@ func Generate(projectDir string, cfg contracts.PackagingConfig) (string, error) 
 	return path, os.WriteFile(path, []byte(content), 0644)
 }
 
-func buildFiles(projectDir string, cfg contracts.PackagingConfig) string {
+func buildFiles(cfg contracts.PackagingConfig, projectConfig contracts.WailsProjectConfig) string {
 	type fileLine struct {
 		asset contracts.PackagingAsset
 		main  bool
 	}
 	var items []fileLine
-	main := cfg.Entry
-	if main.ExecutablePath != "" {
-		items = append(items, fileLine{asset: contracts.PackagingAsset{Src: main.ExecutablePath, Type: "file", Required: true}, main: true})
+	main := config.WindowsExecutablePath(cfg, projectConfig)
+	if main != "" {
+		items = append(items, fileLine{asset: contracts.PackagingAsset{Src: main, Type: "file", Required: true}, main: true})
 	}
 	for _, asset := range cfg.Assets {
 		items = append(items, fileLine{asset: asset})
@@ -68,7 +79,7 @@ func buildFiles(projectDir string, cfg contracts.PackagingConfig) string {
 		source := asset.Src
 		target := "{app}"
 		flags := []string{"ignoreversion"}
-		if isDirectoryAsset(projectDir, asset) {
+		if isDirectoryAsset(asset) {
 			source = filepath.ToSlash(filepath.Join(asset.Src, "*"))
 			target = `{app}\` + strings.ReplaceAll(filepath.Base(strings.TrimRight(asset.Src, `/\`)), "/", `\`)
 			flags = append(flags, "recursesubdirs", "createallsubdirs")
@@ -81,22 +92,19 @@ func buildFiles(projectDir string, cfg contracts.PackagingConfig) string {
 	return strings.Join(lines, "\n")
 }
 
-func isDirectoryAsset(projectDir string, asset contracts.PackagingAsset) bool {
-	if strings.EqualFold(asset.Type, "directory") {
-		return true
-	}
-	return asset.Type == "" && fsx.DirExists(fsx.Resolve(projectDir, asset.Src))
+func isDirectoryAsset(asset contracts.PackagingAsset) bool {
+	return asset.Type == "directory"
 }
 
-func buildIcons(cfg contracts.PackagingConfig, main contracts.ProgramEntry) string {
-	if main.ExecutablePath == "" {
+func buildIcons(cfg contracts.PackagingConfig, projectConfig contracts.WailsProjectConfig, main string) string {
+	if main == "" {
 		return ""
 	}
-	exe := filepath.Base(main.ExecutablePath)
+	projectName := config.ProjectName(projectConfig)
 	var lines []string
-	lines = append(lines, fmt.Sprintf(`Name: "{autoprograms}\%s"; Filename: "{app}\%s"`, cfg.Project.Name, exe))
+	lines = append(lines, fmt.Sprintf(`Name: "{autoprograms}\%s"; Filename: "{app}\{#MyAppExeName}"`, projectName))
 	if cfg.Windows.CreateDesktopShortcut {
-		lines = append(lines, fmt.Sprintf(`Name: "{autodesktop}\%s"; Filename: "{app}\%s"; Tasks: desktopicon`, cfg.Project.Name, exe))
+		lines = append(lines, fmt.Sprintf(`Name: "{autodesktop}\%s"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon`, projectName))
 	}
 	return strings.Join(lines, "\n")
 }
@@ -105,6 +113,7 @@ const defaultTemplate = `#define MyAppName "{{appName}}"
 #define MyAppVersion "{{appVersion}}"
 #define MyAppPublisher "{{appPublisher}}"
 #define MyAppURL "{{appURL}}"
+#define MyAppExeName "{{appExeName}}"
 
 [Setup]
 AppId={{appId}}

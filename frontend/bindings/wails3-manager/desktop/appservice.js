@@ -9,6 +9,27 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 /**
  * @returns {$CancellablePromise<string>}
  */
+export function ChooseFile() {
+    return $Call.ByID(956589294);
+}
+
+/**
+ * @returns {$CancellablePromise<string>}
+ */
 export function ChooseFolder() {
     return $Call.ByID(2147375612);
+}
+
+/**
+ * @returns {$CancellablePromise<string>}
+ */
+export function ChooseIcon() {
+    return $Call.ByID(883229929);
+}
+
+/**
+ * @returns {$CancellablePromise<string>}
+ */
+export function ChooseSetupIcon() {
+    return $Call.ByID(2369415792);
 }

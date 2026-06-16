@@ -19,89 +19,103 @@ const (
 
 func InnoRequirement(configured string) contracts.ToolRequirement {
 	path := DetectISCC(configured)
+
 	req := contracts.ToolRequirement{
 		ID:             "inno",
 		Name:           "Inno Setup / ISCC",
 		Platform:       contracts.PlatformWindows,
 		Command:        "ISCC.exe",
 		Required:       true,
-		ConfiguredPath: strings.TrimSpace(configured),
+		ConfiguredPath: cleanConfiguredPath(configured),
 		Path:           path,
 		Found:          path != "",
 		DownloadURL:    InnoDownloadURL,
-		InstallHint:    "Windows 打包需要 Inno Setup。可以选择 ISCC.exe 或 Inno Setup 安装目录；也可以通过官方下载页或 winget 安装。",
+		InstallHint:    "Windows packaging requires Inno Setup. Choose ISCC.exe or the Inno Setup install directory, or install it from the official download page or winget.",
 		InstallCommand: []string{"winget", "install", "--id", "JRSoftware.InnoSetup", "-e", "-s", "winget", "-i"},
 		CanAutoInstall: true,
 		CanChoosePath:  true,
 	}
+
 	if req.Found {
-		req.Message = "已找到 ISCC。"
+		req.Message = "ISCC was found."
 		req.Version = executableVersion(path, []string{"/?"})
 	} else {
-		req.Message = "未找到 ISCC.exe，请选择 Inno Setup 安装目录 / ISCC.exe，或安装 Inno Setup。"
+		req.Message = "ISCC.exe was not found. Choose an Inno Setup install directory / ISCC.exe, or install Inno Setup."
 	}
+
 	return req
 }
 
 func CreateDMGRequirement(configured string) contracts.ToolRequirement {
 	path := DetectCreateDMG(configured)
+
 	req := contracts.ToolRequirement{
 		ID:             "create-dmg",
 		Name:           "create-dmg",
 		Platform:       contracts.PlatformMacOS,
 		Command:        "create-dmg",
 		Required:       true,
-		ConfiguredPath: strings.TrimSpace(configured),
+		ConfiguredPath: cleanConfiguredPath(configured),
 		Path:           path,
 		Found:          path != "",
 		DownloadURL:    CreateDMGDownloadURL,
-		InstallHint:    "macOS DMG 打包必须使用 create-dmg。推荐通过 Homebrew 安装：brew install create-dmg。",
+		InstallHint:    "macOS DMG packaging requires create-dmg. Install it with Homebrew: brew install create-dmg.",
 		InstallCommand: []string{"brew", "install", "create-dmg"},
 		CanAutoInstall: true,
 		CanChoosePath:  true,
 	}
+
 	if req.Found {
-		req.Message = "已找到 create-dmg。"
+		req.Message = "create-dmg was found."
 		req.Version = executableVersion(path, []string{"--version"})
 	} else {
-		req.Message = "未找到 create-dmg，请选择可执行文件，或执行 brew install create-dmg。"
+		req.Message = "create-dmg was not found. Choose the executable, or run brew install create-dmg."
 	}
+
 	return req
 }
 
 func DetectISCC(configured string) string {
-	configured = strings.TrimSpace(strings.Trim(configured, `"`))
+	configured = cleanConfiguredPath(configured)
+
 	for _, p := range innoCandidates(configured) {
 		if resolved := resolveExecutableCandidate(p, "ISCC.exe"); resolved != "" {
 			return resolved
 		}
 	}
-	for _, cmd := range []string{"ISCC.exe", "iscc"} {
-		if found, err := exec.LookPath(cmd); err == nil {
+
+	for _, command := range []string{"ISCC.exe", "iscc"} {
+		if found, err := exec.LookPath(command); err == nil {
 			return found
 		}
 	}
+
 	return ""
 }
 
 func DetectCreateDMG(configured string) string {
-	configured = strings.TrimSpace(strings.Trim(configured, `"`))
+	configured = cleanConfiguredPath(configured)
+
 	for _, p := range createDMGCandidates(configured) {
 		if resolved := resolveExecutableCandidate(p, "create-dmg"); resolved != "" {
 			return resolved
 		}
 	}
+
 	if found, err := exec.LookPath("create-dmg"); err == nil {
 		return found
 	}
+
 	return ""
 }
 
 func innoCandidates(configured string) []string {
-	out := []string{}
+	out := make([]string, 0, 9)
+
 	if configured != "" {
 		out = append(out, configured)
 	}
+
 	return append(out,
 		`C:\Program Files\Inno Setup 7\ISCC.exe`,
 		`C:\Program Files (x86)\Inno Setup 7\ISCC.exe`,
@@ -115,10 +129,12 @@ func innoCandidates(configured string) []string {
 }
 
 func createDMGCandidates(configured string) []string {
-	out := []string{}
+	out := make([]string, 0, 4)
+
 	if configured != "" {
 		out = append(out, configured)
 	}
+
 	return append(out,
 		"/opt/homebrew/bin/create-dmg",
 		"/usr/local/bin/create-dmg",
@@ -126,39 +142,46 @@ func createDMGCandidates(configured string) []string {
 	)
 }
 
-func resolveExecutableCandidate(candidate, executableName string) string {
+func resolveExecutableCandidate(candidate string, executableName string) string {
+	candidate = cleanConfiguredPath(candidate)
 	if candidate == "" {
 		return ""
 	}
+
 	if fsx.FileExists(candidate) {
 		return candidate
 	}
+
 	if fsx.DirExists(candidate) {
 		joined := filepath.Join(candidate, executableName)
 		if fsx.FileExists(joined) {
 			return joined
 		}
 	}
+
 	return ""
 }
 
+func cleanConfiguredPath(value string) string {
+	return strings.TrimSpace(strings.Trim(value, `"`))
+}
+
 func executableVersion(path string, args []string) string {
+	path = cleanConfiguredPath(path)
 	if path == "" {
 		return ""
 	}
+
 	cmd := exec.Command(path, args...)
+
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &out
-	if cmd.Run() != nil {
+
+	err := cmd.Run()
+	if err != nil && out.Len() == 0 {
 		return ""
 	}
-	line := strings.TrimSpace(out.String())
-	if idx := strings.IndexByte(line, '\n'); idx >= 0 {
-		line = line[:idx]
-	}
-	if len(line) > 160 {
-		line = line[:160]
-	}
-	return line
+
+	return firstOutputLine(out.String())
 }

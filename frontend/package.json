@@ -7,7 +7,8 @@
     "dev": "vite --host",
     "build": "vite build",
     "preview": "vite preview --host",
-    "build:dev": "vite build --minify false --mode development"
+    "build:dev": "vite build --minify false --mode development",
+    "i18n:check": "node scripts/check-i18n.mjs"
   },
   "dependencies": {
     "naive-ui": "^2.44.1",

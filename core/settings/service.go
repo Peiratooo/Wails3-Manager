@@ -33,7 +33,7 @@ func (s *SettingsService) OpenProject(projectDir string) (contracts.ProjectRecor
 	}
 	record, ok := project.LoadProjectRecord(projectDir)
 	if !ok {
-		return contracts.ProjectRecord{}, fmt.Errorf("项目未导入：%s", projectDir)
+		return contracts.ProjectRecord{}, fmt.Errorf("project is not imported: %s", projectDir)
 	}
 	manager, err := project.LoadManager(projectDir)
 	if err != nil {
@@ -60,7 +60,8 @@ func (s *SettingsService) RemoveProject(projectDir string, restoreOriginal bool)
 		return err
 	}
 	if _, ok := project.LoadProjectRecord(projectDir); !ok {
-		return fmt.Errorf("项目未导入：%s", projectDir)
+		removeStaleProjectDirs(projectDir)
+		return project.RemoveProjectRecord(projectDir)
 	}
 	if restoreOriginal {
 		if err := project.RestoreInitialSnapshot(projectDir); err != nil {
@@ -78,15 +79,14 @@ func (s *SettingsService) GetSettings() (contracts.ManagerSettings, error) {
 }
 
 func (s *SettingsService) SaveSettings(settings contracts.ManagerSettings) (contracts.ManagerSettings, error) {
-	return SaveManagerSettings(settings)
-}
-
-func (s *SettingsService) LogsSince(cursor int) contracts.LogSnapshot {
-	if s.Log == nil {
-		return contracts.LogSnapshot{Cursor: 0, Lines: []string{}}
+	saved, err := SaveManagerSettings(settings)
+	if err != nil {
+		return contracts.ManagerSettings{}, err
 	}
-	next, lines := s.Log.Since(cursor)
-	return contracts.LogSnapshot{Cursor: next, Lines: lines}
+	if s.Log != nil {
+		s.Log.SetRecordLogs(saved.RecordLogs)
+	}
+	return saved, nil
 }
 
 func (s *SettingsService) ClearLogs() {
@@ -99,11 +99,16 @@ func (s *SettingsService) GetABSPath(projectDir, path string) string {
 	return fsx.ResolveProjectFile(projectDir, path)
 }
 
+func removeStaleProjectDirs(projectDir string) {
+	_ = removeBuilderDir(projectDir)
+	_ = os.Remove(projectDir)
+}
+
 func removeBuilderDir(projectDir string) error {
 	builderDir := fsx.BuilderDir(projectDir)
 	rel, err := filepath.Rel(projectDir, builderDir)
 	if err != nil || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.IsAbs(rel) {
-		return fmt.Errorf("拒绝删除异常 builder 目录：%s", builderDir)
+		return fmt.Errorf("refusing to delete an invalid builder directory: %s", builderDir)
 	}
 	return os.RemoveAll(builderDir)
 }

@@ -35,9 +35,9 @@ html[data-theme="light"] {
     --wm-border-soft: rgba(15, 23, 42, 0.105);
     --wm-border-strong: rgba(var(--wm-color-primary-rgb), 0.360);
 
-    --wm-text-primary: rgba(15, 23, 42, 0.90);
-    --wm-text-secondary: rgba(51, 65, 85, 0.72);
-    --wm-text-muted: rgba(71, 85, 105, 0.52);
+    --wm-text-primary: rgba(14, 17, 28, 0.9);
+    --wm-text-secondary: rgba(19, 23, 28, 0.72);
+    --wm-text-muted: rgba(30, 32, 35, 0.57);
     --wm-text-inverse: #ffffff;
 
     --wm-placeholder: rgba(71, 85, 105, 0.40);
@@ -73,10 +73,10 @@ html[data-theme="dark"] {
         radial-gradient(circle at 18% 92%, rgba(120, 130, 150, 0.10), transparent 36%),
         linear-gradient(135deg, #15181d 0%, #101318 48%, #15181d 100%);
 
-    --wm-surface-1: rgba(255, 255, 255, 0.045);
-    --wm-surface-2: rgba(255, 255, 255, 0.060);
+    --wm-surface-1: rgba(255, 255, 255, 0.025);
+    --wm-surface-2: rgba(255, 255, 255, 0.030);
     --wm-surface-3: rgba(255, 255, 255, 0.035);
-    --wm-surface-hover: rgba(255, 255, 255, 0.075);
+    --wm-surface-hover: rgba(255, 255, 255, 0.065);
     --wm-control-bg: rgba(255, 255, 255, 0.035);
     --wm-control-bg-hover: rgba(255, 255, 255, 0.075);
     --wm-control-bg-active: rgba(255, 255, 255, 0.055);

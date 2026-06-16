@@ -26,7 +26,7 @@ func LoadWailsConfig(projectDir string) (contracts.WailsProjectConfig, error) {
 	path := ConfigPath(projectDir)
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return contracts.WailsProjectConfig{}, fmt.Errorf("读取 build/config.yml 失败：%w", err)
+		return contracts.WailsProjectConfig{}, fmt.Errorf("failed to read build/config.yml: %w", err)
 	}
 	text := string(data)
 	cfg := contracts.WailsProjectConfig{

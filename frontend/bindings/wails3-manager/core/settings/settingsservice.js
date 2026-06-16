@@ -45,16 +45,6 @@ export function ListProjects() {
 }
 
 /**
- * @param {number} cursor
- * @returns {$CancellablePromise<contracts$0.LogSnapshot>}
- */
-export function LogsSince(cursor) {
-    return $Call.ByID(2625351997, cursor).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType3($result);
-    }));
-}
-
-/**
  * @param {string} projectDir
  * @returns {$CancellablePromise<contracts$0.ProjectRecord>}
  */
@@ -87,4 +77,3 @@ export function SaveSettings(settings) {
 const $$createType0 = contracts$0.ManagerSettings.createFrom;
 const $$createType1 = contracts$0.ProjectRecord.createFrom;
 const $$createType2 = $Create.Array($$createType1);
-const $$createType3 = contracts$0.LogSnapshot.createFrom;

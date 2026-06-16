@@ -6,4 +6,17 @@
 // @ts-ignore: Unused imports
 import { Create as $Create } from "@wailsio/runtime";
 
-Object.freeze($Create.Events);
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as contracts$0 from "../../../../../wails3-manager/core/contracts/models.js";
+
+function configure() {
+    Object.freeze(Object.assign($Create.Events, {
+        "manager:log-line": $$createType0,
+    }));
+}
+
+// Private type creation functions
+const $$createType0 = contracts$0.LogLineEvent.createFrom;
+
+configure();

@@ -13,25 +13,26 @@ import (
 type Runner struct {
 	Log    *Logger
 	DryRun bool
+	Env    map[string]string
 }
 
 func (r Runner) Run(ctx context.Context, workDir string, command []string) error {
 	if len(command) == 0 {
-		return fmt.Errorf("命令为空")
+		return fmt.Errorf("command is empty")
 	}
 	if r.Log != nil {
-		r.Log.Println("执行命令：", strings.Join(command, " "))
-		r.Log.Println("工作目录：", workDir)
+		r.Log.Println("Running command:", strings.Join(command, " "))
+		r.Log.Println("Working directory:", workDir)
 	}
 	if r.DryRun {
 		if r.Log != nil {
-			r.Log.Println("dry-run：跳过命令执行")
+			r.Log.Println("dry-run: command execution skipped")
 		}
 		return nil
 	}
 	cmd := exec.CommandContext(ctx, command[0], command[1:]...)
 	cmd.Dir = workDir
-	cmd.Env = os.Environ()
+	cmd.Env = append(os.Environ(), envPairs(r.Env)...)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return err
@@ -57,7 +58,21 @@ func (r Runner) Run(ctx context.Context, workDir string, command []string) error
 	go pump("", bufio.NewScanner(stderr))
 	wg.Wait()
 	if err := cmd.Wait(); err != nil {
-		return fmt.Errorf("命令执行失败：%s：%w", strings.Join(command, " "), err)
+		return fmt.Errorf("command failed: %s: %w", strings.Join(command, " "), err)
 	}
 	return nil
+}
+
+func envPairs(env map[string]string) []string {
+	if len(env) == 0 {
+		return nil
+	}
+	pairs := make([]string, 0, len(env))
+	for k, v := range env {
+		if strings.TrimSpace(k) == "" {
+			continue
+		}
+		pairs = append(pairs, k+"="+v)
+	}
+	return pairs
 }

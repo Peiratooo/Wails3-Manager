@@ -31,7 +31,7 @@ func DirExists(path string) bool {
 func NormalizePath(path string) (string, error) {
 	path = strings.TrimSpace(strings.Trim(path, `"`))
 	if path == "" {
-		return "", fmt.Errorf("路径不能为空")
+		return "", fmt.Errorf("path is required")
 	}
 	abs, err := filepath.Abs(path)
 	if err != nil {
@@ -63,7 +63,7 @@ func CopyFile(src, dst string, mode os.FileMode) error {
 
 func CopyDir(src, dst string, recursive bool) error {
 	if !recursive {
-		return fmt.Errorf("目录复制需要 recursive=true：%s", src)
+		return fmt.Errorf("directory copy requires recursive=true: %s", src)
 	}
 	return filepath.WalkDir(src, func(path string, d os.DirEntry, walkErr error) error {
 		if walkErr != nil {
@@ -125,15 +125,6 @@ func SafeName(s string) string {
 	return out
 }
 
-func FirstNonEmpty(values ...string) string {
-	for _, v := range values {
-		if strings.TrimSpace(v) != "" {
-			return strings.TrimSpace(v)
-		}
-	}
-	return ""
-}
-
 func StripVersionPrefix(v string) string {
 	v = strings.TrimSpace(v)
 	return strings.TrimPrefix(strings.TrimPrefix(v, "v"), "V")
@@ -184,7 +175,7 @@ func ResolveProjectFile(projectDir, relPath string) string {
 		return ""
 	}
 
-	// 文件路径必须是相对项目的路径
+	// Project file paths must be relative to the project root.
 	if filepath.IsAbs(relPath) {
 		return ""
 	}
@@ -200,7 +191,7 @@ func ResolveProjectFile(projectDir, relPath string) string {
 
 	fullAbs = filepath.Clean(fullAbs)
 
-	// 防止 ../ 跳出项目目录
+	// Prevent ../ from escaping the project root.
 	relToProject, err := filepath.Rel(projectAbs, fullAbs)
 	if err != nil {
 		return ""

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"path/filepath"
 	"strings"
 
 	"wails3-manager/core/contracts"
@@ -10,16 +11,103 @@ import (
 // RenderPlaceholders resolves the small set of placeholders supported by
 // packaging.json. Keeping this helper central avoids each packager inventing its
 // own replacement rules.
-func RenderPlaceholders(s string, cfg contracts.PackagingConfig) string {
+func RenderPlaceholders(s string, cfg contracts.PackagingConfig, project contracts.WailsProjectConfig) string {
 	repl := map[string]string{
-		"${project.name}":      cfg.Project.Name,
-		"${project.version}":   fsx.StripVersionPrefix(cfg.Project.Version),
-		"${project.bundleId}":  cfg.Project.BundleID,
-		"${project.publisher}": cfg.Project.Publisher,
-		"${build.appName}":     fsx.FirstNonEmpty(cfg.Build.AppName, fsx.SafeName(cfg.Project.Name)),
+		"${project.name}":        ProjectName(project),
+		"${project.version}":     ProjectVersion(project),
+		"${project.bundleId}":    ProjectBundleID(project),
+		"${project.publisher}":   ProjectPublisher(project),
+		"${project.description}": ProjectDescription(project),
+		"${project.copyright}":   ProjectCopyright(project),
+		"${build.appName}":       AppName(cfg),
 	}
 	for k, v := range repl {
 		s = strings.ReplaceAll(s, k, v)
 	}
 	return s
+}
+
+func ProjectName(project contracts.WailsProjectConfig) string {
+	return strings.TrimSpace(project.Info.ProductName)
+}
+
+func ProjectVersion(project contracts.WailsProjectConfig) string {
+	return fsx.StripVersionPrefix(project.Info.Version)
+}
+
+func ProjectBundleID(project contracts.WailsProjectConfig) string {
+	return project.Info.ProductIdentifier
+}
+
+func ProjectPublisher(project contracts.WailsProjectConfig) string {
+	return project.Info.CompanyName
+}
+
+func ProjectDescription(project contracts.WailsProjectConfig) string {
+	return project.Info.Description
+}
+
+func ProjectCopyright(project contracts.WailsProjectConfig) string {
+	return project.Info.Copyright
+}
+
+func AppName(cfg contracts.PackagingConfig) string {
+	return strings.TrimSpace(cfg.Build.AppName)
+}
+
+func DefaultExecutablePath(cfg contracts.PackagingConfig, platform contracts.Platform) string {
+	switch platform {
+	case contracts.PlatformMacOS:
+		return filepath.ToSlash(filepath.Join("bin", AppName(cfg)+".app"))
+	default:
+		return filepath.ToSlash(filepath.Join("bin", AppName(cfg)+".exe"))
+	}
+}
+
+func ResolveExecutablePath(cfg contracts.PackagingConfig, project contracts.WailsProjectConfig, platform contracts.Platform) contracts.PackagingRuntimeInfo {
+	defaultPath := DefaultExecutablePath(cfg, platform)
+	configuredPath := strings.TrimSpace(cfg.Entry.ExecutablePath)
+	if configuredPath == "" {
+		return contracts.PackagingRuntimeInfo{
+			DefaultExecutablePath:   defaultPath,
+			EffectiveExecutablePath: defaultPath,
+			UsingDefaultExecutable:  true,
+		}
+	}
+	return contracts.PackagingRuntimeInfo{
+		DefaultExecutablePath:   defaultPath,
+		EffectiveExecutablePath: RenderPlaceholders(configuredPath, cfg, project),
+		UsingDefaultExecutable:  false,
+	}
+}
+
+func WindowsExecutablePath(cfg contracts.PackagingConfig, project contracts.WailsProjectConfig) string {
+	return ResolveExecutablePath(cfg, project, contracts.PlatformWindows).EffectiveExecutablePath
+}
+
+func MacOSAppBundlePath(cfg contracts.PackagingConfig, project contracts.WailsProjectConfig) string {
+	return ResolveMacOSAppBundlePath(cfg, project).EffectiveExecutablePath
+}
+
+func ResolveMacOSAppBundlePath(cfg contracts.PackagingConfig, project contracts.WailsProjectConfig) contracts.PackagingRuntimeInfo {
+	if strings.TrimSpace(cfg.Entry.ExecutablePath) != "" {
+		return ResolveExecutablePath(cfg, project, contracts.PlatformMacOS)
+	}
+
+	defaultPath := DefaultExecutablePath(cfg, contracts.PlatformMacOS)
+	configuredPath := strings.TrimSpace(cfg.MacOS.AppBundle)
+	if configuredPath == "" {
+		return contracts.PackagingRuntimeInfo{
+			DefaultExecutablePath:   defaultPath,
+			EffectiveExecutablePath: defaultPath,
+			UsingDefaultExecutable:  true,
+		}
+	}
+
+	effectivePath := RenderPlaceholders(configuredPath, cfg, project)
+	return contracts.PackagingRuntimeInfo{
+		DefaultExecutablePath:   defaultPath,
+		EffectiveExecutablePath: effectivePath,
+		UsingDefaultExecutable:  effectivePath == defaultPath,
+	}
 }

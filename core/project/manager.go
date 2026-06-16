@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"strconv"
 	"strings"
 
 	"wails3-manager/core/contracts"
@@ -28,7 +27,6 @@ func LoadManager(projectDir string) (contracts.WailsProjectManager, error) {
 		ProjectDir:      projectDir,
 		CurrentPlatform: platform,
 		WailsConfig:     wc,
-		TaskVars:        LoadTaskVars(projectDir),
 	}
 	return manager, nil
 }
@@ -40,9 +38,6 @@ func SaveManager(projectDir string, manager contracts.WailsProjectManager) (cont
 	}
 	manager.ProjectDir = projectDir
 	if _, err := SaveWailsConfig(projectDir, manager.WailsConfig); err != nil {
-		return contracts.WailsProjectManager{}, err
-	}
-	if err := SaveTaskVars(projectDir, manager.TaskVars); err != nil {
 		return contracts.WailsProjectManager{}, err
 	}
 	return LoadManager(projectDir)
@@ -71,26 +66,6 @@ func ResolveBoolean(value string) bool {
 	default:
 		return false
 	}
-}
-
-func SaveTaskVars(projectDir string, vars contracts.WailsTaskVars) error {
-	path := filepath.Join(projectDir, RootTaskfileRelPath)
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil
-	}
-	text := string(data)
-	// Only the task variables controlled by the manager are rewritten. The
-	// remaining Taskfile content stays intact so user-defined tasks survive save.
-	if vars.AppName != "" {
-		text = setVarValue(text, "APP_NAME", vars.AppName)
-	}
-	text = setVarValue(text, "PRODUCTION", strconv.FormatBool(vars.Production))
-	if vars.CGOEnabled != "" {
-		text = setVarValue(text, "CGO_ENABLED", vars.CGOEnabled)
-	}
-
-	return os.WriteFile(path, []byte(text), 0644)
 }
 
 func parseFileAssociations(text string) []contracts.WailsFileAssociation {
@@ -130,7 +105,7 @@ func SaveWailsConfig(projectDir string, cfg contracts.WailsProjectConfig) (contr
 	path := ConfigPath(projectDir)
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return contracts.WailsProjectConfig{}, fmt.Errorf("读取 build/config.yml 失败：%w", err)
+		return contracts.WailsProjectConfig{}, fmt.Errorf("failed to read build/config.yml: %w", err)
 	}
 	text := string(data)
 	text = ensureInfoSection(text)
@@ -147,7 +122,7 @@ func SaveWailsConfig(projectDir string, cfg contracts.WailsProjectConfig) (contr
 		text = setInfoValue(text, key, value)
 	}
 	if err := os.WriteFile(path, []byte(text), 0644); err != nil {
-		return contracts.WailsProjectConfig{}, fmt.Errorf("写入 build/config.yml 失败：%w", err)
+		return contracts.WailsProjectConfig{}, fmt.Errorf("failed to write build/config.yml: %w", err)
 	}
 	return LoadWailsConfig(projectDir)
 }
@@ -159,18 +134,6 @@ func getVarValue(text, key string) string {
 		return ""
 	}
 	return strings.TrimSpace(m[1])
-}
-
-func setVarValue(text, key, value string) string {
-	re := regexp.MustCompile(`(?m)^(\s{2}` + regexp.QuoteMeta(key) + `\s*:\s*)(.+)$`)
-	quoted := quoteYAML(value)
-	if re.MatchString(text) {
-		return re.ReplaceAllString(text, `${1}`+quoted)
-	}
-	if strings.Contains(text, "vars:\n") {
-		return strings.Replace(text, "vars:\n", "vars:\n  "+key+": "+quoted+"\n", 1)
-	}
-	return "vars:\n  " + key + ": " + quoted + "\n" + text
 }
 
 func sectionBlock(text, key string, indent int) string {

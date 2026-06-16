@@ -1,34 +1,172 @@
 export default {
-	app: {
-		title: 'Wails Builder',
-	},
-	routes: {
-		home: '工作台',
-	},
-	states: {
-		ready: '准备就绪',
-	},
-    settings:{
+    app: {
+        title: 'Wails Builder',
+    },
+    routes: {
+        home: '工作台',
+    },
+    states: {
+        ready: '准备就绪',
+    },
+    settings: {
         title: '设置',
+        appearance: '外观',
         theme: '主题',
+        darkMode: '暗色模式',
+        darkModeDesc: '切换应用的明亮/暗色主题。',
         language: '语言',
+        languageDesc: '切换界面显示语言。',
+        logs: '运行日志',
+        logsDesc: '实时显示后端推送的运行日志。',
+        recordLogs: '记录日志',
+        recordLogsDesc: '关闭后不再缓存和推送新的运行日志。',
+        clearLogs: '清空',
+        noLogs: '暂无日志',
         about: '关于',
         help: '帮助',
     },
-    home:{
+    home: {
         welcome: '欢迎使用 Wails3 Manager',
-        desc:"简单，轻量的Wails3项目管理与打包工具",
+        desc: '简单，轻量的 Wails3 项目管理与打包工具',
         recently: '最近项目',
-        importProject:"导入项目",
-        openProject:"打开项目",
-        newProject:"新建项目",
-        projectName:"名称",
-        projectPath:"路径",
-        openTime:"最近打开时间",
-        importTime:"首次导入时间",
-        projectIcon:"图标",
-        searchProject:"搜索项目名称或路径",
-        search:"搜索",
-        createProject:"创建项目",
-    }
+        importProject: '导入项目',
+        openProject: '打开项目',
+        newProject: '新建项目',
+        projectName: '名称',
+        projectPath: '路径',
+        openTime: '最近打开时间',
+        importTime: '首次导入时间',
+        projectIcon: '图标',
+        searchProject: '搜索项目名称或路径',
+        search: '搜索',
+        createProject: '创建项目',
+    },
+    environment: {
+        system: '系统',
+        title: '系统环境',
+
+        ready: '就绪',
+        incomplete: '缺失',
+        readyFull: '已就绪',
+        notReadyFull: '未就绪',
+        unknown: '未知',
+
+        found: '已安装',
+        missing: '未安装',
+        required: '必需',
+        optional: '可选',
+
+        noData: '暂无环境检测数据',
+
+        requiredMissing: '必需依赖缺失',
+        optionalMissing: '可选依赖缺失',
+    },
+    editor: {
+        package: '打包配置',
+        wails3: 'Wails3 配置',
+        changeIcon: '更换图标',
+        wails3Desc: '管理 Wails3 项目配置，修改后统一保存。',
+        packageDesc: '管理项目打包配置，修改后统一保存。',
+        productName: '产品名称',
+        productNamePlaceholder: '请输入产品名称',
+
+        version: '版本号',
+        versionPlaceholder: '例如 1.0.0',
+
+        companyName: '公司名称',
+        companyNamePlaceholder: '请输入公司名称',
+
+        productIdentifier: '产品标识',
+        productIdentifierPlaceholder: '例如 com.example.app',
+
+        description: '产品描述',
+        descriptionPlaceholder: '请输入产品描述',
+
+        copyright: '版权信息',
+        copyrightPlaceholder: '例如 Copyright © 2026',
+
+
+        iconTips: '用于应用窗口、安装包和系统展示。',
+        basicConfig: '基础配置',
+        basicConfigDesc: '管理项目图标与 Wails3 基础信息，修改后统一保存。',
+
+        appIcon: '应用图标',
+        iconPanelDesc: '只管理当前项目的应用图标。',
+
+        iconChanged: '已选择新的图标',
+        usingCurrentIcon: '正在使用当前图标',
+        save: '保存',
+        saveSuccess: '保存成功',
+        hasChanges: '有未保存的修改',
+        noChanges: '暂无修改',
+        selectIcon: '选择图标',
+        reselectIcon: '重新选择',
+        cancel: '取消',
+        newIcon: '新图标',
+        basicInfo: '基础信息',
+        basicInfoDesc: '编辑产品名称、版本号、公司名称和应用标识。',
+        imageUrlRequired: '图片 URL 不能为空',
+        imageLoadFailed: '图片加载失败：{status}',
+        imageBase64Failed: '图片转 Base64 失败',
+    },
+    project:{
+        unnamed: '未命名项目',
+        importTime: '导入时间',
+        folder: '项目路径',
+        openInFinder: '在文件管理器中打开',
+        runBuild: '开始打包',
+        openFolderTodo: '请接入打开项目目录方法',
+        buildTodo: '请接入项目打包方法',
+    },
+    packageEditor: {
+        title: '打包配置',
+        desc: '配置项目构建入口、安装包图标、启动程序和资源文件。',
+
+        buildTitle: '构建设置',
+        buildDesc: '控制构建名称、安装包图标和 Wails3 编译参数。',
+        appName: '应用名称',
+        appNamePlaceholder: '请输入构建应用名称',
+
+        production: '生产模式',
+        productionDesc: '启用后以生产模式执行构建。',
+        cgoEnabled: '启用 CGO',
+        cgoEnabledDesc: '部分原生依赖需要开启 CGO。',
+
+        setupIcon: '安装包图标',
+        setupIconChanged: '已选择新的安装包图标',
+        usingCurrentSetupIcon: '正在使用当前安装包图标',
+        noSetupIcon: '未设置安装包图标',
+
+        entryTitle: '启动程序',
+        entryDesc: '指定最终应用包中的启动程序路径。',
+        executablePath: '启动程序路径',
+        noExecutable: '尚未选择启动程序',
+        autoExecutable: '自动使用 Wails3 构建输出：{path}',
+        effectiveExecutable: '实际启动程序：{path}',
+        selectExecutable: '选择文件',
+
+        windowsTitle: 'Windows 安装包',
+        windowsDesc: '配置 Windows 平台安装包行为。',
+        privilegesRequired: '安装权限',
+        appURL: '应用网址',
+        appURLPlaceholder: '例如 https://example.com',
+        createDesktopShortcut: '创建桌面快捷方式',
+        createDesktopShortcutDesc: '安装完成后在桌面创建快捷方式。',
+
+        assetsTitle: '资源文件',
+        assetsDesc: '添加需要复制到最终产物中的文件或目录。',
+        addFile: '添加文件',
+        addDirectory: '添加目录',
+        assetFile: '文件',
+        assetDirectory: '目录',
+        assetRequired: '必需',
+        assetSrcPlaceholder: '请输入资源路径',
+        noAssets: '暂无资源文件',
+
+        privileges: {
+            lowest: '最低权限',
+            poweruser: 'Power User',
+            admin: '管理员权限',
+        },
+    },
 }
