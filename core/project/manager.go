@@ -13,6 +13,15 @@ import (
 
 const RootTaskfileRelPath = "Taskfile.yml"
 
+func RootTaskfileRelPathForProject(projectDir string) string {
+	for _, name := range []string{RootTaskfileRelPath, "Taskfile.yaml"} {
+		if fsx.FileExists(filepath.Join(projectDir, name)) {
+			return name
+		}
+	}
+	return RootTaskfileRelPath
+}
+
 func LoadManager(projectDir string) (contracts.WailsProjectManager, error) {
 	projectDir, err := fsx.NormalizePath(projectDir)
 	if err != nil {
@@ -31,6 +40,21 @@ func LoadManager(projectDir string) (contracts.WailsProjectManager, error) {
 	return manager, nil
 }
 
+func LoadManagerWithConfigCompletion(projectDir string) (contracts.WailsProjectManager, error) {
+	manager, err := LoadManager(projectDir)
+	if err != nil {
+		return contracts.WailsProjectManager{}, err
+	}
+	needsWrite, err := WailsConfigNeedsCompletion(projectDir)
+	if err != nil {
+		return contracts.WailsProjectManager{}, err
+	}
+	if !needsWrite {
+		return manager, nil
+	}
+	return SaveManager(projectDir, manager)
+}
+
 func SaveManager(projectDir string, manager contracts.WailsProjectManager) (contracts.WailsProjectManager, error) {
 	projectDir, err := fsx.NormalizePath(projectDir)
 	if err != nil {
@@ -44,7 +68,7 @@ func SaveManager(projectDir string, manager contracts.WailsProjectManager) (cont
 }
 
 func LoadTaskVars(projectDir string) contracts.WailsTaskVars {
-	path := filepath.Join(projectDir, RootTaskfileRelPath)
+	path := filepath.Join(projectDir, RootTaskfileRelPathForProject(projectDir))
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return contracts.WailsTaskVars{}

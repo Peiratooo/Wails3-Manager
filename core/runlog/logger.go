@@ -17,7 +17,20 @@ type Logger struct {
 	writers    []io.Writer
 	lines      []string
 	recordLogs bool
-	OnLine     func(string)
+	OnLine     func(Line)
+}
+
+type Transaction struct {
+	ID    string
+	Type  string
+	Title string
+}
+
+type Line struct {
+	Text             string
+	TransactionID    string
+	TransactionType  string
+	TransactionTitle string
 }
 
 func New(writers ...io.Writer) *Logger {
@@ -67,11 +80,16 @@ func (l *Logger) SetRecordLogs(recordLogs bool) {
 	l.recordLogs = recordLogs
 }
 
-func (l *Logger) Println(args ...any)               { l.write(fmt.Sprintln(args...)) }
-func (l *Logger) Printf(format string, args ...any) { l.write(fmt.Sprintf(format, args...)) }
-func (l *Logger) Section(title string)              { l.write("\n== " + title + " ==\n") }
+func (l *Logger) Println(args ...any) { l.write(Transaction{}, fmt.Sprintln(args...)) }
+func (l *Logger) Printf(format string, args ...any) {
+	l.write(Transaction{}, fmt.Sprintf(format, args...))
+}
+func (l *Logger) Section(title string) { l.write(Transaction{}, "\n== "+title+" ==\n") }
+func (l *Logger) PrintlnWithTransaction(tx Transaction, args ...any) {
+	l.write(tx, fmt.Sprintln(args...))
+}
 
-func (l *Logger) write(s string) {
+func (l *Logger) write(tx Transaction, s string) {
 	s = strings.TrimRight(s, "\n")
 	line := fmt.Sprintf("[%s] %s", time.Now().Format("15:04:05"), s)
 	l.mu.Lock()
@@ -85,6 +103,11 @@ func (l *Logger) write(s string) {
 	on := l.OnLine
 	l.mu.Unlock()
 	if recordLogs && on != nil {
-		on(line)
+		on(Line{
+			Text:             line,
+			TransactionID:    tx.ID,
+			TransactionType:  tx.Type,
+			TransactionTitle: tx.Title,
+		})
 	}
 }

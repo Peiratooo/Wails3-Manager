@@ -1,6 +1,9 @@
 package desktop
 
 import (
+	"errors"
+	"os"
+	"os/exec"
 	"runtime"
 	"strings"
 )
@@ -26,6 +29,24 @@ func (a *AppService) ChooseFolder() (string, error) {
 	}
 
 	return path, nil
+}
+
+func (a *AppService) OpenPath(path string) error {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return errors.New("path is required")
+	}
+	if _, err := os.Stat(path); err != nil {
+		return err
+	}
+	switch runtime.GOOS {
+	case "windows":
+		return exec.Command("explorer", path).Start()
+	case "darwin":
+		return exec.Command("open", path).Start()
+	default:
+		return exec.Command("xdg-open", path).Start()
+	}
 }
 
 func (a *AppService) ChooseIcon() (string, error) {

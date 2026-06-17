@@ -328,10 +328,11 @@ type ManagerSettings struct {
 }
 
 type PackageRequest struct {
-	ProjectDir string   `json:"projectDir"`
-	Platform   Platform `json:"platform"`
-	DryRun     bool     `json:"dryRun"`
-	RunBuild   bool     `json:"runBuild"`
+	ProjectDir    string   `json:"projectDir"`
+	Platform      Platform `json:"platform"`
+	DryRun        bool     `json:"dryRun"`
+	RunBuild      bool     `json:"runBuild"`
+	TransactionID string   `json:"transactionId"`
 }
 
 type CreateWailsProjectRequest struct {
@@ -354,11 +355,13 @@ type CreateWailsProjectRequest struct {
 }
 
 type PackageResult struct {
-	OK        bool       `json:"ok"`
-	Message   string     `json:"message"`
-	RunID     string     `json:"runId,omitempty"`
-	Artifacts []Artifact `json:"artifacts"`
-	Warnings  []string   `json:"warnings,omitempty"`
+	OK               bool       `json:"ok"`
+	Message          string     `json:"message"`
+	RunID            string     `json:"runId,omitempty"`
+	Artifacts        []Artifact `json:"artifacts"`
+	Warnings         []string   `json:"warnings,omitempty"`
+	BuildOutputDir   string     `json:"buildOutputDir,omitempty"`
+	PackageOutputDir string     `json:"packageOutputDir,omitempty"`
 }
 
 type LogEntry struct {
@@ -367,5 +370,8 @@ type LogEntry struct {
 }
 
 type LogLineEvent struct {
-	Line string `json:"line"`
+	Line             string `json:"line"`
+	TransactionID    string `json:"transactionId"`
+	TransactionType  string `json:"transactionType"`
+	TransactionTitle string `json:"transactionTitle"`
 }

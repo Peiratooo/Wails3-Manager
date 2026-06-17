@@ -116,18 +116,33 @@
             </div>
         </div>
         <Settings v-model:show="store.panels.settings" />
+
+        <PackageRunCard
+            v-model:show="packageModalVisible"
+            :finished="packageFinished"
+            :building="building"
+            :progress="packageProgress"
+            :error="packageError"
+            :transaction-id="packageTransactionId"
+            :log-entries="packageLogEntries"
+            :result="packageResult"
+            :directories="packageDirectories"
+            @open-path="openPath"
+        />
     </div>
 </template>
 
 <script setup>
 import { SettingsService } from "../../bindings/wails3-manager/core/settings"
 import { PackagingService } from "../../bindings/wails3-manager/core/packaging"
+import { AppService } from "../../bindings/wails3-manager/desktop"
 import { NButton, NEllipsis, NIcon, useMessage } from "naive-ui"
 import { computed, inject, onMounted, ref } from "vue"
 import router from "../router/index.js"
 import Environment from "../components/Environment.vue"
 import Settings from "../components/Settings.vue";
 import Editor from "../components/Editor/Editor.vue";
+import PackageRunCard from "../components/PackageRunCard.vue"
 import {useI18n} from "../i18n/index.js";
 const { t } = useI18n()
 const route = inject("route")
@@ -140,6 +155,12 @@ const packageCfg = ref({})
 const loaded = ref(false)
 const iconLoadError = ref(false)
 const building = ref(false)
+const packageModalVisible = ref(false)
+const packageFinished = ref(false)
+const packageProgress = ref(0)
+const packageError = ref("")
+const packageResult = ref(null)
+const packageTransactionId = ref("")
 
 const projectName = computed(() => {
     return wails3Cfg.value?.project?.wailsConfig?.info?.productName || t("project.unnamed")
@@ -154,24 +175,74 @@ const iconSrc = computed(() => {
     return "/local/file?" + wails3Cfg.value.iconPath
 })
 
-async function openProjectFolder() {
-    try {
-        message.info(t("project.openFolderTodo"))
-    } catch (error) {
-        message.error(error?.message || String(error))
+const packageLogEntries = computed(() => {
+    if (!packageTransactionId.value) {
+        return []
     }
+    return store.packageTransactions[packageTransactionId.value]?.entries || []
+})
+
+const packageDirectories = computed(() => {
+    if (!packageResult.value) {
+        return []
+    }
+    const dirs = []
+    if (packageResult.value.buildOutputDir) {
+        dirs.push({
+            label: t("project.wailsOutputDir"),
+            path: packageResult.value.buildOutputDir
+        })
+    }
+    if (packageResult.value.packageOutputDir) {
+        dirs.push({
+            label: t("project.finalPackageDir"),
+            path: packageResult.value.packageOutputDir
+        })
+    }
+    return dirs
+})
+
+async function openProjectFolder() {
+    await openPath(projectDir)
 }
 
 async function runBuild() {
     if (building.value) return
 
     try {
+        packageTransactionId.value = `package-${Date.now()}`
+        packageModalVisible.value = true
+        packageFinished.value = false
+        packageProgress.value = 8
+        packageError.value = ""
+        packageResult.value = null
         building.value = true
-        message.info(t("project.buildTodo"))
+        packageProgress.value = 32
+
+        const result = await PackagingService.Package({
+            projectDir,
+            platform: "auto",
+            dryRun: false,
+            runBuild: true,
+            transactionId: packageTransactionId.value
+        })
+
+        packageResult.value = result
+        packageProgress.value = 100
     } catch (error) {
-        message.error(error?.message || String(error))
+        packageError.value = error?.message || String(error)
+        packageProgress.value = 100
     } finally {
         building.value = false
+        packageFinished.value = true
+    }
+}
+
+async function openPath(path) {
+    try {
+        await AppService.OpenPath(path)
+    } catch (error) {
+        message.error(error?.message || String(error))
     }
 }
 
@@ -217,6 +288,7 @@ function backToHome() {
     flex-direction: column;
     gap: 16px;
     height: 100%;
+    min-height: 0;
     padding: 24px 28px;
     box-sizing: border-box;
     overflow: hidden;
@@ -403,20 +475,19 @@ function backToHome() {
 }
 
 .body {
+    flex: 1 1 0;
     min-height: 0;
-    height: 100%;
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 300px;
     gap: 16px;
+    overflow: hidden;
 }
 
 .editor,
 .env {
+    min-width: 0;
+    min-height: 0;
     height: 100%;
-    width: 100%;
-}
-
-.editor {
-    width: 350%;
 }
 
 .foot {

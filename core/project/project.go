@@ -13,6 +13,12 @@ import (
 	"wails3-manager/core/runlog"
 )
 
+var platformOverride contracts.Platform
+
+func SetPlatformOverride(platform contracts.Platform) {
+	platformOverride = platform
+}
+
 func (s *ProjectService) ScanProject(projectDir string) (contracts.ScanResult, error) {
 	return scanner.Scan(projectDir)
 }
@@ -37,7 +43,7 @@ func (s *ProjectService) ImportProject(projectDir string) error {
 	if _, err := EnsureInitialSnapshot(projectDir); err != nil {
 		return fmt.Errorf("failed to create the initial import snapshot: %w", err)
 	}
-	manager, err := LoadManager(projectDir)
+	manager, err := LoadManagerWithConfigCompletion(projectDir)
 	if err != nil {
 		return err
 	}
@@ -119,7 +125,7 @@ func (s *ProjectService) ReplaceProjectIcon(projectDir string, pngBase64 string)
 	if err := (runlog.Runner{Log: s.Log}).Run(context.Background(), projectDir, []string{"wails3", "task", "common:update:build-assets"}); err != nil {
 		return contracts.ProjectRecord{}, err
 	}
-	manager, err := LoadManager(projectDir)
+	manager, err := LoadManagerWithConfigCompletion(projectDir)
 	if err != nil {
 		return contracts.ProjectRecord{}, err
 	}
@@ -141,6 +147,9 @@ func createManagedProjectLayout(projectDir string) error {
 }
 
 func currentPlatform() contracts.Platform {
+	if platformOverride != "" {
+		return platformOverride
+	}
 	switch runtime.GOOS {
 	case "windows":
 		return contracts.PlatformWindows

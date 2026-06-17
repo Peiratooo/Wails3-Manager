@@ -27,7 +27,7 @@
             <div class="icon-panel">
                 <div class="panel-head">
                     <div class="panel-title">{{ t("editor.appIcon") }}</div>
-                    <div class="panel-desc">{{ t("editor.iconPanelDesc") }}</div>
+<!--                    <div class="panel-desc">{{ t("editor.iconPanelDesc") }}</div>-->
                 </div>
 
                 <div class="icon-area">
@@ -81,7 +81,7 @@
             <div class="info-panel">
                 <div class="panel-head">
                     <div class="panel-title">{{ t("editor.basicInfo") }}</div>
-                    <div class="panel-desc">{{ t("editor.basicInfoDesc") }}</div>
+<!--                    <div class="panel-desc">{{ t("editor.basicInfoDesc") }}</div>-->
                 </div>
 
                 <div class="form-grid">
@@ -500,7 +500,7 @@ function imageUrlToBase64(url) {
 .form-grid {
     flex: 1;
     min-height: 0;
-    margin-top: 18px;
+    margin-top: 6px;
     overflow-y: auto;
 
     display: grid;

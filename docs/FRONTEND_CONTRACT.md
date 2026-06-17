@@ -98,7 +98,7 @@ await appService.Artifacts(projectDir)
   schemaVersion: 1,
   build: {
     taskfile: 'Taskfile.yml',
-    task: 'builder:release',
+    task: 'release',
     command: null,
     production: true,
     cgoEnabled: true,

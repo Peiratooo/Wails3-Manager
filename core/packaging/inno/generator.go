@@ -29,10 +29,15 @@ func Generate(projectDir string, cfg contracts.PackagingConfig, projectConfig co
 	}
 	files := buildFiles(cfg, projectConfig)
 	icons := buildIcons(cfg, projectConfig, main)
+	registry := buildRegistry(projectConfig)
+	changesAssociations := ""
+	if registry != "" {
+		changesAssociations = "ChangesAssociations=yes"
+	}
 	run := ""
 	appExeName := filepath.Base(main)
 	if main != "" {
-		run = fmt.Sprintf(`Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,%s}"; Flags: nowait postinstall skipifsilent`, projectName)
+		run = `Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent`
 	}
 	content := strings.NewReplacer(
 		"{{appName}}", projectName,
@@ -43,10 +48,13 @@ func Generate(projectDir string, cfg contracts.PackagingConfig, projectConfig co
 		"{{appId}}", appID,
 		"{{defaultDirName}}", config.RenderPlaceholders(cfg.Windows.DefaultDirName, cfg, projectConfig),
 		"{{privilegesRequired}}", cfg.Windows.PrivilegesRequired,
+		"{{changesAssociations}}", changesAssociations,
+		"{{sourceDir}}", filepath.ToSlash(projectDir),
 		"{{outputDir}}", filepath.ToSlash(fsx.Resolve(projectDir, outputDir)),
 		"{{outputBaseFilename}}", outputBase,
 		"{{setupIconFile}}", filepath.ToSlash(fsx.Resolve(projectDir, cfg.Windows.SetupIcon)),
 		"{{files}}", files,
+		"{{registry}}", registry,
 		"{{icons}}", icons,
 		"{{run}}", run,
 	).Replace(defaultTemplate)
@@ -109,6 +117,76 @@ func buildIcons(cfg contracts.PackagingConfig, projectConfig contracts.WailsProj
 	return strings.Join(lines, "\n")
 }
 
+func buildRegistry(projectConfig contracts.WailsProjectConfig) string {
+	projectName := config.ProjectName(projectConfig)
+	var lines []string
+	for _, assoc := range projectConfig.FileAssociations {
+		ext := normalizeAssocExt(assoc.Ext)
+		if ext == "" {
+			continue
+		}
+		name := strings.TrimSpace(assoc.Name)
+		if name == "" {
+			name = strings.TrimSpace(assoc.Description)
+		}
+		if name == "" {
+			name = projectName + " " + strings.TrimPrefix(ext, ".") + " File"
+		}
+		key := assocRegistryKey(projectConfig, ext)
+		lines = append(lines,
+			fmt.Sprintf(`Root: HKA; Subkey: "Software\Classes\%s\OpenWithProgids"; ValueType: string; ValueName: "%s"; ValueData: ""; Flags: uninsdeletevalue`, escapeInnoString(ext), escapeInnoString(key)),
+			fmt.Sprintf(`Root: HKA; Subkey: "Software\Classes\%s"; ValueType: string; ValueName: ""; ValueData: "%s"; Flags: uninsdeletekey`, escapeInnoString(key), escapeInnoString(name)),
+			fmt.Sprintf(`Root: HKA; Subkey: "Software\Classes\%s\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\{#MyAppExeName},0"`, escapeInnoString(key)),
+			fmt.Sprintf(`Root: HKA; Subkey: "Software\Classes\%s\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%%1"""`, escapeInnoString(key)),
+		)
+	}
+	if len(lines) == 0 {
+		return ""
+	}
+	return "\n[Registry]\n" + strings.Join(lines, "\n")
+}
+
+func normalizeAssocExt(ext string) string {
+	ext = strings.TrimSpace(ext)
+	if ext == "" {
+		return ""
+	}
+	if !strings.HasPrefix(ext, ".") {
+		ext = "." + ext
+	}
+	return ext
+}
+
+func assocRegistryKey(projectConfig contracts.WailsProjectConfig, ext string) string {
+	base := strings.TrimSpace(config.ProjectBundleID(projectConfig))
+	if base == "" {
+		base = strings.TrimSpace(config.ProjectName(projectConfig))
+	}
+	return cleanRegistryKey(base + ext)
+}
+
+func cleanRegistryKey(value string) string {
+	var b strings.Builder
+	for _, r := range value {
+		switch {
+		case r >= 'a' && r <= 'z',
+			r >= 'A' && r <= 'Z',
+			r >= '0' && r <= '9',
+			r == '.', r == '_', r == '-':
+			b.WriteRune(r)
+		}
+	}
+	out := strings.Trim(b.String(), ".")
+	if out == "" {
+		return "WailsApp.File"
+	}
+	return out
+}
+
+func escapeInnoString(value string) string {
+	return strings.ReplaceAll(value, `"`, `""`)
+}
+
 const defaultTemplate = `#define MyAppName "{{appName}}"
 #define MyAppVersion "{{appVersion}}"
 #define MyAppPublisher "{{appPublisher}}"
@@ -126,7 +204,11 @@ AppUpdatesURL={#MyAppURL}
 DefaultDirName={{defaultDirName}}
 DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
+UninstallDisplayIcon={app}\{#MyAppExeName}
 PrivilegesRequired={{privilegesRequired}}
+DisableProgramGroupPage=yes
+{{changesAssociations}}
+SourceDir={{sourceDir}}
 OutputDir={{outputDir}}
 OutputBaseFilename={{outputBaseFilename}}
 SetupIconFile={{setupIconFile}}
@@ -134,14 +216,12 @@ Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
 
-[Languages]
-Name: "english"; MessagesFile: "compiler:Default.isl"
-
 [Tasks]
-Name: "desktopicon"; Description: "Create a &desktop shortcut"; GroupDescription: "Additional icons:"; Flags: unchecked
+Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
 {{files}}
+{{registry}}
 
 [Icons]
 {{icons}}

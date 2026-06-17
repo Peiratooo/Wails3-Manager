@@ -2,19 +2,23 @@ package packaging
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"reflect"
-	"runtime"
 	"strings"
 	"testing"
 
 	"wails3-manager/core/contracts"
 	packagingConfig "wails3-manager/core/packaging/config"
 	"wails3-manager/core/project"
+	"wails3-manager/core/runlog"
 )
 
 func TestBuildSettingsBecomeTaskVarsAndEnv(t *testing.T) {
 	cfg := contracts.PackagingConfig{
 		Build: contracts.BuildSettings{
+			Taskfile:   "Taskfile.yml",
+			Task:       "release",
 			AppName:    "demo",
 			Production: true,
 			CGOEnabled: true,
@@ -35,32 +39,27 @@ func TestBuildSettingsBecomeTaskVarsAndEnv(t *testing.T) {
 			t.Fatalf("env[%s] = %q, want %q", k, env[k], want)
 		}
 	}
+
+	cmd, err := buildCommand(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantCmd := []string{"wails3", "task", "-taskfile", "Taskfile.yml", "release", "APP_NAME=demo", "PRODUCTION=true", "CGO_ENABLED=1"}
+	if !reflect.DeepEqual(cmd, wantCmd) {
+		t.Fatalf("buildCommand() = %#v, want %#v", cmd, wantCmd)
+	}
 }
 
-func TestDefaultPackagingConfigInitializesOnlyCurrentPlatform(t *testing.T) {
+func TestDefaultPackagingConfigInitializesBothPlatforms(t *testing.T) {
 	cfg := defaultPackagingConfig(t.TempDir(), contracts.WailsProjectConfig{
 		Info: contracts.WailsAppInfo{ProductName: "Demo"},
 	})
 
-	switch runtime.GOOS {
-	case "windows":
-		if !cfg.Windows.Enabled || cfg.Windows.InnoScript == "" {
-			t.Fatalf("windows config was not initialized: %#v", cfg.Windows)
-		}
-		if cfg.MacOS.Enabled || cfg.MacOS.DMGScript != "" || cfg.MacOS.Background != "" {
-			t.Fatalf("macos config should not be initialized on windows: %#v", cfg.MacOS)
-		}
-	case "darwin":
-		if !cfg.MacOS.Enabled || cfg.MacOS.DMGScript == "" || cfg.MacOS.Background == "" {
-			t.Fatalf("macos config was not initialized: %#v", cfg.MacOS)
-		}
-		if cfg.Windows.Enabled || cfg.Windows.InnoScript != "" {
-			t.Fatalf("windows config should not be initialized on macos: %#v", cfg.Windows)
-		}
-	default:
-		if cfg.Windows.Enabled || cfg.Windows.InnoScript != "" || cfg.MacOS.Enabled || cfg.MacOS.DMGScript != "" {
-			t.Fatalf("platform config should not be initialized on %s: windows=%#v macos=%#v", runtime.GOOS, cfg.Windows, cfg.MacOS)
-		}
+	if !cfg.Windows.Enabled || cfg.Windows.InnoScript == "" {
+		t.Fatalf("windows config was not initialized: %#v", cfg.Windows)
+	}
+	if !cfg.MacOS.Enabled || cfg.MacOS.DMGScript == "" || cfg.MacOS.Background == "" {
+		t.Fatalf("macos config was not initialized: %#v", cfg.MacOS)
 	}
 
 	data, err := json.Marshal(cfg)
@@ -68,11 +67,172 @@ func TestDefaultPackagingConfigInitializesOnlyCurrentPlatform(t *testing.T) {
 		t.Fatal(err)
 	}
 	text := string(data)
-	if runtime.GOOS == "windows" && strings.Contains(text, `"macos"`) {
-		t.Fatalf("windows initialization should not write macos config: %s", text)
+	if !strings.Contains(text, `"windows"`) || !strings.Contains(text, `"macos"`) {
+		t.Fatalf("default config should write both platform sections: %s", text)
 	}
-	if runtime.GOOS == "darwin" && strings.Contains(text, `"windows"`) {
-		t.Fatalf("macos initialization should not write windows config: %s", text)
+}
+
+func TestInitPackagingSyncsRootTaskfile(t *testing.T) {
+	SetPlatformOverride(contracts.Platform("linux"))
+	defer SetPlatformOverride("")
+
+	projectDir := t.TempDir()
+	wailsConfig := contracts.WailsProjectConfig{
+		Info: contracts.WailsAppInfo{
+			ProductName:       "Demo",
+			ProductIdentifier: "com.example.demo",
+			Version:           "1.0.0",
+		},
+	}
+	if err := project.SaveProjectRecord(contracts.ProjectRecord{
+		ProjectDir: projectDir,
+		Project: contracts.WailsProjectManager{
+			ProjectDir:  projectDir,
+			WailsConfig: wailsConfig,
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	taskfile := `version: '3'
+
+vars:
+  APP_NAME: "task-app"
+  BIN_DIR: "bin"
+  CGO_ENABLED: "1"
+  PRODUCTION: "false"
+
+includes:
+  common: ./build/Taskfile.yml
+  windows: ./build/windows/Taskfile.yml
+
+tasks:
+  build:
+    summary: Builds the application
+    cmds:
+      - task: "{{OS}}:build"
+        vars:
+          CGO_ENABLED: "{{.CGO_ENABLED}}"
+          PRODUCTION: "{{.PRODUCTION}}"
+`
+	if err := os.WriteFile(filepath.Join(projectDir, "Taskfile.yml"), []byte(taskfile), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := NewService(nil).InitPackaging(projectDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Build.AppName != "task-app" {
+		t.Fatalf("Build.AppName = %q, want task-app", cfg.Build.AppName)
+	}
+	if cfg.Build.Task != "release" {
+		t.Fatalf("Build.Task = %q, want release", cfg.Build.Task)
+	}
+
+	data, err := os.ReadFile(filepath.Join(projectDir, "Taskfile.yml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(data)
+	for _, want := range []string{
+		`APP_NAME: "task-app"`,
+		`CGO_ENABLED: "1"`,
+		`PRODUCTION: "false"`,
+		`  release:`,
+		`    summary: Builds the release application`,
+		`          APP_NAME: "{{.APP_NAME}}"`,
+		`          CGO_ENABLED: "{{.CGO_ENABLED}}"`,
+		`          PRODUCTION: "{{.PRODUCTION}}"`,
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("synced Taskfile is missing %q:\n%s", want, text)
+		}
+	}
+}
+
+func TestSavePackagingConfigSyncsTaskfileVarsAndReleaseTask(t *testing.T) {
+	SetPlatformOverride(contracts.Platform("linux"))
+	defer SetPlatformOverride("")
+
+	projectDir := t.TempDir()
+	wailsConfig := contracts.WailsProjectConfig{
+		Info: contracts.WailsAppInfo{
+			ProductName:       "Demo",
+			ProductIdentifier: "com.example.demo",
+			Version:           "1.0.0",
+		},
+	}
+	if err := project.SaveProjectRecord(contracts.ProjectRecord{
+		ProjectDir: projectDir,
+		Project: contracts.WailsProjectManager{
+			ProjectDir:  projectDir,
+			WailsConfig: wailsConfig,
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	taskfile := `version: '3'
+
+vars:
+  APP_NAME: "old"
+  CGO_ENABLED: "0"
+  PRODUCTION: "false"
+
+tasks:
+  build:
+    summary: Builds the application
+    cmds:
+      - task: "{{OS}}:build"
+
+  release:
+    summary: Builds the release application
+    cmds:
+      - task: "{{OS}}:build"
+        vars:
+          CGO_ENABLED: "{{.CGO_ENABLED}}"
+          PRODUCTION: "true"
+`
+	if err := os.WriteFile(filepath.Join(projectDir, "Taskfile.yml"), []byte(taskfile), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := defaultPackagingConfig(projectDir, wailsConfig)
+	cfg.Build.AppName = "next-app"
+	cfg.Build.Production = true
+	cfg.Build.CGOEnabled = true
+	saved, err := NewService(nil).SavePackagingConfig(projectDir, cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if saved.Build.Task != "release" {
+		t.Fatalf("Build.Task = %q, want release", saved.Build.Task)
+	}
+	if _, err := NewService(nil).SavePackagingConfig(projectDir, saved); err != nil {
+		t.Fatal(err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(projectDir, "Taskfile.yml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(data)
+	for _, want := range []string{
+		`APP_NAME: "next-app"`,
+		`CGO_ENABLED: "1"`,
+		`PRODUCTION: "true"`,
+		`          APP_NAME: "{{.APP_NAME}}"`,
+		`          CGO_ENABLED: "{{.CGO_ENABLED}}"`,
+		`          PRODUCTION: "{{.PRODUCTION}}"`,
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("synced Taskfile is missing %q:\n%s", want, text)
+		}
+	}
+	if got := strings.Count(text, "  release:"); got != 1 {
+		t.Fatalf("release task count = %d, want 1:\n%s", got, text)
+	}
+	if got := strings.Count(text, `          APP_NAME: "{{.APP_NAME}}"`); got < 2 {
+		t.Fatalf("APP_NAME should be passed by build and release tasks:\n%s", text)
 	}
 }
 
@@ -98,8 +258,32 @@ func TestGetPackagingRuntimeInfoUsesDefaultExecutableWhenEntryIsEmpty(t *testing
 		SchemaVersion: 1,
 		Build: contracts.BuildSettings{
 			Taskfile: "Taskfile.yml",
-			Task:     "builder:release",
+			Task:     "release",
 			AppName:  "demo",
+		},
+		Windows: contracts.WindowsConfig{
+			Enabled:               true,
+			InnoScript:            "builder/windows/inno.iss",
+			DefaultDirName:        `{autopf}\${project.name}`,
+			PrivilegesRequired:    "lowest",
+			SetupIcon:             "build/windows/icon.ico",
+			OutputBaseName:        "${build.appName}-${project.version}-windows-setup",
+			CreateDesktopShortcut: true,
+		},
+		MacOS: contracts.MacOSConfig{
+			Enabled:       true,
+			AppBundle:     "bin/${build.appName}.app",
+			DMGScript:     "builder/macos/dmg.sh",
+			Background:    "assets/install-grid.png",
+			OutputName:    "${build.appName}-${project.version}",
+			CreateDMGPath: "create-dmg",
+			WindowWidth:   640,
+			WindowHeight:  420,
+			IconSize:      96,
+			AppX:          180,
+			AppY:          210,
+			ApplicationsX: 460,
+			ApplicationsY: 210,
 		},
 		Artifacts: contracts.ArtifactConfig{OutputRoot: "builder/release"},
 	}
@@ -143,11 +327,35 @@ func TestGetPackagingRuntimeInfoUsesConfiguredExecutableWithPlaceholders(t *test
 		SchemaVersion: 1,
 		Build: contracts.BuildSettings{
 			Taskfile: "Taskfile.yml",
-			Task:     "builder:release",
+			Task:     "release",
 			AppName:  "demo",
 		},
 		Entry: contracts.ProgramEntry{
 			ExecutablePath: "dist/${build.appName}",
+		},
+		Windows: contracts.WindowsConfig{
+			Enabled:               true,
+			InnoScript:            "builder/windows/inno.iss",
+			DefaultDirName:        `{autopf}\${project.name}`,
+			PrivilegesRequired:    "lowest",
+			SetupIcon:             "build/windows/icon.ico",
+			OutputBaseName:        "${build.appName}-${project.version}-windows-setup",
+			CreateDesktopShortcut: true,
+		},
+		MacOS: contracts.MacOSConfig{
+			Enabled:       true,
+			AppBundle:     "bin/${build.appName}.app",
+			DMGScript:     "builder/macos/dmg.sh",
+			Background:    "assets/install-grid.png",
+			OutputName:    "${build.appName}-${project.version}",
+			CreateDMGPath: "create-dmg",
+			WindowWidth:   640,
+			WindowHeight:  420,
+			IconSize:      96,
+			AppX:          180,
+			AppY:          210,
+			ApplicationsX: 460,
+			ApplicationsY: 210,
 		},
 		Artifacts: contracts.ArtifactConfig{OutputRoot: "builder/release"},
 	}
@@ -170,6 +378,31 @@ func TestGetPackagingRuntimeInfoUsesConfiguredExecutableWithPlaceholders(t *test
 	}
 }
 
+func writeManagedTaskfile(t *testing.T, projectDir string) {
+	t.Helper()
+	taskfile := `version: '3'
+
+vars:
+  APP_NAME: "demo"
+  CGO_ENABLED: "0"
+  PRODUCTION: "false"
+
+tasks:
+  build:
+    summary: Builds the application
+    cmds:
+      - task: "{{OS}}:build"
+
+  release:
+    summary: Builds the release application
+    cmds:
+      - task: "{{OS}}:build"
+`
+	if err := os.WriteFile(filepath.Join(projectDir, "Taskfile.yml"), []byte(taskfile), 0644); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestPackageRejectsUnsupportedPlatform(t *testing.T) {
 	projectDir := t.TempDir()
 	wailsConfig := contracts.WailsProjectConfig{
@@ -188,13 +421,38 @@ func TestPackageRejectsUnsupportedPlatform(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
+	writeManagedTaskfile(t, projectDir)
 
 	cfg := contracts.PackagingConfig{
 		SchemaVersion: 1,
 		Build: contracts.BuildSettings{
 			Taskfile: "Taskfile.yml",
-			Task:     "builder:release",
+			Task:     "release",
 			AppName:  "demo",
+		},
+		Windows: contracts.WindowsConfig{
+			Enabled:               true,
+			InnoScript:            "builder/windows/inno.iss",
+			DefaultDirName:        `{autopf}\${project.name}`,
+			PrivilegesRequired:    "lowest",
+			SetupIcon:             "build/windows/icon.ico",
+			OutputBaseName:        "${build.appName}-${project.version}-windows-setup",
+			CreateDesktopShortcut: true,
+		},
+		MacOS: contracts.MacOSConfig{
+			Enabled:       true,
+			AppBundle:     "bin/${build.appName}.app",
+			DMGScript:     "builder/macos/dmg.sh",
+			Background:    "assets/install-grid.png",
+			OutputName:    "${build.appName}-${project.version}",
+			CreateDMGPath: "create-dmg",
+			WindowWidth:   640,
+			WindowHeight:  420,
+			IconSize:      96,
+			AppX:          180,
+			AppY:          210,
+			ApplicationsX: 460,
+			ApplicationsY: 210,
 		},
 		Artifacts: contracts.ArtifactConfig{OutputRoot: "builder/release"},
 	}
@@ -203,10 +461,134 @@ func TestPackageRejectsUnsupportedPlatform(t *testing.T) {
 	}
 
 	_, err := NewService(nil).Package(contracts.PackageRequest{
-		ProjectDir: projectDir,
-		Platform:   contracts.Platform("linux"),
+		ProjectDir:    projectDir,
+		Platform:      contracts.Platform("linux"),
+		TransactionID: "package-test",
 	})
 	if err == nil || !strings.Contains(err.Error(), "unsupported packaging platform") {
 		t.Fatalf("Package() error = %v, want unsupported platform", err)
+	}
+}
+
+func TestPackageRejectsMissingTransactionID(t *testing.T) {
+	_, err := NewService(nil).Package(contracts.PackageRequest{
+		ProjectDir: t.TempDir(),
+		Platform:   contracts.PlatformWindows,
+	})
+	if err == nil || !strings.Contains(err.Error(), "transactionId") {
+		t.Fatalf("Package() error = %v, want missing transactionId", err)
+	}
+}
+
+func TestPackageSkipsDisabledPlatformInstaller(t *testing.T) {
+	projectDir := t.TempDir()
+	projectConfig := contracts.WailsProjectConfig{
+		Info: contracts.WailsAppInfo{
+			ProductName:       "Demo",
+			ProductIdentifier: "com.example.demo",
+			Version:           "1.0.0",
+		},
+	}
+	if err := project.SaveProjectRecord(contracts.ProjectRecord{
+		ProjectDir: projectDir,
+		Project: contracts.WailsProjectManager{
+			ProjectDir:  projectDir,
+			WailsConfig: projectConfig,
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	writeManagedTaskfile(t, projectDir)
+
+	cfg := defaultPackagingConfig(projectDir, projectConfig)
+	cfg.Windows.Enabled = false
+	if err := packagingConfig.SavePackagingConfig(projectDir, cfg); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := NewService(nil).Package(contracts.PackageRequest{
+		ProjectDir:    projectDir,
+		Platform:      contracts.PlatformWindows,
+		DryRun:        true,
+		TransactionID: "package-test",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Warnings) != 1 || !strings.Contains(result.Warnings[0], "disabled") {
+		t.Fatalf("warnings = %#v, want disabled installer warning", result.Warnings)
+	}
+}
+
+func TestValidateWindowsPackagingInputsRejectsMissingExecutable(t *testing.T) {
+	projectDir := t.TempDir()
+	projectConfig := contracts.WailsProjectConfig{
+		Info: contracts.WailsAppInfo{
+			ProductName:       "Demo",
+			ProductIdentifier: "com.example.demo",
+			Version:           "1.0.0",
+		},
+	}
+	cfg := defaultPackagingConfig(projectDir, projectConfig)
+	cfg.Build.AppName = "missing-app"
+
+	err := validateWindowsPackagingInputs(projectDir, cfg, projectConfig)
+	if err == nil {
+		t.Fatal("expected missing executable error")
+	}
+	for _, want := range []string{"Windows executable", "missing-app.exe", `build.appName="missing-app"`} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("error %q missing %q", err.Error(), want)
+		}
+	}
+}
+
+func TestPackageLogsCarryTransaction(t *testing.T) {
+	projectDir := t.TempDir()
+	wailsConfig := contracts.WailsProjectConfig{
+		Info: contracts.WailsAppInfo{
+			ProductName:       "Demo",
+			ProductIdentifier: "com.example.demo",
+			Version:           "1.0.0",
+		},
+	}
+	if err := project.SaveProjectRecord(contracts.ProjectRecord{
+		ProjectDir: projectDir,
+		Project: contracts.WailsProjectManager{
+			ProjectDir:  projectDir,
+			WailsConfig: wailsConfig,
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	writeManagedTaskfile(t, projectDir)
+	cfg := defaultPackagingConfig(projectDir, wailsConfig)
+	if err := packagingConfig.SavePackagingConfig(projectDir, cfg); err != nil {
+		t.Fatal(err)
+	}
+
+	log := runlog.New()
+	events := []runlog.Line{}
+	log.OnLine = func(line runlog.Line) {
+		events = append(events, line)
+	}
+
+	_, err := NewService(log).Package(contracts.PackageRequest{
+		ProjectDir:    projectDir,
+		Platform:      contracts.PlatformWindows,
+		DryRun:        true,
+		RunBuild:      true,
+		TransactionID: "package-1",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(events) == 0 {
+		t.Fatal("expected package logs")
+	}
+	for _, event := range events {
+		if event.TransactionID != "package-1" || event.TransactionType != "package" || event.TransactionTitle == "" {
+			t.Fatalf("log event transaction = %#v", event)
+		}
 	}
 }

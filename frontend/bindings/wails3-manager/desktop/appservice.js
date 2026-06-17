@@ -33,3 +33,11 @@ export function ChooseIcon() {
 export function ChooseSetupIcon() {
     return $Call.ByID(2369415792);
 }
+
+/**
+ * @param {string} path
+ * @returns {$CancellablePromise<void>}
+ */
+export function OpenPath(path) {
+    return $Call.ByID(1774629290, path);
+}

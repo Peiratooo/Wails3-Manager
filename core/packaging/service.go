@@ -21,11 +21,26 @@ import (
 )
 
 type PackagingService struct {
-	Log *runlog.Logger
+	Log              *runlog.Logger
+	DMGBackgroundPNG []byte
+}
+
+type ServiceOptions struct {
+	DMGBackgroundPNG []byte
+}
+
+var platformOverride contracts.Platform
+
+func SetPlatformOverride(platform contracts.Platform) {
+	platformOverride = platform
 }
 
 func NewService(log *runlog.Logger) *PackagingService {
-	return &PackagingService{Log: log}
+	return NewServiceWithOptions(log, ServiceOptions{})
+}
+
+func NewServiceWithOptions(log *runlog.Logger, options ServiceOptions) *PackagingService {
+	return &PackagingService{Log: log, DMGBackgroundPNG: options.DMGBackgroundPNG}
 }
 
 func (s *PackagingService) InitPackaging(projectDir string) (contracts.PackagingConfig, error) {
@@ -39,6 +54,9 @@ func (s *PackagingService) InitPackaging(projectDir string) (contracts.Packaging
 	}
 	existing, err := config.LoadPackagingConfig(projectDir)
 	if err == nil {
+		if err := syncPackagingTaskfile(projectDir, existing); err != nil {
+			return contracts.PackagingConfig{}, err
+		}
 		if err := s.writeTemplates(projectDir, existing, projectConfig); err != nil {
 			return contracts.PackagingConfig{}, err
 		}
@@ -49,6 +67,9 @@ func (s *PackagingService) InitPackaging(projectDir string) (contracts.Packaging
 	}
 	cfg := defaultPackagingConfig(projectDir, projectConfig)
 	if err := config.SavePackagingConfig(projectDir, cfg); err != nil {
+		return contracts.PackagingConfig{}, err
+	}
+	if err := syncPackagingTaskfile(projectDir, cfg); err != nil {
 		return contracts.PackagingConfig{}, err
 	}
 	if err := s.writeTemplates(projectDir, cfg, projectConfig); err != nil {
@@ -71,6 +92,9 @@ func (s *PackagingService) SavePackagingConfig(projectDir string, cfg contracts.
 		return contracts.PackagingConfig{}, err
 	}
 	if err := config.SavePackagingConfig(projectDir, cfg); err != nil {
+		return contracts.PackagingConfig{}, err
+	}
+	if err := syncPackagingTaskfile(projectDir, cfg); err != nil {
 		return contracts.PackagingConfig{}, err
 	}
 	if err := s.writeTemplates(projectDir, cfg, projectConfig); err != nil {
@@ -98,10 +122,14 @@ func (s *PackagingService) GetPackagingRuntimeInfo(projectDir string) (contracts
 	return config.ResolveExecutablePath(cfg, projectConfig, runtimePlatform()), nil
 }
 
-func (s *PackagingService) Package(req contracts.PackageRequest) (contracts.PackageResult, error) {
+func (s *PackagingService) Package(req contracts.PackageRequest) (result contracts.PackageResult, err error) {
 	projectDir, err := fsx.NormalizePath(req.ProjectDir)
 	if err != nil {
 		return contracts.PackageResult{}, err
+	}
+	transactionID := strings.TrimSpace(req.TransactionID)
+	if transactionID == "" {
+		return contracts.PackageResult{}, errors.New("package transactionId is required")
 	}
 	cfg, err := config.LoadPackagingConfig(projectDir)
 	if err != nil {
@@ -120,11 +148,38 @@ func (s *PackagingService) Package(req contracts.PackageRequest) (contracts.Pack
 	default:
 		return contracts.PackageResult{}, fmt.Errorf("unsupported packaging platform: %s", platform)
 	}
+	if err := syncPackagingTaskfile(projectDir, cfg); err != nil {
+		return contracts.PackageResult{}, err
+	}
+	tx := runlog.Transaction{
+		ID:    transactionID,
+		Type:  "package",
+		Title: "Packaging " + string(platform),
+	}
+	if s.Log != nil {
+		s.Log.PrintlnWithTransaction(tx, "Packaging started:", platform)
+	}
+	defer func() {
+		if s.Log == nil {
+			return
+		}
+		if err != nil {
+			s.Log.PrintlnWithTransaction(tx, "Packaging failed:", err)
+			return
+		}
+		s.Log.PrintlnWithTransaction(tx, "Packaging completed:", platform)
+	}()
 	runID := fsx.Timestamp()
-	result := contracts.PackageResult{OK: true, RunID: runID, Warnings: []string{}}
+	result = contracts.PackageResult{
+		OK:               true,
+		RunID:            runID,
+		Warnings:         []string{},
+		BuildOutputDir:   fsx.Resolve(projectDir, "bin"),
+		PackageOutputDir: packageOutputDir(projectDir, cfg, projectConfig, platform),
+	}
 	ctx := context.Background()
 	if req.RunBuild {
-		if err := s.runBuild(ctx, projectDir, cfg, req.DryRun); err != nil {
+		if err := s.runBuild(ctx, projectDir, cfg, req.DryRun, tx); err != nil {
 			return contracts.PackageResult{}, err
 		}
 	}
@@ -132,36 +187,44 @@ func (s *PackagingService) Package(req contracts.PackageRequest) (contracts.Pack
 	// execution path is the explicit build command in packaging.json, which keeps
 	// package review and dry-run behavior predictable.
 	if platform == contracts.PlatformWindows || platform == contracts.PlatformAll {
-		if !cfg.Windows.Enabled || cfg.Windows.InnoScript == "" {
-			if platform == contracts.PlatformWindows {
-				return contracts.PackageResult{}, errors.New("Windows packaging has not been initialized")
-			}
-			result.Warnings = append(result.Warnings, "Windows packaging has not been initialized; skipped.")
+		if !cfg.Windows.Enabled {
+			result.Warnings = append(result.Warnings, "Windows installer generation is disabled; skipped.")
+		} else if cfg.Windows.InnoScript == "" {
+			return contracts.PackageResult{}, errors.New("Windows packaging has not been initialized")
 		} else {
 			if _, err := inno.Generate(projectDir, cfg, projectConfig); err != nil {
 				return contracts.PackageResult{}, err
 			}
 			if req.DryRun || runtime.GOOS != "windows" {
 				result.Warnings = append(result.Warnings, "Windows packaging generated the Inno script only; ISCC was not executed.")
-			} else if err := s.runISCC(ctx, projectDir, cfg); err != nil {
-				return contracts.PackageResult{}, err
+			} else {
+				if err := validateWindowsPackagingInputs(projectDir, cfg, projectConfig); err != nil {
+					return contracts.PackageResult{}, err
+				}
+				if err := s.runISCC(ctx, projectDir, cfg, tx); err != nil {
+					return contracts.PackageResult{}, err
+				}
 			}
 		}
 	}
 	if platform == contracts.PlatformMacOS || platform == contracts.PlatformAll {
-		if !cfg.MacOS.Enabled || cfg.MacOS.DMGScript == "" {
-			if platform == contracts.PlatformMacOS {
-				return contracts.PackageResult{}, errors.New("macOS packaging has not been initialized")
-			}
-			result.Warnings = append(result.Warnings, "macOS packaging has not been initialized; skipped.")
+		if !cfg.MacOS.Enabled {
+			result.Warnings = append(result.Warnings, "macOS DMG generation is disabled; skipped.")
+		} else if cfg.MacOS.DMGScript == "" {
+			return contracts.PackageResult{}, errors.New("macOS packaging has not been initialized")
 		} else {
 			if _, err := dmg.GenerateScript(projectDir, cfg, projectConfig); err != nil {
 				return contracts.PackageResult{}, err
 			}
 			if req.DryRun || runtime.GOOS != "darwin" {
 				result.Warnings = append(result.Warnings, "macOS packaging generated the DMG script only; create-dmg was not executed.")
-			} else if err := s.runDMG(ctx, projectDir, cfg); err != nil {
-				return contracts.PackageResult{}, err
+			} else {
+				if err := validateMacOSPackagingInputs(projectDir, cfg, projectConfig); err != nil {
+					return contracts.PackageResult{}, err
+				}
+				if err := s.runDMG(ctx, projectDir, cfg, tx); err != nil {
+					return contracts.PackageResult{}, err
+				}
 			}
 		}
 	}
@@ -179,7 +242,7 @@ func (s *PackagingService) Artifacts(projectDir string) []contracts.Artifact {
 }
 
 func (s *PackagingService) writeTemplates(projectDir string, cfg contracts.PackagingConfig, projectConfig contracts.WailsProjectConfig) error {
-	switch runtime.GOOS {
+	switch runtimePlatform() {
 	case "windows":
 		if !cfg.Windows.Enabled || cfg.Windows.InnoScript == "" {
 			return nil
@@ -193,7 +256,7 @@ func (s *PackagingService) writeTemplates(projectDir string, cfg contracts.Packa
 		}
 		if cfg.MacOS.Background != "" {
 			bg := fsx.Resolve(projectDir, cfg.MacOS.Background)
-			if _, err := fsx.WriteIfMissing(bg, dmg.DefaultBackgroundPNG(), 0644); err != nil {
+			if _, err := fsx.WriteIfMissing(bg, s.defaultDMGBackgroundPNG(), 0644); err != nil {
 				return err
 			}
 		}
@@ -207,35 +270,31 @@ func (s *PackagingService) writeTemplates(projectDir string, cfg contracts.Packa
 	return nil
 }
 
-func (s *PackagingService) runBuild(ctx context.Context, projectDir string, cfg contracts.PackagingConfig, dryRun bool) error {
-	cmd := cfg.Build.Command
-	env := buildEnv(cfg)
-	if len(cmd) == 0 {
-		if cfg.Build.Task == "" {
-			return errors.New("build.task is required when build.command is empty")
-		}
-		cmd = []string{"wails3", "task", cfg.Build.Task}
-		cmd = append(cmd, buildTaskVars(cfg)...)
+func (s *PackagingService) runBuild(ctx context.Context, projectDir string, cfg contracts.PackagingConfig, dryRun bool, tx runlog.Transaction) error {
+	cmd, err := buildCommand(cfg)
+	if err != nil {
+		return err
 	}
-	return (runlog.Runner{Log: s.Log, DryRun: dryRun, Env: env}).Run(ctx, projectDir, cmd)
+	env := buildEnv(cfg)
+	return (runlog.Runner{Log: s.Log, DryRun: dryRun, Env: env, Transaction: tx}).Run(ctx, projectDir, cmd)
 }
 
-func (s *PackagingService) runISCC(ctx context.Context, projectDir string, cfg contracts.PackagingConfig) error {
+func (s *PackagingService) runISCC(ctx context.Context, projectDir string, cfg contracts.PackagingConfig, tx runlog.Transaction) error {
 	req := environment.InnoRequirement(cfg.Windows.ISCCPath)
 	if !req.Found {
 		return errors.New(req.Message)
 	}
 	script := fsx.Resolve(projectDir, cfg.Windows.InnoScript)
-	return (runlog.Runner{Log: s.Log}).Run(ctx, projectDir, []string{req.Path, script})
+	return (runlog.Runner{Log: s.Log, Transaction: tx}).Run(ctx, projectDir, []string{req.Path, script})
 }
 
-func (s *PackagingService) runDMG(ctx context.Context, projectDir string, cfg contracts.PackagingConfig) error {
+func (s *PackagingService) runDMG(ctx context.Context, projectDir string, cfg contracts.PackagingConfig, tx runlog.Transaction) error {
 	req := environment.CreateDMGRequirement(cfg.MacOS.CreateDMGPath)
 	if !req.Found {
 		return errors.New(req.Message)
 	}
 	script := fsx.Resolve(projectDir, cfg.MacOS.DMGScript)
-	return (runlog.Runner{Log: s.Log}).Run(ctx, projectDir, []string{"bash", script})
+	return (runlog.Runner{Log: s.Log, Transaction: tx}).Run(ctx, projectDir, []string{"bash", script})
 }
 
 func defaultPackagingConfig(projectDir string, projectConfig contracts.WailsProjectConfig) contracts.PackagingConfig {
@@ -245,26 +304,24 @@ func defaultPackagingConfig(projectDir string, projectConfig contracts.WailsProj
 		name = filepath.Base(projectDir)
 	}
 	taskVars := project.LoadTaskVars(projectDir)
+	taskfile := project.RootTaskfileRelPathForProject(projectDir)
 	appNameSource := strings.TrimSpace(taskVars.AppName)
 	if appNameSource == "" {
 		appNameSource = name
 	}
 	appName := fsx.SafeName(appNameSource)
-	cfg := contracts.PackagingConfig{
+	return contracts.PackagingConfig{
 		SchemaVersion: 1,
 		Build: contracts.BuildSettings{
-			Taskfile:   "Taskfile.yml",
-			Task:       "builder:release",
+			Taskfile:   taskfile,
+			Task:       "release",
 			Production: taskVars.Production,
 			CGOEnabled: project.ResolveBoolean(taskVars.CGOEnabled),
 			AppName:    appName,
 		},
 		Assets:    []contracts.PackagingAsset{},
 		Artifacts: contracts.ArtifactConfig{OutputRoot: "builder/release"},
-	}
-	switch runtime.GOOS {
-	case "windows":
-		cfg.Windows = contracts.WindowsConfig{
+		Windows: contracts.WindowsConfig{
 			Enabled:               true,
 			InnoScript:            "builder/windows/inno.iss",
 			DefaultDirName:        `{autopf}\${project.name}`,
@@ -272,13 +329,12 @@ func defaultPackagingConfig(projectDir string, projectConfig contracts.WailsProj
 			SetupIcon:             "build/windows/icon.ico",
 			OutputBaseName:        "${build.appName}-${project.version}-windows-setup",
 			CreateDesktopShortcut: true,
-		}
-	case "darwin":
-		cfg.MacOS = contracts.MacOSConfig{
+		},
+		MacOS: contracts.MacOSConfig{
 			Enabled:       true,
 			AppBundle:     "bin/${build.appName}.app",
 			DMGScript:     "builder/macos/dmg.sh",
-			Background:    "builder/macos/background.png",
+			Background:    "assets/install-grid.png",
 			OutputName:    "${build.appName}-${project.version}",
 			CreateDMGPath: "create-dmg",
 			WindowWidth:   640,
@@ -288,9 +344,8 @@ func defaultPackagingConfig(projectDir string, projectConfig contracts.WailsProj
 			AppY:          210,
 			ApplicationsX: 460,
 			ApplicationsY: 210,
-		}
+		},
 	}
-	return cfg
 }
 
 func loadProjectConfig(projectDir string) (contracts.WailsProjectConfig, error) {
@@ -309,12 +364,102 @@ func buildEnv(cfg contracts.PackagingConfig) map[string]string {
 	}
 }
 
+func buildCommand(cfg contracts.PackagingConfig) ([]string, error) {
+	if len(cfg.Build.Command) > 0 {
+		return cfg.Build.Command, nil
+	}
+	if cfg.Build.Task == "" {
+		return nil, errors.New("build.task is required when build.command is empty")
+	}
+	cmd := []string{"wails3", "task"}
+	if taskfile := strings.TrimSpace(cfg.Build.Taskfile); taskfile != "" {
+		cmd = append(cmd, "-taskfile", filepath.ToSlash(taskfile))
+	}
+	cmd = append(cmd, cfg.Build.Task)
+	cmd = append(cmd, buildTaskVars(cfg)...)
+	return cmd, nil
+}
+
 func buildTaskVars(cfg contracts.PackagingConfig) []string {
 	return []string{
 		"APP_NAME=" + config.AppName(cfg),
 		"PRODUCTION=" + boolString(cfg.Build.Production),
 		"CGO_ENABLED=" + cgoString(cfg.Build.CGOEnabled),
 	}
+}
+
+func validateWindowsPackagingInputs(projectDir string, cfg contracts.PackagingConfig, projectConfig contracts.WailsProjectConfig) error {
+	info := config.ResolveExecutablePath(cfg, projectConfig, contracts.PlatformWindows)
+	if err := validateRequiredPath(projectDir, info.EffectiveExecutablePath, false, "Windows executable", executablePathSource(info), cfg); err != nil {
+		return err
+	}
+	return validateRequiredAssets(projectDir, cfg)
+}
+
+func validateMacOSPackagingInputs(projectDir string, cfg contracts.PackagingConfig, projectConfig contracts.WailsProjectConfig) error {
+	info := config.ResolveMacOSAppBundlePath(cfg, projectConfig)
+	if err := validateRequiredPath(projectDir, info.EffectiveExecutablePath, true, "macOS app bundle", executablePathSource(info), cfg); err != nil {
+		return err
+	}
+	return validateRequiredAssets(projectDir, cfg)
+}
+
+func validateRequiredAssets(projectDir string, cfg contracts.PackagingConfig) error {
+	for i, asset := range cfg.Assets {
+		if !asset.Required {
+			continue
+		}
+		label := fmt.Sprintf("required packaging asset %d", i)
+		if err := validateRequiredPath(projectDir, asset.Src, asset.Type == "directory", label, "packaging assets", cfg); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateRequiredPath(projectDir, relOrAbsPath string, wantDir bool, label, source string, cfg contracts.PackagingConfig) error {
+	path := fsx.Resolve(projectDir, relOrAbsPath)
+	if path == "" {
+		return fmt.Errorf("%s path is empty (%s)", label, source)
+	}
+	exists := fsx.FileExists(path)
+	if wantDir {
+		exists = fsx.DirExists(path)
+	}
+	if exists {
+		return nil
+	}
+	kind := "file"
+	if wantDir {
+		kind = "directory"
+	}
+	return fmt.Errorf("%s %s does not exist: %s (source: %s, build.appName=%q, build.task=%q, build.taskfile=%q)", label, kind, path, source, config.AppName(cfg), cfg.Build.Task, cfg.Build.Taskfile)
+}
+
+func executablePathSource(info contracts.PackagingRuntimeInfo) string {
+	if info.UsingDefaultExecutable {
+		return "default executable path"
+	}
+	return "entry.executablePath"
+}
+
+func packageOutputDir(projectDir string, cfg contracts.PackagingConfig, projectConfig contracts.WailsProjectConfig, platform contracts.Platform) string {
+	switch platform {
+	case contracts.PlatformWindows:
+		return fsx.Resolve(projectDir, config.WindowsOutputDir(cfg, projectConfig))
+	case contracts.PlatformMacOS:
+		return fsx.Resolve(projectDir, config.MacOSOutputDir(cfg, projectConfig))
+	case contracts.PlatformAll:
+		return fsx.Resolve(projectDir, config.ExportRoot(cfg, projectConfig))
+	}
+	return ""
+}
+
+func (s *PackagingService) defaultDMGBackgroundPNG() []byte {
+	if len(s.DMGBackgroundPNG) > 0 {
+		return s.DMGBackgroundPNG
+	}
+	return dmg.DefaultBackgroundPNG()
 }
 
 func boolString(v bool) string {
@@ -332,6 +477,9 @@ func cgoString(v bool) string {
 }
 
 func runtimePlatform() contracts.Platform {
+	if platformOverride != "" {
+		return platformOverride
+	}
 	switch runtime.GOOS {
 	case "windows":
 		return contracts.PlatformWindows

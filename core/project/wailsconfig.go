@@ -37,6 +37,36 @@ func LoadWailsConfig(projectDir string) (contracts.WailsProjectConfig, error) {
 	return cfg, nil
 }
 
+func WailsConfigNeedsCompletion(projectDir string) (bool, error) {
+	projectDir, err := fsx.NormalizePath(projectDir)
+	if err != nil {
+		return false, err
+	}
+	data, err := os.ReadFile(ConfigPath(projectDir))
+	if err != nil {
+		return false, fmt.Errorf("failed to read build/config.yml: %w", err)
+	}
+	text := string(data)
+	info := sectionBlock(text, "info", 0)
+	if strings.TrimSpace(info) == "" {
+		return true, nil
+	}
+	for _, key := range []string{
+		"companyName",
+		"productName",
+		"productIdentifier",
+		"description",
+		"copyright",
+		"comments",
+		"version",
+	} {
+		if !regexp.MustCompile(`(?m)^\s{2}` + regexp.QuoteMeta(key) + `\s*:`).MatchString(info) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 func parseInfo(text string) contracts.WailsAppInfo {
 	return contracts.WailsAppInfo{
 		CompanyName:       getInfoValue(text, "companyName"),

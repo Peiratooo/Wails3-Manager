@@ -28,7 +28,7 @@
                 <div class="section-head">
                     <div>
                         <div class="section-title">{{ t("packageEditor.buildTitle") }}</div>
-                        <div class="section-desc">{{ t("packageEditor.buildDesc") }}</div>
+<!--                        <div class="section-desc">{{ t("packageEditor.buildDesc") }}</div>-->
                     </div>
                 </div>
 
@@ -124,7 +124,7 @@
                 <div class="section-head">
                     <div>
                         <div class="section-title">{{ t("packageEditor.entryTitle") }}</div>
-                        <div class="section-desc">{{ t("packageEditor.entryDesc") }}</div>
+<!--                        <div class="section-desc">{{ t("packageEditor.entryDesc") }}</div>-->
                     </div>
                 </div>
 
@@ -162,14 +162,62 @@
             <section class="section-card">
                 <div class="section-head">
                     <div>
-                        <div class="section-title">{{ t("packageEditor.windowsTitle") }}</div>
-                        <div class="section-desc">{{ t("packageEditor.windowsDesc") }}</div>
+                        <div class="section-title">
+                            {{ activePlatform === "windows" ? t("packageEditor.windowsTitle") : t("packageEditor.macosTitle") }}
+                        </div>
+<!--                        <div class="section-desc">-->
+<!--                            {{ activePlatform === "windows" ? t("packageEditor.windowsDesc") : t("packageEditor.macosDesc") }}-->
+<!--                        </div>-->
                     </div>
 
-                    <n-switch v-model:value="cfg.windows.enabled" />
+                    <div class="platform-actions">
+                        <div class="package-toggle compact">
+                            <span>
+                                {{ activePlatform === "windows" ? t("packageEditor.windowsEnabled") : t("packageEditor.macosEnabled") }}
+                            </span>
+
+                            <n-switch
+                                v-if="activePlatform === 'windows'"
+                                v-model:value="cfg.windows.enabled"
+                            />
+
+                            <n-switch
+                                v-else
+                                v-model:value="cfg.macos.enabled"
+                            />
+                        </div>
+                    </div>
                 </div>
 
-                <div class="form-grid" :class="{ disabled: !cfg.windows.enabled }">
+                <div class="platform-switch-row">
+                    <div class="platform-tabs">
+                        <button
+                            type="button"
+                            class="platform-tab"
+                            :class="{ active: activePlatform === 'windows' }"
+                            @click="activePlatform = 'windows'"
+                        >
+                            Windows
+                        </button>
+
+                        <button
+                            type="button"
+                            class="platform-tab"
+                            :class="{ active: activePlatform === 'macos' }"
+                            @click="activePlatform = 'macos'"
+                        >
+                            macOS
+                        </button>
+                    </div>
+
+<!--                    <div class="platform-switch-hint">{{ t("packageEditor.platformEnabledDesc") }}</div>-->
+                </div>
+
+                <div
+                    v-if="activePlatform === 'windows'"
+                    class="form-grid"
+                    :class="{ disabled: !cfg.windows.enabled }"
+                >
                     <div class="input-area">
                         <div class="label">{{ t("packageEditor.privilegesRequired") }}</div>
 
@@ -189,12 +237,46 @@
                     </div>
 
                     <div class="switch-area full">
-                        <div>
-                            <div class="label">{{ t("packageEditor.createDesktopShortcut") }}</div>
-                            <div class="hint">{{ t("packageEditor.createDesktopShortcutDesc") }}</div>
-                        </div>
+
+                            <div>{{ t("packageEditor.createDesktopShortcut") }}</div>
+<!--                            <div class="hint">{{ t("packageEditor.createDesktopShortcutDesc") }}</div>-->
+
 
                         <n-switch v-model:value="cfg.windows.createDesktopShortcut" />
+                    </div>
+                </div>
+
+                <div
+                    v-else
+                    class="form-grid"
+                    :class="{ disabled: !cfg.macos.enabled }"
+                >
+                    <div class="path-picker full">
+                        <div class="path-icon">
+                            <n-icon size="20">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+                                    <path d="M6 4h20a2 2 0 0 1 2 2v20a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zm0 2v20h20V6z" fill="currentColor"></path>
+                                    <path d="M10 11h12v2H10zm0 4h8v2h-8zm0 4h10v2H10z" fill="currentColor"></path>
+                                </svg>
+                            </n-icon>
+                        </div>
+
+                        <div class="path-main">
+                            <div class="label">{{ t("packageEditor.dmgLayoutTitle") }}</div>
+                            <n-ellipsis class="path-value">
+                                {{ cfg.macos.windowWidth }} x {{ cfg.macos.windowHeight }} · {{ t("packageEditor.iconSize") }} {{ cfg.macos.iconSize }}
+                            </n-ellipsis>
+                            <div class="path-hint">
+                                App {{ cfg.macos.appX }}, {{ cfg.macos.appY }} · Applications {{ cfg.macos.applicationsX }}, {{ cfg.macos.applicationsY }}
+                            </div>
+                        </div>
+
+                        <n-button
+                            :disabled="saving"
+                            @click="dmgEditorVisible = true"
+                        >
+                            {{ t("packageEditor.editDmgLayout") }}
+                        </n-button>
                     </div>
                 </div>
             </section>
@@ -203,7 +285,7 @@
                 <div class="section-head">
                     <div>
                         <div class="section-title">{{ t("packageEditor.assetsTitle") }}</div>
-                        <div class="section-desc">{{ t("packageEditor.assetsDesc") }}</div>
+<!--                        <div class="section-desc">{{ t("packageEditor.assetsDesc") }}</div>-->
                     </div>
 
                     <div class="asset-add-actions">
@@ -287,6 +369,13 @@
                 </div>
             </section>
         </div>
+
+        <DmgLayoutEditor
+            v-model:show="dmgEditorVisible"
+            :macos="cfg.macos"
+            :project-dir="projectDir"
+            @save="setMacOSLayout"
+        />
     </div>
 </template>
 
@@ -305,6 +394,7 @@ import {
 import { useI18n } from "../../i18n"
 import { PackagingService } from "../../../bindings/wails3-manager/core/packaging"
 import { AppService } from "../../../bindings/wails3-manager/desktop"
+import DmgLayoutEditor from "./DmgLayoutEditor.vue"
 
 const props = defineProps({
     packageCfg: {
@@ -323,6 +413,8 @@ const message = useMessage()
 const cfg = ref(cloneData(props.packageCfg))
 const originalCfgJson = ref(JSON.stringify(cfg.value))
 const saving = ref(false)
+const activePlatform = ref("windows")
+const dmgEditorVisible = ref(false)
 const runtimeInfo = ref({
     defaultExecutablePath: "",
     effectiveExecutablePath: "",
@@ -362,12 +454,10 @@ const assetTypeOptions = computed(() => [
 
 const currentSetupIcon = computed(() => {
     const path = setupIcon.value.newPath || setupIcon.value.oldPath
-    if (setupIcon.value.newPath) {
-        return "/local/file?"+path
-    } else {
-        return "/local/file?"+props.projectDir+'/'+path
+    if (!path) {
+        return ""
     }
-
+    return "/local/file?" + projectFilePath(path)
 })
 
 const isDirty = computed(() => {
@@ -473,6 +563,17 @@ function setNewSetupIcon(path) {
 function cancelSetupIcon() {
     setupIcon.value.newPath = ""
     cfg.value.windows.setupIcon = setupIcon.value.oldPath
+}
+
+function setMacOSLayout(nextMacOS) {
+    cfg.value.macos = cloneData(nextMacOS)
+}
+
+function projectFilePath(path) {
+    if (/^[A-Za-z]:[\\/]/.test(path) || path.startsWith("/") || path.startsWith("\\\\")) {
+        return path
+    }
+    return props.projectDir + "/" + path
 }
 
 async function chooseExecutablePath() {
@@ -624,7 +725,7 @@ function cloneData(data) {
     align-items: flex-start;
     justify-content: space-between;
     gap: 16px;
-    margin-bottom: 18px;
+    margin-bottom: 12px;
 }
 
 .section-title {
@@ -638,6 +739,99 @@ function cloneData(data) {
     font-size: 12px;
     line-height: 1.5;
     color: var(--wm-text-muted);
+}
+
+.platform-actions {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+}
+
+.platform-switch-row {
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.package-toggle {
+    min-height: 52px;
+    padding: 9px 12px;
+    box-sizing: border-box;
+    border-radius: 12px;
+    border: 1px solid var(--wm-border-subtle);
+    background: var(--wm-control-bg);
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.package-toggle.compact {
+    min-height: 34px;
+    padding: 0 8px 0 10px;
+    border-radius: 6px;
+}
+
+.package-toggle.compact span {
+    font-size: 12px;
+    color: var(--wm-text-secondary);
+}
+
+.package-toggle-copy {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.package-toggle-copy span {
+    font-size: 12px;
+    line-height: 1.2;
+    color: var(--wm-text-secondary);
+}
+
+.package-toggle-copy small {
+    font-size: 10px;
+    line-height: 1.2;
+    color: var(--wm-text-muted);
+}
+
+.platform-tabs {
+    height: 34px;
+    padding: 3px;
+    box-sizing: border-box;
+    border-radius: 6px;
+    border: 1px solid var(--wm-border-subtle);
+    background: var(--wm-control-bg);
+
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.platform-switch-hint {
+    min-width: 0;
+    font-size: 11px;
+    line-height: 1.4;
+    color: var(--wm-text-muted);
+}
+
+.platform-tab {
+    height: 26px;
+    padding: 0 10px;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--wm-text-muted);
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.platform-tab.active {
+    color: var(--wm-text-inverse);
+    background: var(--wm-color-primary);
 }
 
 .build-content {
@@ -831,6 +1025,10 @@ function cloneData(data) {
     display: flex;
     align-items: center;
     gap: 12px;
+}
+
+.path-picker.full {
+    grid-column: 1 / -1;
 }
 
 .path-icon {

@@ -17,13 +17,23 @@ import (
 
 var App *application.App
 
-func Run(assets embed.FS) {
+type Options struct {
+	DMGBackgroundPNG []byte
+}
+
+func Run(assets embed.FS, options Options) {
 	logSink := runlog.New()
 	logSink.SetRecordLogs(settings.LoadManagerSettings().RecordLogs)
 	settingsService := settings.NewService(logSink)
 	projectService := project.NewService(logSink)
-	packagingService := packaging.NewService(logSink)
+	packagingService := packaging.NewServiceWithOptions(logSink, packaging.ServiceOptions{
+		DMGBackgroundPNG: options.DMGBackgroundPNG,
+	})
 	projectService.InitPackagingFn = func(projectDir string) error {
+		_, err := packagingService.InitPackaging(projectDir)
+		return err
+	}
+	settingsService.InitPackagingFn = func(projectDir string) error {
 		_, err := packagingService.InitPackaging(projectDir)
 		return err
 	}
@@ -45,10 +55,15 @@ func Run(assets embed.FS) {
 		},
 		Mac: application.MacOptions{ApplicationShouldTerminateAfterLastWindowClosed: true},
 	})
-	logSink.OnLine = func(line string) {
+	logSink.OnLine = func(line runlog.Line) {
 		app := application.Get()
 		if app != nil {
-			app.Event.Emit("manager:log-line", contracts.LogLineEvent{Line: line})
+			app.Event.Emit("manager:log-line", contracts.LogLineEvent{
+				Line:             line.Text,
+				TransactionID:    line.TransactionID,
+				TransactionType:  line.TransactionType,
+				TransactionTitle: line.TransactionTitle,
+			})
 		}
 	}
 	App.Window.NewWithOptions(application.WebviewWindowOptions{

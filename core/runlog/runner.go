@@ -11,9 +11,10 @@ import (
 )
 
 type Runner struct {
-	Log    *Logger
-	DryRun bool
-	Env    map[string]string
+	Log         *Logger
+	DryRun      bool
+	Env         map[string]string
+	Transaction Transaction
 }
 
 func (r Runner) Run(ctx context.Context, workDir string, command []string) error {
@@ -21,12 +22,12 @@ func (r Runner) Run(ctx context.Context, workDir string, command []string) error
 		return fmt.Errorf("command is empty")
 	}
 	if r.Log != nil {
-		r.Log.Println("Running command:", strings.Join(command, " "))
-		r.Log.Println("Working directory:", workDir)
+		r.Log.PrintlnWithTransaction(r.Transaction, "Running command:", strings.Join(command, " "))
+		r.Log.PrintlnWithTransaction(r.Transaction, "Working directory:", workDir)
 	}
 	if r.DryRun {
 		if r.Log != nil {
-			r.Log.Println("dry-run: command execution skipped")
+			r.Log.PrintlnWithTransaction(r.Transaction, "dry-run: command execution skipped")
 		}
 		return nil
 	}
@@ -49,7 +50,7 @@ func (r Runner) Run(ctx context.Context, workDir string, command []string) error
 		defer wg.Done()
 		for s.Scan() {
 			if r.Log != nil {
-				r.Log.Println(prefix + s.Text())
+				r.Log.PrintlnWithTransaction(r.Transaction, prefix+s.Text())
 			}
 		}
 	}

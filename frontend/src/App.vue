@@ -131,7 +131,7 @@ const formatTimestamp = (timestamp) => {
 
 onMounted(()=>{
     offLogLine = Events.On('manager:log-line', (event) => {
-        store.appendLogLine(event.data?.line)
+        store.appendLogEntry(event.data)
     })
     initEnvironment()
     WML.Reload()

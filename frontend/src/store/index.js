@@ -14,7 +14,8 @@ export const useAppStore = defineStore('app', {
                 data:{},
                 loaded:false,
             },
-			logLines: [],
+			logEntries: [],
+			packageTransactions: {},
             panels:{
                 settings:false
             }
@@ -37,17 +38,50 @@ export const useAppStore = defineStore('app', {
 				...partialSettings,
 			})
 		},
-		appendLogLine(line) {
-			if (!line) {
+		appendLogEntry(entry) {
+			if (!entry?.line) {
 				return
 			}
-			this.logLines.push(line)
-			if (this.logLines.length > 500) {
-				this.logLines.splice(0, this.logLines.length - 500)
+
+			const logEntry = {
+				line: entry.line,
+				transactionId: entry.transactionId,
+				transactionType: entry.transactionType,
+				transactionTitle: entry.transactionTitle,
 			}
+
+			this.logEntries.push(logEntry)
+
+			if (logEntry.transactionId && logEntry.transactionType === 'package') {
+				if (!this.packageTransactions[logEntry.transactionId]) {
+					this.packageTransactions[logEntry.transactionId] = {
+						id: logEntry.transactionId,
+						title: logEntry.transactionTitle,
+						entries: [],
+					}
+				}
+				this.packageTransactions[logEntry.transactionId].entries.push(logEntry)
+			}
+
+			this.trimLogs()
 		},
 		clearLogLines() {
-			this.logLines = []
+			this.logEntries = []
+			this.packageTransactions = {}
+		},
+		trimLogs() {
+			if (this.logEntries.length <= 500) {
+				return
+			}
+			const removed = this.logEntries.splice(0, this.logEntries.length - 500)
+			for (const entry of removed) {
+				if (entry.transactionId && this.packageTransactions[entry.transactionId]) {
+					this.packageTransactions[entry.transactionId].entries.shift()
+					if (!this.packageTransactions[entry.transactionId].entries.length) {
+						delete this.packageTransactions[entry.transactionId]
+					}
+				}
+			}
 		},
 	},
 })

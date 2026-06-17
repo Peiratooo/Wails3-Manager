@@ -45,7 +45,7 @@ import {onMounted, ref, computed, h, inject} from "vue";
 import {ProjectService} from "../../bindings/wails3-manager/core/project"
 import {SettingsService} from "../../bindings/wails3-manager/core/settings"
 import {AppService} from "../../bindings/wails3-manager/desktop"
-import {NInput,NButton,NIcon,NImage,NDataTable,useMessage} from "naive-ui"
+import {NInput,NButton,NIcon,NImage,NDataTable,NPopover,useMessage} from "naive-ui"
 import Settings from '../components/Settings.vue'
 import router from "../router/index.js";
 const { t } = useI18n()
@@ -55,24 +55,21 @@ const route = inject("route")
 const keywords = ref("")
 const formatTimestamp = inject("formatTimestamp")
 const projects = ref([])
+const deletePopoverProjectDir = ref("")
 const rowProps = (row) => {
     return {
         style: {
             cursor: 'pointer'
         },
         onClick: (event) => {
-            const delEl =  event.target.closest('[data-action="delete"]')
-            if (delEl) {
-                removeProject(row)
-            } else {
-                router.push({
-                    name: "project",
-                    query: {
-                        projectDir: encodeURIComponent(row.projectDir)
-                    }
-                })
-            }
+            if (event.target.closest('[data-action="delete-popover"]')) return
 
+            router.push({
+                name: "project",
+                query: {
+                    projectDir: encodeURIComponent(row.projectDir)
+                }
+            })
         }
     }
 }
@@ -89,13 +86,14 @@ async function importProject() {
     }
 }
 
-function removeProject(project) {
-    SettingsService.RemoveProject(project.projectDir,true)
-        .then(() => initProjects())
-        .catch((error) => {
-            message.error(error?.message || String(error))
-        })
-
+async function removeProject(project, restoreOriginal) {
+    try {
+        deletePopoverProjectDir.value = ""
+        await SettingsService.RemoveProject(project.projectDir, restoreOriginal)
+        await initProjects()
+    } catch (error) {
+        message.error(error?.message || String(error))
+    }
 }
 
 const columns = computed(() => [
@@ -147,15 +145,76 @@ const columns = computed(() => [
         key: 'delete',
         render(row) {
             return h(
-                NIcon,
+                NPopover,
                 {
-                    class: 'delete-icon',
-                    'data-action': 'delete'
+                    trigger: 'click',
+                    placement: 'left',
+                    show: deletePopoverProjectDir.value === row.projectDir,
+                    'onUpdate:show': (show) => {
+                        deletePopoverProjectDir.value = show ? row.projectDir : ""
+                    }
                 },
                 {
-                    default: () => h('span',{
-                        innerHTML:`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 32 32"><path d="M12 12h2v12h-2z" fill="currentColor"></path><path d="M18 12h2v12h-2z" fill="currentColor"></path><path d="M4 6v2h2v20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8h2V6zm4 22V8h16v20z" fill="currentColor"></path><path d="M12 2h8v2h-8z" fill="currentColor"></path></svg>`
-                    })
+                    trigger: () => h(
+                        'div',
+                        {
+                            class: 'delete-trigger',
+                            'data-action': 'delete-popover',
+                            onClick: (event) => event.stopPropagation()
+                        },
+                        [
+                            h(
+                                NIcon,
+                                { class: 'delete-icon' },
+                                {
+                                    default: () => h('span', {
+                                        innerHTML: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><path d="M12 12h2v12h-2z" fill="currentColor"></path><path d="M18 12h2v12h-2z" fill="currentColor"></path><path d="M4 6v2h2v20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8h2V6zm4 22V8h16v20z" fill="currentColor"></path><path d="M12 2h8v2h-8z" fill="currentColor"></path></svg>`
+                                    })
+                                }
+                            )
+                        ]
+                    ),
+                    default: () => h(
+                        'div',
+                        {
+                            class: 'delete-popover',
+                            'data-action': 'delete-popover',
+                            onClick: (event) => event.stopPropagation()
+                        },
+                        [
+                            h('div', { class: 'delete-popover-title' }, t('home.deleteProject')),
+                            h('div', { class: 'delete-popover-actions' }, [
+                                h(
+                                    NButton,
+                                    {
+                                        size: 'small',
+                                        type: 'error',
+                                        onClick: () => removeProject(row, true)
+                                    },
+                                    { default: () => t('home.deleteRestore') }
+                                ),
+                                h(
+                                    NButton,
+                                    {
+                                        size: 'small',
+                                        onClick: () => removeProject(row, false)
+                                    },
+                                    { default: () => t('home.deleteKeep') }
+                                ),
+                                h(
+                                    NButton,
+                                    {
+                                        size: 'small',
+                                        quaternary: true,
+                                        onClick: () => {
+                                            deletePopoverProjectDir.value = ""
+                                        }
+                                    },
+                                    { default: () => t('editor.cancel') }
+                                )
+                            ])
+                        ]
+                    )
                 }
             )
         }
@@ -360,20 +419,7 @@ onMounted(()=>{
     background: var(--wm-table-row-hover);
 }
 
-.delete-icon {
-    cursor: pointer;
-    color: var(--wm-text-muted);
-    font-size: 17px;
-    transition:
-        color 0.18s ease,
-        opacity 0.18s ease,
-        transform 0.18s ease;
-}
 
-.delete-icon:hover {
-    color: var(--wm-color-danger);
-    transform: scale(1.06);
-}
 .import *{
     cursor: pointer !important;
 }

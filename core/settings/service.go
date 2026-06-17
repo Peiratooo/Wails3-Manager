@@ -13,7 +13,8 @@ import (
 )
 
 type SettingsService struct {
-	Log *runlog.Logger
+	Log             *runlog.Logger
+	InitPackagingFn func(projectDir string) error
 }
 
 func NewService(log *runlog.Logger) *SettingsService {
@@ -35,7 +36,7 @@ func (s *SettingsService) OpenProject(projectDir string) (contracts.ProjectRecor
 	if !ok {
 		return contracts.ProjectRecord{}, fmt.Errorf("project is not imported: %s", projectDir)
 	}
-	manager, err := project.LoadManager(projectDir)
+	manager, err := project.LoadManagerWithConfigCompletion(projectDir)
 	if err != nil {
 		return contracts.ProjectRecord{}, err
 	}
@@ -50,6 +51,11 @@ func (s *SettingsService) OpenProject(projectDir string) (contracts.ProjectRecor
 	}
 	if err := project.UpsertProjectRecord(record); err != nil {
 		return contracts.ProjectRecord{}, err
+	}
+	if s.InitPackagingFn != nil {
+		if err := s.InitPackagingFn(projectDir); err != nil {
+			return contracts.ProjectRecord{}, fmt.Errorf("failed to initialize packaging config: %w", err)
+		}
 	}
 	return record, nil
 }

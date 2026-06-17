@@ -20,6 +20,17 @@ func LoadPackagingConfig(projectDir string) (contracts.PackagingConfig, error) {
 }
 
 func LoadPackagingConfigFile(path string) (contracts.PackagingConfig, error) {
+	cfg, err := ReadPackagingConfigFile(path)
+	if err != nil {
+		return contracts.PackagingConfig{}, err
+	}
+	if err := validatePackagingConfig(cfg); err != nil {
+		return contracts.PackagingConfig{}, err
+	}
+	return cfg, nil
+}
+
+func ReadPackagingConfigFile(path string) (contracts.PackagingConfig, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return contracts.PackagingConfig{}, err
@@ -27,9 +38,6 @@ func LoadPackagingConfigFile(path string) (contracts.PackagingConfig, error) {
 	var cfg contracts.PackagingConfig
 	if err := json.Unmarshal(data, &cfg); err != nil {
 		return contracts.PackagingConfig{}, fmt.Errorf("failed to parse packaging.json: %w", err)
-	}
-	if err := validatePackagingConfig(cfg); err != nil {
-		return contracts.PackagingConfig{}, err
 	}
 	return cfg, nil
 }
@@ -80,39 +88,35 @@ func validatePackagingConfig(cfg contracts.PackagingConfig) error {
 			return fmt.Errorf("packaging assets[%d].type must be file or directory", i)
 		}
 	}
-	if cfg.Windows.Enabled {
-		if strings.TrimSpace(cfg.Windows.InnoScript) == "" {
-			return fmt.Errorf("packaging windows.innoScript is required")
-		}
-		if strings.TrimSpace(cfg.Windows.DefaultDirName) == "" {
-			return fmt.Errorf("packaging windows.defaultDirName is required")
-		}
-		if strings.TrimSpace(cfg.Windows.PrivilegesRequired) == "" {
-			return fmt.Errorf("packaging windows.privilegesRequired is required")
-		}
-		if strings.TrimSpace(cfg.Windows.SetupIcon) == "" {
-			return fmt.Errorf("packaging windows.setupIcon is required")
-		}
-		if strings.TrimSpace(cfg.Windows.OutputBaseName) == "" {
-			return fmt.Errorf("packaging windows.outputBaseName is required")
-		}
+	if strings.TrimSpace(cfg.Windows.InnoScript) == "" {
+		return fmt.Errorf("packaging windows.innoScript is required")
 	}
-	if cfg.MacOS.Enabled {
-		if strings.TrimSpace(cfg.MacOS.AppBundle) == "" {
-			return fmt.Errorf("packaging macos.appBundle is required")
-		}
-		if strings.TrimSpace(cfg.MacOS.DMGScript) == "" {
-			return fmt.Errorf("packaging macos.dmgScript is required")
-		}
-		if strings.TrimSpace(cfg.MacOS.OutputName) == "" {
-			return fmt.Errorf("packaging macos.outputName is required")
-		}
-		if strings.TrimSpace(cfg.MacOS.CreateDMGPath) == "" {
-			return fmt.Errorf("packaging macos.createDmgPath is required")
-		}
-		if cfg.MacOS.WindowWidth <= 0 || cfg.MacOS.WindowHeight <= 0 || cfg.MacOS.IconSize <= 0 {
-			return fmt.Errorf("packaging macos window size and icon size must be greater than zero")
-		}
+	if strings.TrimSpace(cfg.Windows.DefaultDirName) == "" {
+		return fmt.Errorf("packaging windows.defaultDirName is required")
+	}
+	if strings.TrimSpace(cfg.Windows.PrivilegesRequired) == "" {
+		return fmt.Errorf("packaging windows.privilegesRequired is required")
+	}
+	if strings.TrimSpace(cfg.Windows.SetupIcon) == "" {
+		return fmt.Errorf("packaging windows.setupIcon is required")
+	}
+	if strings.TrimSpace(cfg.Windows.OutputBaseName) == "" {
+		return fmt.Errorf("packaging windows.outputBaseName is required")
+	}
+	if strings.TrimSpace(cfg.MacOS.AppBundle) == "" {
+		return fmt.Errorf("packaging macos.appBundle is required")
+	}
+	if strings.TrimSpace(cfg.MacOS.DMGScript) == "" {
+		return fmt.Errorf("packaging macos.dmgScript is required")
+	}
+	if strings.TrimSpace(cfg.MacOS.OutputName) == "" {
+		return fmt.Errorf("packaging macos.outputName is required")
+	}
+	if strings.TrimSpace(cfg.MacOS.CreateDMGPath) == "" {
+		return fmt.Errorf("packaging macos.createDmgPath is required")
+	}
+	if cfg.MacOS.WindowWidth <= 0 || cfg.MacOS.WindowHeight <= 0 || cfg.MacOS.IconSize <= 0 {
+		return fmt.Errorf("packaging macos window size and icon size must be greater than zero")
 	}
 	return nil
 }

@@ -22,6 +22,7 @@ tasks:
     cmds:
       - task: "{{OS}}:build"
         vars:
+          APP_NAME: "{{.APP_NAME}}"
           CGO_ENABLED: "{{.CGO_ENABLED}}"
           PRODUCTION: "{{.PRODUCTION}}"
 
@@ -30,13 +31,9 @@ tasks:
     cmds:
       - task: "{{OS}}:build"
         vars:
+          APP_NAME: "{{.APP_NAME}}"
           CGO_ENABLED: "{{.CGO_ENABLED}}"
-          PRODUCTION: "true"
-
-  builder:release:
-    summary: Stable backend entry used by Wails Builder
-    cmds:
-      - task: release
+          PRODUCTION: "{{.PRODUCTION}}"
 
   package:
     summary: Packages a production build of the application

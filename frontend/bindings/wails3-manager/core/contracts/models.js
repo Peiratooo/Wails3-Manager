@@ -261,6 +261,27 @@ export class LogLineEvent {
              */
             this["line"] = "";
         }
+        if (!("transactionId" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["transactionId"] = "";
+        }
+        if (!("transactionType" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["transactionType"] = "";
+        }
+        if (!("transactionTitle" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["transactionTitle"] = "";
+        }
 
         Object.assign(this, $$source);
     }
@@ -352,6 +373,13 @@ export class PackageRequest {
              */
             this["runBuild"] = false;
         }
+        if (!("transactionId" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["transactionId"] = "";
+        }
 
         Object.assign(this, $$source);
     }
@@ -407,6 +435,20 @@ export class PackageResult {
              * @type {string[] | undefined}
              */
             this["warnings"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["buildOutputDir"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["packageOutputDir"] = undefined;
         }
 
         Object.assign(this, $$source);

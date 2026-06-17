@@ -48,8 +48,8 @@
   "schemaVersion": 1,
   "build": {
     "taskfile": "Taskfile.yml",
-    "task": "builder:release",
-    "command": ["wails3", "task", "builder:release"],
+    "task": "release",
+    "command": ["wails3", "task", "release"],
     "production": true,
     "cgoEnabled": true,
     "appName": "demo-desktop"
@@ -93,8 +93,8 @@
 ```json
 {
   "taskfile": "Taskfile.yml",
-  "task": "builder:release",
-  "command": ["wails3", "task", "builder:release"],
+  "task": "release",
+  "command": ["wails3", "task", "release"],
   "production": true,
   "cgoEnabled": true,
   "appName": "demo-desktop"
@@ -195,7 +195,7 @@
 {
   "ok": true,
   "message": "Package completed",
-  "logs": ["running wails3 task builder:release", "generated installer"],
+  "logs": ["running wails3 task release", "generated installer"],
   "artifacts": [
     {
       "kind": "installer",
@@ -505,7 +505,7 @@
 
 ```json
 {
-  "line": "wails3 task builder:release completed",
+  "line": "wails3 task release completed",
   "createdAt": 1770000300
 }
 ```
@@ -514,7 +514,7 @@
 
 ```json
 {
-  "line": "[12:00:00] running wails3 task builder:release"
+  "line": "[12:00:00] running wails3 task release"
 }
 ```
 
