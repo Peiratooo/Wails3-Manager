@@ -1,7 +1,9 @@
 package packaging
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -540,6 +542,86 @@ func TestValidateWindowsPackagingInputsRejectsMissingExecutable(t *testing.T) {
 		if !strings.Contains(err.Error(), want) {
 			t.Fatalf("error %q missing %q", err.Error(), want)
 		}
+	}
+}
+
+func TestRunISCCRetriesUntilSuccess(t *testing.T) {
+	oldRunISCCCommand := runISCCCommand
+	oldRetryDelay := innoCompileRetryDelay
+	defer func() {
+		runISCCCommand = oldRunISCCCommand
+		innoCompileRetryDelay = oldRetryDelay
+	}()
+
+	innoCompileRetryDelay = 0
+	attempts := 0
+	runISCCCommand = func(ctx context.Context, projectDir string, command []string, runner runlog.Runner) error {
+		attempts++
+		if attempts < 4 {
+			return errors.New("file is locked")
+		}
+		return nil
+	}
+
+	projectDir := t.TempDir()
+	cfg := packagingConfigWithFakeISCC(t, projectDir)
+
+	if err := NewService(nil).runISCC(context.Background(), projectDir, cfg, runlog.Transaction{}); err != nil {
+		t.Fatal(err)
+	}
+	if attempts != 4 {
+		t.Fatalf("ISCC attempts = %d, want 4", attempts)
+	}
+}
+
+func TestRunISCCRetriesTenTimesBeforeFailing(t *testing.T) {
+	oldRunISCCCommand := runISCCCommand
+	oldRetryDelay := innoCompileRetryDelay
+	defer func() {
+		runISCCCommand = oldRunISCCCommand
+		innoCompileRetryDelay = oldRetryDelay
+	}()
+
+	innoCompileRetryDelay = 0
+	attempts := 0
+	runISCCCommand = func(ctx context.Context, projectDir string, command []string, runner runlog.Runner) error {
+		attempts++
+		return errors.New("file is locked")
+	}
+
+	projectDir := t.TempDir()
+	cfg := packagingConfigWithFakeISCC(t, projectDir)
+
+	err := NewService(nil).runISCC(context.Background(), projectDir, cfg, runlog.Transaction{})
+	if err == nil {
+		t.Fatal("expected ISCC failure")
+	}
+	if attempts != innoCompileMaxRetries+1 {
+		t.Fatalf("ISCC attempts = %d, want %d", attempts, innoCompileMaxRetries+1)
+	}
+	if !strings.Contains(err.Error(), "after 10 retries") {
+		t.Fatalf("error = %q, want retry count", err.Error())
+	}
+}
+
+func packagingConfigWithFakeISCC(t *testing.T, projectDir string) contracts.PackagingConfig {
+	t.Helper()
+	fakeISCC := filepath.Join(projectDir, "ISCC.exe")
+	if err := os.WriteFile(fakeISCC, []byte(""), 0644); err != nil {
+		t.Fatal(err)
+	}
+	script := filepath.Join(projectDir, "builder", "windows", "inno.iss")
+	if err := os.MkdirAll(filepath.Dir(script), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(script, []byte("[Setup]\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	return contracts.PackagingConfig{
+		Windows: contracts.WindowsConfig{
+			InnoScript: "builder/windows/inno.iss",
+			ISCCPath:   fakeISCC,
+		},
 	}
 }
 

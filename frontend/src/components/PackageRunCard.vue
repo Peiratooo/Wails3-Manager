@@ -77,31 +77,6 @@
                             <n-ellipsis>{{ item.path }}</n-ellipsis>
                         </div>
                     </div>
-
-                    <div class="result-section">
-                        <div class="result-title">{{ t("project.artifacts") }}</div>
-
-                        <div
-                            v-if="result.artifacts.length"
-                            class="artifact-list"
-                        >
-                            <div
-                                v-for="artifact in result.artifacts"
-                                :key="artifact.path"
-                                class="artifact-item"
-                            >
-                                <span>{{ artifact.kind }}</span>
-                                <n-ellipsis>{{ artifact.path }}</n-ellipsis>
-                            </div>
-                        </div>
-
-                        <div
-                            v-else
-                            class="artifact-empty"
-                        >
-                            {{ t("project.noArtifacts") }}
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>
@@ -298,7 +273,7 @@ watch(
 }
 
 .package-log-line.level-package {
-    background: color-mix(in srgb, var(--wm-color-primary-shadow) 46%, transparent);
+    background: color-mix(in srgb, #333333 16%, transparent);
 }
 
 .package-log-empty {
@@ -312,9 +287,10 @@ watch(
 
 .package-result {
     margin-top: 14px;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+    display: flex;
     gap: 12px;
+    flex-direction: column;
+    width: 100%;
 }
 
 .result-section {
@@ -329,6 +305,8 @@ watch(
 
 .result-path,
 .artifact-item {
+    transition: 200ms;
+    width: 100%;
     min-width: 0;
     min-height: 38px;
     padding: 8px 10px;

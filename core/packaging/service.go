@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	"wails3-manager/core/contracts"
 	"wails3-manager/core/environment"
@@ -28,6 +29,15 @@ type PackagingService struct {
 type ServiceOptions struct {
 	DMGBackgroundPNG []byte
 }
+
+const innoCompileMaxRetries = 10
+
+var (
+	innoCompileRetryDelay = 3 * time.Second
+	runISCCCommand        = func(ctx context.Context, projectDir string, command []string, runner runlog.Runner) error {
+		return runner.Run(ctx, projectDir, command)
+	}
+)
 
 var platformOverride contracts.Platform
 
@@ -285,7 +295,45 @@ func (s *PackagingService) runISCC(ctx context.Context, projectDir string, cfg c
 		return errors.New(req.Message)
 	}
 	script := fsx.Resolve(projectDir, cfg.Windows.InnoScript)
-	return (runlog.Runner{Log: s.Log, Transaction: tx}).Run(ctx, projectDir, []string{req.Path, script})
+	command := []string{req.Path, script}
+	runner := runlog.Runner{Log: s.Log, Transaction: tx}
+
+	var lastErr error
+	for retry := 0; retry <= innoCompileMaxRetries; retry++ {
+		if retry > 0 && s.Log != nil {
+			s.Log.PrintlnWithTransaction(tx, fmt.Sprintf("Retrying Inno Setup compile (%d/%d).", retry, innoCompileMaxRetries))
+		}
+		if err := runISCCCommand(ctx, projectDir, command, runner); err != nil {
+			lastErr = err
+			if retry == innoCompileMaxRetries {
+				return fmt.Errorf("Inno Setup compile failed after %d retries: %w", innoCompileMaxRetries, lastErr)
+			}
+			if s.Log != nil {
+				s.Log.PrintlnWithTransaction(tx, fmt.Sprintf("Inno Setup compile failed (attempt %d/%d): %v", retry+1, innoCompileMaxRetries+1, err))
+				s.Log.PrintlnWithTransaction(tx, fmt.Sprintf("Retrying Inno Setup compile in %s.", innoCompileRetryDelay))
+			}
+			if err := waitForInnoRetry(ctx, innoCompileRetryDelay); err != nil {
+				return fmt.Errorf("Inno Setup compile failed: %v; retry wait interrupted: %w", lastErr, err)
+			}
+			continue
+		}
+		return nil
+	}
+	return lastErr
+}
+
+func waitForInnoRetry(ctx context.Context, delay time.Duration) error {
+	if delay <= 0 {
+		return nil
+	}
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
 }
 
 func (s *PackagingService) runDMG(ctx context.Context, projectDir string, cfg contracts.PackagingConfig, tx runlog.Transaction) error {
