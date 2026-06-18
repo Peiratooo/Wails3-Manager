@@ -156,3 +156,69 @@ func TestResolveMacOSAppBundlePathUsesCustomBundle(t *testing.T) {
 		t.Fatalf("EffectiveExecutablePath = %q, want %q", info.EffectiveExecutablePath, "release/Demo.app")
 	}
 }
+
+func TestEffectiveAssetsIncludesBuildOutputAndLaunchProgram(t *testing.T) {
+	cfg := contracts.PackagingConfig{
+		Build: contracts.BuildSettings{AppName: "demo"},
+		Entry: contracts.ProgramEntry{ExecutablePath: "launcher/start.exe"},
+		Assets: []contracts.PackagingAsset{
+			{Src: "assets", Type: "directory", Required: false},
+		},
+	}
+
+	assets := EffectiveAssets(cfg, contracts.WailsProjectConfig{}, contracts.PlatformWindows)
+	want := []contracts.PackagingAsset{
+		{Src: "bin/demo.exe", Type: "file", Required: true},
+		{Src: "launcher/start.exe", Type: "file", Required: true},
+		{Src: "assets", Type: "directory", Required: false},
+	}
+	if len(assets) != len(want) {
+		t.Fatalf("EffectiveAssets length = %d, want %d: %#v", len(assets), len(want), assets)
+	}
+	for i := range want {
+		if assets[i] != want[i] {
+			t.Fatalf("EffectiveAssets[%d] = %#v, want %#v", i, assets[i], want[i])
+		}
+	}
+}
+
+func TestEffectiveAssetsDeduplicatesImplicitAssets(t *testing.T) {
+	cfg := contracts.PackagingConfig{
+		Build: contracts.BuildSettings{AppName: "demo"},
+		Assets: []contracts.PackagingAsset{
+			{Src: "bin/demo.exe", Type: "file", Required: false},
+		},
+	}
+
+	assets := EffectiveAssets(cfg, contracts.WailsProjectConfig{}, contracts.PlatformWindows)
+	if len(assets) != 1 {
+		t.Fatalf("EffectiveAssets length = %d, want 1: %#v", len(assets), assets)
+	}
+	if !assets[0].Required {
+		t.Fatalf("implicit build output should stay required: %#v", assets[0])
+	}
+}
+
+func TestEffectiveAssetsIncludesMacOSBuildOutputAndLaunchProgram(t *testing.T) {
+	cfg := contracts.PackagingConfig{
+		Build: contracts.BuildSettings{AppName: "demo"},
+		Entry: contracts.ProgramEntry{ExecutablePath: "launcher/Helper.app"},
+		MacOS: contracts.MacOSConfig{
+			AppBundle: "bin/${build.appName}.app",
+		},
+	}
+
+	assets := EffectiveAssets(cfg, contracts.WailsProjectConfig{}, contracts.PlatformMacOS)
+	want := []contracts.PackagingAsset{
+		{Src: "bin/demo.app", Type: "directory", Required: true},
+		{Src: "launcher/Helper.app", Type: "directory", Required: true},
+	}
+	if len(assets) != len(want) {
+		t.Fatalf("EffectiveAssets length = %d, want %d: %#v", len(assets), len(want), assets)
+	}
+	for i := range want {
+		if assets[i] != want[i] {
+			t.Fatalf("EffectiveAssets[%d] = %#v, want %#v", i, assets[i], want[i])
+		}
+	}
+}

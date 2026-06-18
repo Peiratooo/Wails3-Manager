@@ -437,32 +437,40 @@ func buildTaskVars(cfg contracts.PackagingConfig) []string {
 }
 
 func validateWindowsPackagingInputs(projectDir string, cfg contracts.PackagingConfig, projectConfig contracts.WailsProjectConfig) error {
-	info := config.ResolveExecutablePath(cfg, projectConfig, contracts.PlatformWindows)
-	if err := validateRequiredPath(projectDir, info.EffectiveExecutablePath, false, "Windows executable", executablePathSource(info), cfg); err != nil {
-		return err
-	}
-	return validateRequiredAssets(projectDir, cfg)
+	return validateRequiredAssets(projectDir, cfg, projectConfig, contracts.PlatformWindows)
 }
 
 func validateMacOSPackagingInputs(projectDir string, cfg contracts.PackagingConfig, projectConfig contracts.WailsProjectConfig) error {
-	info := config.ResolveMacOSAppBundlePath(cfg, projectConfig)
-	if err := validateRequiredPath(projectDir, info.EffectiveExecutablePath, true, "macOS app bundle", executablePathSource(info), cfg); err != nil {
-		return err
-	}
-	return validateRequiredAssets(projectDir, cfg)
+	return validateRequiredAssets(projectDir, cfg, projectConfig, contracts.PlatformMacOS)
 }
 
-func validateRequiredAssets(projectDir string, cfg contracts.PackagingConfig) error {
-	for i, asset := range cfg.Assets {
+func validateRequiredAssets(projectDir string, cfg contracts.PackagingConfig, projectConfig contracts.WailsProjectConfig, platform contracts.Platform) error {
+	wailsBuildOutput := config.WailsBuildOutputPath(cfg, projectConfig, platform)
+	startupProgram := config.StartupExecutablePath(cfg, projectConfig, platform)
+	for i, asset := range config.EffectiveAssets(cfg, projectConfig, platform) {
 		if !asset.Required {
 			continue
 		}
-		label := fmt.Sprintf("required packaging asset %d", i)
+		label := platformRequiredAssetLabel(platform, asset.Src, wailsBuildOutput, startupProgram, i)
 		if err := validateRequiredPath(projectDir, asset.Src, asset.Type == "directory", label, "packaging assets", cfg); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func platformRequiredAssetLabel(platform contracts.Platform, src, wailsBuildOutput, startupProgram string, index int) string {
+	platformName := "Windows"
+	if platform == contracts.PlatformMacOS {
+		platformName = "macOS"
+	}
+	if config.SameAssetPath(src, wailsBuildOutput, platform) {
+		return platformName + " Wails build output"
+	}
+	if config.SameAssetPath(src, startupProgram, platform) {
+		return platformName + " launch program"
+	}
+	return fmt.Sprintf("required packaging asset %d", index)
 }
 
 func validateRequiredPath(projectDir, relOrAbsPath string, wantDir bool, label, source string, cfg contracts.PackagingConfig) error {
@@ -482,13 +490,6 @@ func validateRequiredPath(projectDir, relOrAbsPath string, wantDir bool, label, 
 		kind = "directory"
 	}
 	return fmt.Errorf("%s %s does not exist: %s (source: %s, build.appName=%q, build.task=%q, build.taskfile=%q)", label, kind, path, source, config.AppName(cfg), cfg.Build.Task, cfg.Build.Taskfile)
-}
-
-func executablePathSource(info contracts.PackagingRuntimeInfo) string {
-	if info.UsingDefaultExecutable {
-		return "default executable path"
-	}
-	return "entry.executablePath"
 }
 
 func packageOutputDir(projectDir string, cfg contracts.PackagingConfig, projectConfig contracts.WailsProjectConfig, platform contracts.Platform) string {

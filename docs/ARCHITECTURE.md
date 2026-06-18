@@ -73,6 +73,7 @@ settings.json   isDark / language / recordLogs
 - `windows.appURL` 保存 Inno 专属 URL；`MyAppExeName` 从 `entry.executablePath` 或 `build.appName` 推导，不额外存一份 exe 名。
 - 默认构建会把 `build.appName`、`build.production`、`build.cgoEnabled` 作为 Task 变量和环境变量传入；未配置 `entry.executablePath` 时，Windows 默认启动程序为 `bin/${build.appName}.exe`。
 - 前端通过 `GetPackagingRuntimeInfo` 读取只读运行信息；默认入口不会写回 `packaging.json`，避免配置和派生值混在一起。
+- 生成安装脚本和校验打包输入时会自动派生必需资产：Wails 构建产物和启动程序都会进入最终包；这些派生资产不会写回 `packaging.json`。
 - Windows 打包生成 Inno 脚本；非 Windows 或 dry-run 时不执行 ISCC。
 - macOS 打包生成 DMG 脚本；非 macOS 或 dry-run 时不执行 create-dmg。
 - 打包阶段不再支持 before/after 脚本。需要自定义构建时，只配置 `packaging.json` 里的显式 build command。

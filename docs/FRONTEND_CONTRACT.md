@@ -132,6 +132,8 @@ await appService.Artifacts(projectDir)
 
 当前入口为空时，后端不会把默认值写回 `packaging.json`，但会在打包和前端提示里统一使用 Wails3 构建产物：Windows 为 `bin/${build.appName}.exe`，macOS 为 `bin/${build.appName}.app`。
 
+生成 Inno/DMG 脚本和校验打包输入时，后端会把 Wails3 构建产物和启动程序作为自动资产加入最终包；如果用户没有手动添加这些资产，前端也不要写回 `assets`，保持它们为后端派生值。
+
 ## ProjectRecord
 
 ```js

@@ -74,6 +74,59 @@ func TestGenerateScriptFitsBackgroundToWindowSize(t *testing.T) {
 	}
 }
 
+func TestGenerateScriptIncludesBuildOutputAndCustomLaunchProgram(t *testing.T) {
+	projectDir := t.TempDir()
+	sourcePath := filepath.Join(projectDir, "background.png")
+	writePNG(t, sourcePath, image.NewNRGBA(image.Rect(0, 0, 4, 4)))
+
+	cfg := contracts.PackagingConfig{
+		Build: contracts.BuildSettings{AppName: "demo"},
+		Entry: contracts.ProgramEntry{ExecutablePath: "launcher/Helper.app"},
+		MacOS: contracts.MacOSConfig{
+			AppBundle:     "bin/${build.appName}.app",
+			DMGScript:     "builder/macos/dmg.sh",
+			Background:    "background.png",
+			OutputName:    "${build.appName}-${project.version}",
+			CreateDMGPath: "create-dmg",
+			WindowWidth:   300,
+			WindowHeight:  400,
+			IconSize:      96,
+			AppX:          90,
+			AppY:          200,
+			ApplicationsX: 210,
+			ApplicationsY: 200,
+		},
+	}
+	projectConfig := contracts.WailsProjectConfig{
+		Info: contracts.WailsAppInfo{
+			ProductName: "Demo",
+			Version:     "1.0.0",
+		},
+	}
+
+	scriptPath, err := GenerateScript(projectDir, cfg, projectConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	script, err := os.ReadFile(scriptPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(script)
+	for _, want := range []string{
+		`APP_BUNDLE="launcher/Helper.app"`,
+		`if [ -e 'bin/demo.app' ]; then`,
+		`cp -R 'bin/demo.app' "$TMP_DIR/"`,
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("generated script missing %q:\n%s", want, text)
+		}
+	}
+	if strings.Contains(text, `if [ -e 'launcher/Helper.app' ]; then`) {
+		t.Fatalf("primary app bundle should not be duplicated as an extra file:\n%s", text)
+	}
+}
+
 func writePNG(t *testing.T, path string, img image.Image) {
 	t.Helper()
 	file, err := os.Create(path)

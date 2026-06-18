@@ -43,7 +43,7 @@ func GenerateScript(projectDir string, cfg contracts.PackagingConfig, projectCon
 	if err != nil {
 		return "", err
 	}
-	extraFiles := buildExtraFiles(projectDir, cfg)
+	extraFiles := buildExtraFiles(projectDir, cfg, projectConfig, appBundle)
 	content := strings.NewReplacer(
 		"{{appName}}", projectName,
 		"{{appBundle}}", filepath.ToSlash(appBundle),
@@ -158,10 +158,13 @@ func minInt(a, b int) int {
 	return b
 }
 
-func buildExtraFiles(projectDir string, cfg contracts.PackagingConfig) string {
+func buildExtraFiles(projectDir string, cfg contracts.PackagingConfig, projectConfig contracts.WailsProjectConfig, skipPaths ...string) string {
 	var lines []string
-	for _, asset := range cfg.Assets {
+	for _, asset := range config.EffectiveAssets(cfg, projectConfig, contracts.PlatformMacOS) {
 		if strings.TrimSpace(asset.Src) == "" {
+			continue
+		}
+		if shouldSkipAsset(asset.Src, skipPaths) {
 			continue
 		}
 		source := filepath.ToSlash(asset.Src)
@@ -184,6 +187,15 @@ func buildExtraFiles(projectDir string, cfg contracts.PackagingConfig) string {
 		}
 	}
 	return strings.Join(lines, "\n")
+}
+
+func shouldSkipAsset(src string, skipPaths []string) bool {
+	for _, skipPath := range skipPaths {
+		if config.SameAssetPath(src, skipPath, contracts.PlatformMacOS) {
+			return true
+		}
+	}
+	return false
 }
 
 func shellQuote(value string) string {

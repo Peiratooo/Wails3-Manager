@@ -407,6 +407,7 @@ const props = defineProps({
     }
 })
 
+const emit = defineEmits(["saved"])
 const { t } = useI18n()
 const message = useMessage()
 
@@ -522,6 +523,7 @@ async function savePackageCfg() {
 
         const savedCfg = await PackagingService.SavePackagingConfig(props.projectDir, nextCfg)
         initConfig(savedCfg)
+        emit("saved", cloneData(savedCfg))
         await loadRuntimeInfo()
 
         message.success(t("editor.saveSuccess"))

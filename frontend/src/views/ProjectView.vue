@@ -52,7 +52,12 @@
 
             <div class="body">
                 <div class="editor">
-                    <Editor :wails3Cfg="wails3Cfg" :packageCfg="packageCfg" v-if="loaded"/>
+                    <Editor
+                        :wails3Cfg="wails3Cfg"
+                        :packageCfg="packageCfg"
+                        v-if="loaded"
+                        @package-saved="setPackageCfg"
+                    />
                 </div>
 
                 <div class="env">
@@ -244,6 +249,10 @@ async function openPath(path) {
     } catch (error) {
         message.error(error?.message || String(error))
     }
+}
+
+function setPackageCfg(nextCfg) {
+    packageCfg.value = nextCfg
 }
 
 onMounted(async () => {

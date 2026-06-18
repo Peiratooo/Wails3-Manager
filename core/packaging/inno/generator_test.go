@@ -127,6 +127,57 @@ func TestGenerateUsesFileAssociations(t *testing.T) {
 	assertNoInnoComments(t, script)
 }
 
+func TestGenerateIncludesBuildOutputAndCustomLaunchProgram(t *testing.T) {
+	projectDir := t.TempDir()
+	projectConfig := contracts.WailsProjectConfig{
+		Info: contracts.WailsAppInfo{
+			CompanyName:       "My Company",
+			ProductName:       "My Product",
+			ProductIdentifier: "com.mycompany.myproduct",
+			Version:           "0.0.1",
+		},
+	}
+	cfg := contracts.PackagingConfig{
+		SchemaVersion: 1,
+		Build: contracts.BuildSettings{
+			AppName: "demo",
+		},
+		Entry: contracts.ProgramEntry{
+			ExecutablePath: "launcher/start.exe",
+		},
+		Windows: contracts.WindowsConfig{
+			InnoScript:            "builder/windows/inno.iss",
+			DefaultDirName:        `{autopf}\${project.name}`,
+			PrivilegesRequired:    "lowest",
+			SetupIcon:             "build/windows/icon.ico",
+			OutputBaseName:        "${build.appName}-${project.version}-windows-setup",
+			CreateDesktopShortcut: true,
+		},
+		Artifacts: contracts.ArtifactConfig{OutputRoot: "builder/release"},
+	}
+
+	path, err := Generate(projectDir, cfg, projectConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	script := string(data)
+	for _, want := range []string{
+		`#define MyAppExeName "start.exe"`,
+		`Source: "bin/demo.exe"; DestDir: "{app}"; Flags: ignoreversion`,
+		`Source: "launcher/start.exe"; DestDir: "{app}"; Flags: ignoreversion`,
+		`Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"`,
+	} {
+		if !strings.Contains(script, want) {
+			t.Fatalf("generated script missing %q:\n%s", want, script)
+		}
+	}
+	assertNoInnoComments(t, script)
+}
+
 func assertNoInnoComments(t *testing.T, script string) {
 	t.Helper()
 	for _, line := range strings.Split(script, "\n") {

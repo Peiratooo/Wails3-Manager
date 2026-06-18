@@ -66,21 +66,8 @@ func Generate(projectDir string, cfg contracts.PackagingConfig, projectConfig co
 }
 
 func buildFiles(cfg contracts.PackagingConfig, projectConfig contracts.WailsProjectConfig) string {
-	type fileLine struct {
-		asset contracts.PackagingAsset
-		main  bool
-	}
-	var items []fileLine
-	main := config.WindowsExecutablePath(cfg, projectConfig)
-	if main != "" {
-		items = append(items, fileLine{asset: contracts.PackagingAsset{Src: main, Type: "file", Required: true}, main: true})
-	}
-	for _, asset := range cfg.Assets {
-		items = append(items, fileLine{asset: asset})
-	}
 	var lines []string
-	for _, line := range items {
-		asset := line.asset
+	for _, asset := range config.EffectiveAssets(cfg, projectConfig, contracts.PlatformWindows) {
 		if strings.TrimSpace(asset.Src) == "" {
 			continue
 		}

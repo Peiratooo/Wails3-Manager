@@ -538,7 +538,7 @@ func TestValidateWindowsPackagingInputsRejectsMissingExecutable(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected missing executable error")
 	}
-	for _, want := range []string{"Windows executable", "missing-app.exe", `build.appName="missing-app"`} {
+	for _, want := range []string{"Windows Wails build output", "missing-app.exe", `build.appName="missing-app"`} {
 		if !strings.Contains(err.Error(), want) {
 			t.Fatalf("error %q missing %q", err.Error(), want)
 		}

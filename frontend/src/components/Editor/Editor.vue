@@ -49,6 +49,7 @@ const props = defineProps({
         required: true
     },
 })
+const emit = defineEmits(["package-saved"])
 
 const { t } = useI18n()
 
@@ -84,7 +85,8 @@ const tabs = computed(() => [
         component: markRaw(PackageCfgEditor),
         props: {
             packageCfg: props.packageCfg,
-            projectDir: props.wails3Cfg.projectDir
+            projectDir: props.wails3Cfg.projectDir,
+            onSaved: (cfg) => emit("package-saved", cfg)
         }
     }
 ])
