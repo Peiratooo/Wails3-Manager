@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"wails3-manager/core/contracts"
 	"wails3-manager/core/fsx"
@@ -113,7 +112,7 @@ func removeStaleProjectDirs(projectDir string) {
 func removeBuilderDir(projectDir string) error {
 	builderDir := fsx.BuilderDir(projectDir)
 	rel, err := filepath.Rel(projectDir, builderDir)
-	if err != nil || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.IsAbs(rel) {
+	if err != nil || rel == "." || !filepath.IsLocal(rel) {
 		return fmt.Errorf("refusing to delete an invalid builder directory: %s", builderDir)
 	}
 	return os.RemoveAll(builderDir)

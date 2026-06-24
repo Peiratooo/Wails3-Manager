@@ -56,5 +56,5 @@ func SameProjectPath(a, b string) bool {
 	if errA != nil || errB != nil {
 		return false
 	}
-	return filepath.Clean(aa) == filepath.Clean(bb)
+	return aa == bb
 }

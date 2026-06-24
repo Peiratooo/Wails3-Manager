@@ -3,7 +3,6 @@
 package environment
 
 import (
-	"bytes"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -172,16 +171,9 @@ func executableVersion(path string, args []string) string {
 		return ""
 	}
 
-	cmd := exec.Command(path, args...)
-
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &out
-
-	err := cmd.Run()
-	if err != nil && out.Len() == 0 {
+	out, err := exec.Command(path, args...).CombinedOutput()
+	if err != nil && len(out) == 0 {
 		return ""
 	}
-
-	return firstOutputLine(out.String())
+	return firstOutputLine(string(out))
 }

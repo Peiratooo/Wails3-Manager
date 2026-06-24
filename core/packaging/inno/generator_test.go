@@ -14,9 +14,9 @@ func TestGenerateUsesBundleIDAndDefaultExecutable(t *testing.T) {
 	projectConfig := contracts.WailsProjectConfig{
 		Info: contracts.WailsAppInfo{
 			CompanyName:       "My Company",
-			ProductName:       "My Product",
+			ProductName:       "B4验机",
 			ProductIdentifier: "com.mycompany.myproduct",
-			Version:           "0.0.1",
+			Version:           "2.1.0",
 		},
 		Icon: "build/appicon.png",
 	}
@@ -50,15 +50,15 @@ func TestGenerateUsesBundleIDAndDefaultExecutable(t *testing.T) {
 	for _, want := range []string{
 		`#define MyAppURL "https://b4.cn/"`,
 		`#define MyAppExeName "demo.exe"`,
+		`OutputBaseFilename=B4验机-2.1.0-windows-setup`,
 		"AppId=com.mycompany.myproduct",
 		`UninstallDisplayIcon={app}\{#MyAppExeName}`,
 		"DisableProgramGroupPage=yes",
 		"SourceDir=" + filepath.ToSlash(projectDir),
 		`Source: "bin/demo.exe"; DestDir: "{app}"; Flags: ignoreversion`,
 		`Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked`,
-		`Name: "{autoprograms}\My Product"; Filename: "{app}\{#MyAppExeName}"`,
+		`Name: "{autoprograms}\B4验机"; Filename: "{app}\{#MyAppExeName}"`,
 		`Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"`,
-		"OutputBaseFilename=demo-0.0.1-windows-setup",
 	} {
 		if !strings.Contains(script, want) {
 			t.Fatalf("generated script missing %q:\n%s", want, script)

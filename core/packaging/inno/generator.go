@@ -14,7 +14,6 @@ import (
 func Generate(projectDir string, cfg contracts.PackagingConfig, projectConfig contracts.WailsProjectConfig) (string, error) {
 	main := config.WindowsExecutablePath(cfg, projectConfig)
 	outputDir := config.WindowsOutputDir(cfg, projectConfig)
-	outputBase := config.RenderPlaceholders(cfg.Windows.OutputBaseName, cfg, projectConfig)
 	projectName := config.ProjectName(projectConfig)
 	if projectName == "" {
 		return "", fmt.Errorf("project productName is required for Windows packaging")
@@ -23,6 +22,11 @@ func Generate(projectDir string, cfg contracts.PackagingConfig, projectConfig co
 	if projectVersion == "" {
 		return "", fmt.Errorf("project version is required for Windows packaging")
 	}
+	outputTemplate := cfg.Windows.OutputBaseName
+	if outputTemplate == "" || outputTemplate == "${build.appName}-${project.version}-windows-setup" {
+		outputTemplate = "${project.name}-${project.version}-windows-setup"
+	}
+	outputBase := config.RenderPlaceholders(outputTemplate, cfg, projectConfig)
 	appID := config.ProjectBundleID(projectConfig)
 	if strings.TrimSpace(appID) == "" {
 		return "", fmt.Errorf("project productIdentifier is required for Windows packaging")

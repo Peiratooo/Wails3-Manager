@@ -4,11 +4,9 @@ import (
 	"encoding/base64"
 	"fmt"
 	"image"
-	"image/color"
 	_ "image/gif"
 	_ "image/jpeg"
 	"image/png"
-	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,6 +14,8 @@ import (
 	"wails3-manager/core/contracts"
 	"wails3-manager/core/fsx"
 	"wails3-manager/core/packaging/config"
+
+	xdraw "golang.org/x/image/draw"
 )
 
 func DefaultBackgroundPNG() []byte {
@@ -104,58 +104,19 @@ func coverImage(source image.Image, width, height int) *image.NRGBA {
 	bounds := source.Bounds()
 	sourceWidth := bounds.Dx()
 	sourceHeight := bounds.Dy()
-	scale := math.Max(float64(width)/float64(sourceWidth), float64(height)/float64(sourceHeight))
-	visibleWidth := float64(width) / scale
-	visibleHeight := float64(height) / scale
-	startX := float64(bounds.Min.X) + (float64(sourceWidth)-visibleWidth)/2
-	startY := float64(bounds.Min.Y) + (float64(sourceHeight)-visibleHeight)/2
+	crop := bounds
+	if sourceWidth*height > sourceHeight*width {
+		cropWidth := max(1, sourceHeight*width/height)
+		crop.Min.X += (sourceWidth - cropWidth) / 2
+		crop.Max.X = crop.Min.X + cropWidth
+	} else {
+		cropHeight := max(1, sourceWidth*height/width)
+		crop.Min.Y += (sourceHeight - cropHeight) / 2
+		crop.Max.Y = crop.Min.Y + cropHeight
+	}
 	output := image.NewNRGBA(image.Rect(0, 0, width, height))
-
-	for y := 0; y < height; y++ {
-		for x := 0; x < width; x++ {
-			sourceX := startX + (float64(x)+0.5)/scale
-			sourceY := startY + (float64(y)+0.5)/scale
-			output.SetNRGBA(x, y, sampleBilinear(source, sourceX, sourceY))
-		}
-	}
+	xdraw.BiLinear.Scale(output, output.Bounds(), source, crop, xdraw.Src, nil)
 	return output
-}
-
-func sampleBilinear(source image.Image, x, y float64) color.NRGBA {
-	bounds := source.Bounds()
-	x = math.Max(float64(bounds.Min.X), math.Min(float64(bounds.Max.X-1), x))
-	y = math.Max(float64(bounds.Min.Y), math.Min(float64(bounds.Max.Y-1), y))
-	x0 := int(math.Floor(x))
-	y0 := int(math.Floor(y))
-	x1 := minInt(x0+1, bounds.Max.X-1)
-	y1 := minInt(y0+1, bounds.Max.Y-1)
-	tx := x - float64(x0)
-	ty := y - float64(y0)
-
-	c00 := color.NRGBAModel.Convert(source.At(x0, y0)).(color.NRGBA)
-	c10 := color.NRGBAModel.Convert(source.At(x1, y0)).(color.NRGBA)
-	c01 := color.NRGBAModel.Convert(source.At(x0, y1)).(color.NRGBA)
-	c11 := color.NRGBAModel.Convert(source.At(x1, y1)).(color.NRGBA)
-
-	return color.NRGBA{
-		R: blendChannel(c00.R, c10.R, c01.R, c11.R, tx, ty),
-		G: blendChannel(c00.G, c10.G, c01.G, c11.G, tx, ty),
-		B: blendChannel(c00.B, c10.B, c01.B, c11.B, tx, ty),
-		A: blendChannel(c00.A, c10.A, c01.A, c11.A, tx, ty),
-	}
-}
-
-func blendChannel(c00, c10, c01, c11 uint8, tx, ty float64) uint8 {
-	top := float64(c00)*(1-tx) + float64(c10)*tx
-	bottom := float64(c01)*(1-tx) + float64(c11)*tx
-	return uint8(math.Round(top*(1-ty) + bottom*ty))
-}
-
-func minInt(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }
 
 func buildExtraFiles(projectDir string, cfg contracts.PackagingConfig, projectConfig contracts.WailsProjectConfig, skipPaths ...string) string {

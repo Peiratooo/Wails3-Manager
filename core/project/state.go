@@ -1,11 +1,12 @@
 package project
 
 import (
+	"cmp"
 	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 
 	"wails3-manager/core/contracts"
 	"wails3-manager/core/fsx"
@@ -40,8 +41,8 @@ func SaveUserState(state contracts.UserState) error {
 }
 
 func SortProjects(projects []contracts.ProjectRecord) {
-	sort.Slice(projects, func(i, j int) bool {
-		return projects[i].LastOpenedAt.After(projects[j].LastOpenedAt)
+	slices.SortFunc(projects, func(a, b contracts.ProjectRecord) int {
+		return cmp.Compare(b.LastOpenedAt, a.LastOpenedAt)
 	})
 }
 
@@ -51,15 +52,12 @@ func UpsertProjectRecord(record contracts.ProjectRecord) error {
 	}
 	record.Project.ProjectDir = record.ProjectDir
 	state := LoadUserState()
-	found := false
-	for i := range state.Projects {
-		if SameProjectPath(state.Projects[i].ProjectDir, record.ProjectDir) {
-			state.Projects[i] = record
-			found = true
-			break
-		}
-	}
-	if !found {
+	index := slices.IndexFunc(state.Projects, func(existing contracts.ProjectRecord) bool {
+		return SameProjectPath(existing.ProjectDir, record.ProjectDir)
+	})
+	if index >= 0 {
+		state.Projects[index] = record
+	} else {
 		state.Projects = append(state.Projects, record)
 	}
 	return SaveUserState(state)
@@ -67,13 +65,8 @@ func UpsertProjectRecord(record contracts.ProjectRecord) error {
 
 func RemoveProjectRecord(projectDir string) error {
 	state := LoadUserState()
-	next := state.Projects[:0]
-	for _, record := range state.Projects {
-		if SameProjectPath(record.ProjectDir, projectDir) {
-			continue
-		}
-		next = append(next, record)
-	}
-	state.Projects = next
+	state.Projects = slices.DeleteFunc(state.Projects, func(record contracts.ProjectRecord) bool {
+		return SameProjectPath(record.ProjectDir, projectDir)
+	})
 	return SaveUserState(state)
 }

@@ -171,37 +171,9 @@ func ResolveProjectFile(projectDir, relPath string) string {
 		return ""
 	}
 
-	if !filepath.IsAbs(projectAbs) {
-		return ""
-	}
-
-	// Project file paths must be relative to the project root.
-	if filepath.IsAbs(relPath) {
-		return ""
-	}
-
 	cleanRel := filepath.Clean(filepath.FromSlash(relPath))
-
-	fullPath := filepath.Join(projectAbs, cleanRel)
-
-	fullAbs, err := filepath.Abs(fullPath)
-	if err != nil {
+	if !filepath.IsLocal(cleanRel) {
 		return ""
 	}
-
-	fullAbs = filepath.Clean(fullAbs)
-
-	// Prevent ../ from escaping the project root.
-	relToProject, err := filepath.Rel(projectAbs, fullAbs)
-	if err != nil {
-		return ""
-	}
-
-	if relToProject == ".." ||
-		strings.HasPrefix(relToProject, ".."+string(filepath.Separator)) ||
-		filepath.IsAbs(relToProject) {
-		return ""
-	}
-
-	return fullAbs
+	return filepath.Join(projectAbs, cleanRel)
 }

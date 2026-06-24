@@ -375,7 +375,7 @@ func defaultPackagingConfig(projectDir string, projectConfig contracts.WailsProj
 			DefaultDirName:        `{autopf}\${project.name}`,
 			PrivilegesRequired:    "lowest",
 			SetupIcon:             "build/windows/icon.ico",
-			OutputBaseName:        "${build.appName}-${project.version}-windows-setup",
+			OutputBaseName:        "${project.name}-${project.version}-windows-setup",
 			CreateDesktopShortcut: true,
 		},
 		MacOS: contracts.MacOSConfig{

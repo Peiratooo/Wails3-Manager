@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -43,9 +44,7 @@ func New(writers ...io.Writer) *Logger {
 func (l *Logger) Lines() []string {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	out := make([]string, len(l.lines))
-	copy(out, l.lines)
-	return out
+	return slices.Clone(l.lines)
 }
 
 func (l *Logger) Since(cursor int) (int, []string) {
@@ -57,9 +56,7 @@ func (l *Logger) Since(cursor int) (int, []string) {
 	if cursor > len(l.lines) {
 		cursor = len(l.lines)
 	}
-	out := make([]string, len(l.lines[cursor:]))
-	copy(out, l.lines[cursor:])
-	return len(l.lines), out
+	return len(l.lines), slices.Clone(l.lines[cursor:])
 }
 
 func (l *Logger) Cursor() int {

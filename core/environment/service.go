@@ -1,7 +1,6 @@
 package environment
 
 import (
-	"bytes"
 	"os/exec"
 	"regexp"
 	"runtime"
@@ -193,18 +192,11 @@ func versionAttempts(command string) []versionAttempt {
 }
 
 func commandOutput(command string, args []string) (string, bool) {
-	cmd := exec.Command(command, args...)
-
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &out
-
-	err := cmd.Run()
-	if err != nil && out.Len() == 0 {
+	out, err := exec.Command(command, args...).CombinedOutput()
+	if err != nil && len(out) == 0 {
 		return "", false
 	}
-
-	return out.String(), true
+	return string(out), true
 }
 
 func normalizeCommandVersion(command string, output string) string {
@@ -240,9 +232,7 @@ func firstOutputLine(output string) string {
 	line := ansiEscapePattern.ReplaceAllString(output, "")
 	line = strings.TrimSpace(line)
 
-	if idx := strings.IndexByte(line, '\n'); idx >= 0 {
-		line = line[:idx]
-	}
+	line, _, _ = strings.Cut(line, "\n")
 
 	line = strings.TrimSpace(line)
 
