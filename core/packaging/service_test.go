@@ -238,6 +238,38 @@ tasks:
 	}
 }
 
+func TestSavePackagingConfigRejectsInvalidAssetTargetForCurrentPlatform(t *testing.T) {
+	SetPlatformOverride(contracts.PlatformWindows)
+	defer SetPlatformOverride("")
+
+	projectDir := t.TempDir()
+	wailsConfig := contracts.WailsProjectConfig{
+		Info: contracts.WailsAppInfo{
+			ProductName:       "Demo",
+			ProductIdentifier: "com.example.demo",
+			Version:           "1.0.0",
+		},
+	}
+	if err := project.SaveProjectRecord(contracts.ProjectRecord{
+		ProjectDir: projectDir,
+		Project: contracts.WailsProjectManager{
+			ProjectDir:  projectDir,
+			WailsConfig: wailsConfig,
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := defaultPackagingConfig(projectDir, wailsConfig)
+	cfg.Assets = []contracts.PackagingAsset{
+		{Src: "README.md", Type: "file", Required: false, Target: "docs"},
+	}
+
+	if _, err := NewService(nil).SavePackagingConfig(projectDir, cfg); err == nil {
+		t.Fatal("expected invalid current-platform asset target to be rejected")
+	}
+}
+
 func TestGetPackagingRuntimeInfoUsesDefaultExecutableWhenEntryIsEmpty(t *testing.T) {
 	projectDir := t.TempDir()
 	wailsConfig := contracts.WailsProjectConfig{

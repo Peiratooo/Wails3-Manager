@@ -14,7 +14,7 @@
 
                 <n-button
                     type="primary"
-                    :disabled="!isDirty || saving"
+                    :disabled="!isDirty || saving || hasAssetTargetErrors"
                     :loading="saving"
                     @click="savePackageCfg"
                 >
@@ -264,11 +264,11 @@
 <!--                        <div class="section-desc">{{ t("packageEditor.assetsDesc") }}</div>-->
                     </div>
 
-                    <div class="asset-add-actions">
+                    <div v-if="isWindows" class="asset-add-actions">
                         <n-button
                             size="small"
                             :disabled="saving"
-                            @click="chooseAssetFile"
+                            @click="chooseAssetFile()"
                         >
                             {{ t("packageEditor.addFile") }}
                         </n-button>
@@ -276,14 +276,186 @@
                         <n-button
                             size="small"
                             :disabled="saving"
-                            @click="chooseAssetDirectory"
+                            @click="chooseAssetDirectory()"
                         >
                             {{ t("packageEditor.addDirectory") }}
                         </n-button>
                     </div>
                 </div>
 
-                <div class="asset-list" v-if="cfg.assets.length">
+                <div v-if="isMacOS" class="mac-asset-board">
+                    <div class="asset-area-toolbar">
+                        <n-button
+                            v-for="area in availableFixedMacAreas"
+                            :key="area"
+                            size="small"
+                            :disabled="saving"
+                            @click="addMacArea(area)"
+                        >
+                            + {{ area }}
+                        </n-button>
+
+                        <div class="custom-area-adder">
+                            <n-input
+                                v-model:value="customMacArea"
+                                size="small"
+                                placeholder="自定义区域"
+                            />
+                            <n-button
+                                size="small"
+                                :disabled="saving || !canAddCustomMacArea"
+                                @click="addCustomMacArea"
+                            >
+                                添加区域
+                            </n-button>
+                        </div>
+                    </div>
+
+                    <div v-if="customMacAreaError" class="asset-target-error">
+                        {{ customMacAreaError }}
+                    </div>
+
+                    <div
+                        class="asset-region"
+                        v-for="area in macAssetAreas"
+                        :key="area"
+                    >
+                        <div class="asset-region-head">
+                            <div>
+                                <div class="asset-region-title">{{ area }}</div>
+                                <div class="path-hint">Contents/{{ area }}</div>
+                            </div>
+
+                            <div class="asset-add-actions">
+                                <n-button
+                                    size="small"
+                                    :disabled="saving"
+                                    @click="chooseAssetFile(area)"
+                                >
+                                    {{ t("packageEditor.addFile") }}
+                                </n-button>
+
+                                <n-button
+                                    size="small"
+                                    :disabled="saving"
+                                    @click="chooseAssetDirectory(area)"
+                                >
+                                    {{ t("packageEditor.addDirectory") }}
+                                </n-button>
+
+                                <n-button
+                                    v-if="canRemoveMacArea(area)"
+                                    size="small"
+                                    quaternary
+                                    :disabled="saving"
+                                    @click="removeMacArea(area)"
+                                >
+                                    删除区域
+                                </n-button>
+                            </div>
+                        </div>
+
+                        <div v-if="macAreaTargetError(area)" class="asset-target-error region-error">
+                            {{ macAreaTargetError(area) }}
+                        </div>
+
+                        <div class="asset-list compact">
+                            <div
+                                v-if="area === 'MacOS'"
+                                class="asset-item asset-implicit"
+                            >
+                                <div class="asset-icon locked">
+                                    <n-icon size="18">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+                                            <path d="M6 4h20a2 2 0 0 1 2 2v20a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zm0 2v20h20V6z" fill="currentColor"></path>
+                                            <path d="M12 10l10 6l-10 6z" fill="currentColor"></path>
+                                        </svg>
+                                    </n-icon>
+                                </div>
+
+                                <div class="asset-main vertical">
+                                    <div class="asset-label">主程序</div>
+                                    <n-ellipsis class="path-value">{{ macMainProgramPath }}</n-ellipsis>
+                                </div>
+                            </div>
+
+                            <div
+                                v-if="area === 'MacOS' && macStartupProgramPath"
+                                class="asset-item asset-implicit"
+                            >
+                                <div class="asset-icon locked">
+                                    <n-icon size="18">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+                                            <path d="M6 4h20a2 2 0 0 1 2 2v20a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zm0 2v20h20V6z" fill="currentColor"></path>
+                                            <path d="M10 11h12v2H10zm0 4h8v2h-8zm0 4h10v2H10z" fill="currentColor"></path>
+                                        </svg>
+                                    </n-icon>
+                                </div>
+
+                                <div class="asset-main vertical">
+                                    <div class="asset-label">启动程序</div>
+                                    <n-ellipsis class="path-value">{{ macStartupProgramPath }}</n-ellipsis>
+                                </div>
+                            </div>
+
+                            <div
+                                class="asset-item"
+                                v-for="{ asset, index } in assetsForMacArea(area)"
+                                :key="index"
+                            >
+                                <div class="asset-icon">
+                                    <n-icon size="18">
+                                        <svg v-if="asset.type === 'directory'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+                                            <path d="M28 8H15.414l-2.707-2.707A1 1 0 0 0 12 5H4a2 2 0 0 0-2 2v18a2 2 0 0 0 2 2h24a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2zM4 7h7.586l2.707 2.707A1 1 0 0 0 15 10h13v3H4zm0 18V15h24v10z" fill="currentColor"></path>
+                                        </svg>
+
+                                        <svg v-else xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+                                            <path d="M19 2H8a2 2 0 0 0-2 2v24a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9zm0 2.8L23.2 9H19zM8 28V4h9v7h7v17z" fill="currentColor"></path>
+                                        </svg>
+                                    </n-icon>
+                                </div>
+
+                                <div class="asset-main">
+                                    <n-input
+                                        v-model:value="asset.src"
+                                        :placeholder="t('packageEditor.assetSrcPlaceholder')"
+                                    />
+
+                                    <div class="asset-options">
+                                        <div class="asset-required">
+                                            <span>{{ t("packageEditor.assetRequired") }}</span>
+                                            <n-switch v-model:value="asset.required" />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div
+                                    class="asset-remove"
+                                    @click="removeAsset(index)"
+                                >
+                                    <n-icon size="17">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+                                            <path d="M12 12h2v12h-2z" fill="currentColor"></path>
+                                            <path d="M18 12h2v12h-2z" fill="currentColor"></path>
+                                            <path d="M4 6v2h2v20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8h2V6zm4 22V8h16v20z" fill="currentColor"></path>
+                                            <path d="M12 2h8v2h-8z" fill="currentColor"></path>
+                                        </svg>
+                                    </n-icon>
+                                </div>
+                            </div>
+
+                            <div
+                                v-if="area !== 'MacOS' && !assetsForMacArea(area).length"
+                                class="asset-empty compact"
+                            >
+                                {{ t("packageEditor.noAssets") }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div v-else-if="isWindows">
+                    <div class="asset-list" v-if="cfg.assets.length">
                     <div
                         class="asset-item"
                         v-for="(asset, index) in cfg.assets"
@@ -314,6 +486,35 @@
                                     <n-switch v-model:value="asset.required" />
                                 </div>
                             </div>
+
+                            <div class="asset-target-summary">
+                                <button
+                                    class="asset-target-toggle"
+                                    type="button"
+                                    :class="{ invalid: !!windowsAssetTargetError(asset) }"
+                                    @click="toggleWindowsTarget(index)"
+                                >
+                                    目标目录 {{ normalizedWindowsTarget(asset.target) }}
+                                </button>
+
+                                <div
+                                    v-if="expandedWindowsTargets[index]"
+                                    class="asset-target-panel"
+                                >
+                                    <n-input
+                                        v-model:value="asset.target"
+                                        size="small"
+                                        placeholder="/"
+                                    />
+
+                                    <div
+                                        v-if="windowsAssetTargetError(asset)"
+                                        class="asset-target-error"
+                                    >
+                                        {{ windowsAssetTargetError(asset) }}
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
                         <div
@@ -330,9 +531,9 @@
                             </n-icon>
                         </div>
                     </div>
-                </div>
+                    </div>
 
-                <div class="asset-empty" v-else>
+                    <div class="asset-empty" v-else>
                     <div class="asset-empty-icon">
                         <n-icon size="24">
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
@@ -342,6 +543,7 @@
                     </div>
 
                     <div>{{ t("packageEditor.noAssets") }}</div>
+                    </div>
                 </div>
             </section>
         </div>
@@ -406,6 +608,12 @@ const setupIcon = ref({
     oldPath: "",
     newPath: ""
 })
+const customMacArea = ref("")
+const addedMacAreas = ref([])
+const expandedWindowsTargets = ref({})
+
+const defaultMacAssetAreas = ["MacOS", "Resources"]
+const fixedMacAssetAreas = ["Frameworks", "PlugIns", "SharedSupport"]
 
 const activePlatform = computed(() => props.currentPlatform === "darwin" ? "macos" : "windows")
 const isWindows = computed(() => activePlatform.value === "windows")
@@ -426,17 +634,6 @@ const privilegeOptions = computed(() => [
     }
 ])
 
-const assetTypeOptions = computed(() => [
-    {
-        label: t("packageEditor.assetFile"),
-        value: "file"
-    },
-    {
-        label: t("packageEditor.assetDirectory"),
-        value: "directory"
-    }
-])
-
 const currentSetupIcon = computed(() => {
     const path = setupIcon.value.newPath || setupIcon.value.oldPath
     if (!path) {
@@ -447,6 +644,19 @@ const currentSetupIcon = computed(() => {
 
 const isDirty = computed(() => {
     return JSON.stringify(cfg.value) !== originalCfgJson.value
+})
+
+const hasAssetTargetErrors = computed(() => {
+    if (!cfg.value.assets?.length) {
+        return false
+    }
+    if (isWindows.value) {
+        return cfg.value.assets.some((asset) => !!windowsAssetTargetError(asset))
+    }
+    if (isMacOS.value) {
+        return cfg.value.assets.some((asset) => !!macAssetTargetError(asset))
+    }
+    return false
 })
 
 const executablePathText = computed(() => {
@@ -473,7 +683,48 @@ const runtimeExecutableHint = computed(() => {
     })
 })
 
+const macAssetAreas = computed(() => {
+    const areas = new Set(defaultMacAssetAreas)
+    for (const area of addedMacAreas.value) {
+        areas.add(area)
+    }
+    for (const asset of cfg.value.assets || []) {
+        areas.add(normalizedMacTarget(asset.target))
+    }
+    return Array.from(areas)
+})
 
+const availableFixedMacAreas = computed(() => {
+    return fixedMacAssetAreas.filter((area) => !macAssetAreas.value.includes(area))
+})
+
+const customMacAreaError = computed(() => {
+    const area = customMacArea.value.trim()
+    if (!area) {
+        return ""
+    }
+    if (macAssetAreas.value.includes(area)) {
+        return "区域已存在"
+    }
+    return macTargetError(area, false)
+})
+
+const canAddCustomMacArea = computed(() => {
+    return customMacArea.value.trim() !== "" && !customMacAreaError.value
+})
+
+const macMainProgramPath = computed(() => {
+    const name = cfg.value.build?.appName || "app"
+    return `Contents/MacOS/${name}`
+})
+
+const macStartupProgramPath = computed(() => {
+    const entry = String(cfg.value.entry?.executablePath || "").trim()
+    if (!entry) {
+        return ""
+    }
+    return `Contents/MacOS/${baseName(entry)}`
+})
 
 onMounted(() => {
     initConfig(props.packageCfg)
@@ -491,19 +742,26 @@ watch(
 
 function initConfig(data) {
     cfg.value = cloneData(data)
+    if (!Array.isArray(cfg.value.assets)) {
+        cfg.value.assets = []
+    }
     originalCfgJson.value = JSON.stringify(cfg.value)
 
     setupIcon.value.oldPath = cfg.value.windows?.setupIcon || ""
     setupIcon.value.newPath = ""
+    customMacArea.value = ""
+    addedMacAreas.value = []
+    expandedWindowsTargets.value = {}
 }
 
 async function savePackageCfg() {
-    if (!isDirty.value || saving.value) return
+    if (!isDirty.value || saving.value || hasAssetTargetErrors.value) return
 
     try {
         saving.value = true
 
         const nextCfg = cloneData(cfg.value)
+        normalizeAssetTargetsForSave(nextCfg)
 
         const savedCfg = await PackagingService.SavePackagingConfig(props.projectDir, nextCfg)
         initConfig(savedCfg)
@@ -575,36 +833,155 @@ function setExecutablePath(path) {
     cfg.value.entry.executablePath = path || ""
 }
 
-async function chooseAssetFile() {
+async function chooseAssetFile(target = defaultAssetTarget()) {
     try {
         const path = await AppService.ChooseFile()
-        addAsset(path, "file")
+        addAsset(path, "file", target)
     } catch (error) {
         message.error(error?.message || String(error))
     }
 }
 
-async function chooseAssetDirectory() {
+async function chooseAssetDirectory(target = defaultAssetTarget()) {
     try {
         const path = await AppService.ChooseFolder()
-        addAsset(path, "directory")
+        addAsset(path, "directory", target)
     } catch (error) {
         message.error(error?.message || String(error))
     }
 }
 
-function addAsset(src, type = "file") {
+function addAsset(src, type = "file", target = defaultAssetTarget()) {
     if (!src) return
 
     cfg.value.assets.push({
         src,
         type,
-        required: true
+        required: true,
+        target
     })
 }
 
 function removeAsset(index) {
+    const asset = cfg.value.assets[index]
+    if (isMacOS.value && asset) {
+        const area = normalizedMacTarget(asset.target)
+        if (!defaultMacAssetAreas.includes(area) && !addedMacAreas.value.includes(area)) {
+            addedMacAreas.value.push(area)
+        }
+    }
     cfg.value.assets.splice(index, 1)
+}
+
+function assetsForMacArea(area) {
+    return (cfg.value.assets || [])
+        .map((asset, index) => ({ asset, index }))
+        .filter(({ asset }) => normalizedMacTarget(asset.target) === area)
+}
+
+function addMacArea(area) {
+    const next = String(area || "").trim()
+    if (!next || macAssetAreas.value.includes(next) || macTargetError(next, false)) {
+        return
+    }
+    addedMacAreas.value.push(next)
+}
+
+function addCustomMacArea() {
+    if (!canAddCustomMacArea.value) {
+        return
+    }
+    addMacArea(customMacArea.value.trim())
+    customMacArea.value = ""
+}
+
+function canRemoveMacArea(area) {
+    return !defaultMacAssetAreas.includes(area) && assetsForMacArea(area).length === 0
+}
+
+function removeMacArea(area) {
+    if (!canRemoveMacArea(area)) {
+        return
+    }
+    addedMacAreas.value = addedMacAreas.value.filter((item) => item !== area)
+}
+
+function toggleWindowsTarget(index) {
+    expandedWindowsTargets.value[index] = !expandedWindowsTargets.value[index]
+}
+
+function defaultAssetTarget() {
+    return isMacOS.value ? "MacOS" : "/"
+}
+
+function normalizeAssetTargetsForSave(nextCfg) {
+    nextCfg.assets = (nextCfg.assets || []).map((asset) => ({
+        ...asset,
+        target: isMacOS.value ? normalizedMacTarget(asset.target) : normalizedWindowsTarget(asset.target)
+    }))
+}
+
+function normalizedWindowsTarget(target) {
+    const value = String(target || "").trim()
+    return value || "/"
+}
+
+function normalizedMacTarget(target) {
+    const value = String(target || "").trim()
+    return value || "MacOS"
+}
+
+function windowsAssetTargetError(asset) {
+    const target = normalizedWindowsTarget(asset?.target)
+    if (!target.startsWith("/")) {
+        return "目标目录必须以 / 开始"
+    }
+    if (target.includes("\\")) {
+        return "目标目录只能使用 / 分隔"
+    }
+    return targetPartsError(target.slice(1), target)
+}
+
+function macAssetTargetError(asset) {
+    return macTargetError(normalizedMacTarget(asset?.target), true)
+}
+
+function macAreaTargetError(area) {
+    return macTargetError(area, false)
+}
+
+function macTargetError(target, allowEmpty) {
+    const value = String(target || "").trim()
+    if (!value) {
+        return allowEmpty ? "" : "请输入区域名称"
+    }
+    if (value.startsWith("/") || value.startsWith("\\")) {
+        return "区域必须是 Contents 下的相对路径"
+    }
+    if (value.includes("\\")) {
+        return "区域只能使用 / 分隔"
+    }
+    return targetPartsError(value, value)
+}
+
+function targetPartsError(raw, original) {
+    if (/[:*?"<>|]/.test(raw)) {
+        return "路径包含非法字符"
+    }
+    if (!raw) {
+        return ""
+    }
+    const parts = raw.split("/")
+    if (parts.some((part) => !part || part === "." || part === "..")) {
+        return `非法路径：${original}`
+    }
+    return ""
+}
+
+function baseName(path) {
+    const clean = String(path || "").replace(/\\/g, "/").replace(/\/+$/, "")
+    const parts = clean.split("/")
+    return parts[parts.length - 1] || clean || "app"
 }
 
 function cloneData(data) {
@@ -1066,6 +1443,52 @@ function cloneData(data) {
     gap: 12px;
 }
 
+.mac-asset-board {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.asset-area-toolbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.custom-area-adder {
+    min-width: 260px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.asset-region {
+    padding: 12px;
+    box-sizing: border-box;
+    border-radius: 14px;
+    border: 1px solid var(--wm-border-subtle);
+    background: var(--wm-control-bg);
+}
+
+.asset-region-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.asset-region-title {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--wm-text-primary);
+}
+
+.asset-list.compact {
+    gap: 8px;
+}
+
 .asset-item {
     min-width: 0;
     padding: 12px;
@@ -1094,17 +1517,37 @@ function cloneData(data) {
     border: 1px solid var(--wm-border-soft);
 }
 
+.asset-icon.locked {
+    color: var(--wm-color-primary-hover);
+    border-color: var(--wm-color-primary-border);
+}
+
 .asset-main {
     flex: 1;
     min-width: 0;
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 16px;
 }
 
+.asset-main.vertical {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.asset-main :deep(.n-input) {
+    flex: 1;
+    min-width: 220px;
+}
+
+.asset-label {
+    font-size: 12px;
+    color: var(--wm-text-muted);
+}
+
 .asset-options {
-
-
     display: flex;
     align-items: center;
     gap: 12px;
@@ -1127,6 +1570,44 @@ function cloneData(data) {
 
     white-space:nowrap ;
     color: var(--wm-text-muted);
+}
+
+.asset-target-summary {
+    flex: 0 0 100%;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.asset-target-toggle {
+    border: 0;
+    padding: 0;
+    background: transparent;
+    color: var(--wm-text-muted);
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.asset-target-toggle:hover {
+    color: var(--wm-color-primary-hover);
+}
+
+.asset-target-toggle.invalid,
+.asset-target-error {
+    color: var(--wm-color-danger);
+}
+
+.asset-target-panel {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.asset-target-error {
+    font-size: 12px;
 }
 
 .asset-remove {
@@ -1153,6 +1634,12 @@ function cloneData(data) {
     justify-content: center;
     gap: 10px;
     font-size: 13px;
+}
+
+.asset-empty.compact {
+    min-height: 58px;
+    border-radius: 10px;
+    font-size: 12px;
 }
 
 .asset-empty-icon {

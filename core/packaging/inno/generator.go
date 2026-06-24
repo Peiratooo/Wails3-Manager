@@ -31,7 +31,10 @@ func Generate(projectDir string, cfg contracts.PackagingConfig, projectConfig co
 	if strings.TrimSpace(appID) == "" {
 		return "", fmt.Errorf("project productIdentifier is required for Windows packaging")
 	}
-	files := buildFiles(cfg, projectConfig)
+	files, err := buildFiles(cfg, projectConfig)
+	if err != nil {
+		return "", err
+	}
 	icons := buildIcons(cfg, projectConfig, main)
 	registry := buildRegistry(projectConfig)
 	changesAssociations := ""
@@ -69,26 +72,30 @@ func Generate(projectDir string, cfg contracts.PackagingConfig, projectConfig co
 	return path, os.WriteFile(path, []byte(content), 0644)
 }
 
-func buildFiles(cfg contracts.PackagingConfig, projectConfig contracts.WailsProjectConfig) string {
+func buildFiles(cfg contracts.PackagingConfig, projectConfig contracts.WailsProjectConfig) (string, error) {
 	var lines []string
-	for _, asset := range config.EffectiveAssets(cfg, projectConfig, contracts.PlatformWindows) {
+	for i, asset := range config.EffectiveAssets(cfg, projectConfig, contracts.PlatformWindows) {
 		if strings.TrimSpace(asset.Src) == "" {
 			continue
 		}
+		target, err := config.AssetTarget(asset, contracts.PlatformWindows)
+		if err != nil {
+			return "", fmt.Errorf("Windows asset %d: %w", i, err)
+		}
 		source := asset.Src
-		target := "{app}"
+		destDir := config.WindowsDestDir(target)
 		flags := []string{"ignoreversion"}
 		if isDirectoryAsset(asset) {
 			source = filepath.ToSlash(filepath.Join(asset.Src, "*"))
-			target = `{app}\` + strings.ReplaceAll(filepath.Base(strings.TrimRight(asset.Src, `/\`)), "/", `\`)
+			destDir = config.JoinWindowsAssetTarget(target, filepath.Base(strings.TrimRight(asset.Src, `/\`)))
 			flags = append(flags, "recursesubdirs", "createallsubdirs")
 		}
 		if !asset.Required {
 			flags = append(flags, "skipifsourcedoesntexist")
 		}
-		lines = append(lines, fmt.Sprintf(`Source: "%s"; DestDir: "%s"; Flags: %s`, filepath.ToSlash(source), target, strings.Join(flags, " ")))
+		lines = append(lines, fmt.Sprintf(`Source: "%s"; DestDir: "%s"; Flags: %s`, filepath.ToSlash(source), destDir, strings.Join(flags, " ")))
 	}
-	return strings.Join(lines, "\n")
+	return strings.Join(lines, "\n"), nil
 }
 
 func isDirectoryAsset(asset contracts.PackagingAsset) bool {

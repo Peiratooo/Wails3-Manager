@@ -17,6 +17,7 @@ func TestPrepareMacOSAppBundleCreatesBundleFromProjectConfig(t *testing.T) {
 	mustWriteFile(t, filepath.Join(projectDir, "bin", "demo"), "binary")
 	mustWriteFile(t, filepath.Join(projectDir, "build", "darwin", "icons.icns"), "icon")
 	mustWriteFile(t, filepath.Join(projectDir, "assets", "runtime.dat"), "runtime")
+	mustWriteFile(t, filepath.Join(projectDir, "assets", "license.txt"), "license")
 	mustWriteFile(t, filepath.Join(projectDir, "extras", "config.json"), "{}")
 	mustWriteFile(t, filepath.Join(projectDir, "launcher", "helper"), "helper")
 	writeTestPNG(t, filepath.Join(projectDir, "assets", "dmg-bg.png"))
@@ -50,7 +51,8 @@ func TestPrepareMacOSAppBundleCreatesBundleFromProjectConfig(t *testing.T) {
 		},
 		Assets: []contracts.PackagingAsset{
 			{Src: "assets/runtime.dat", Type: "file", Required: true},
-			{Src: "extras", Type: "directory", Required: true},
+			{Src: "assets/license.txt", Type: "file", Required: true, Target: "Resources"},
+			{Src: "extras", Type: "directory", Required: true, Target: "SharedSupport/data"},
 		},
 	}
 	projectConfig := contracts.WailsProjectConfig{
@@ -75,10 +77,11 @@ func TestPrepareMacOSAppBundleCreatesBundleFromProjectConfig(t *testing.T) {
 	for _, want := range []string{
 		filepath.Join(wantBundle, "Contents", "MacOS", "demo"),
 		filepath.Join(wantBundle, "Contents", "MacOS", "runtime.dat"),
-		filepath.Join(wantBundle, "Contents", "MacOS", "extras", "config.json"),
 		filepath.Join(wantBundle, "Contents", "MacOS", "helper"),
 		filepath.Join(wantBundle, "Contents", "Resources", "icons.icns"),
 		filepath.Join(wantBundle, "Contents", "Resources", "dmg-background.png"),
+		filepath.Join(wantBundle, "Contents", "Resources", "license.txt"),
+		filepath.Join(wantBundle, "Contents", "SharedSupport", "data", "extras", "config.json"),
 	} {
 		if _, err := os.Stat(want); err != nil {
 			t.Fatalf("expected bundle file %s: %v", want, err)
@@ -86,8 +89,9 @@ func TestPrepareMacOSAppBundleCreatesBundleFromProjectConfig(t *testing.T) {
 	}
 	for _, unwanted := range []string{
 		filepath.Join(wantBundle, "Contents", "Resources", "runtime.dat"),
-		filepath.Join(wantBundle, "Contents", "Resources", "extras"),
 		filepath.Join(wantBundle, "Contents", "Resources", "helper"),
+		filepath.Join(wantBundle, "Contents", "MacOS", "license.txt"),
+		filepath.Join(wantBundle, "Contents", "MacOS", "extras"),
 	} {
 		if _, err := os.Stat(unwanted); !os.IsNotExist(err) {
 			t.Fatalf("unexpected file in Resources: %s", unwanted)
@@ -133,6 +137,27 @@ func TestPrepareMacOSAppBundleCreatesBundleFromProjectConfig(t *testing.T) {
 		if !strings.Contains(text, want) {
 			t.Fatalf("Info.plist missing %q:\n%s", want, text)
 		}
+	}
+}
+
+func TestPrepareMacOSAppBundleRejectsInvalidAssetTarget(t *testing.T) {
+	projectDir := t.TempDir()
+	mustWriteFile(t, filepath.Join(projectDir, "bin", "demo"), "binary")
+	mustWriteFile(t, filepath.Join(projectDir, "build", "darwin", "icons.icns"), "icon")
+	mustWriteFile(t, filepath.Join(projectDir, "assets", "runtime.dat"), "runtime")
+
+	cfg := contracts.PackagingConfig{
+		Build: contracts.BuildSettings{AppName: "demo"},
+		MacOS: contracts.MacOSConfig{
+			AppBundle: "bin/${build.appName}.app",
+		},
+		Assets: []contracts.PackagingAsset{
+			{Src: "assets/runtime.dat", Type: "file", Required: true, Target: "../MacOS"},
+		},
+	}
+
+	if _, err := prepareMacOSAppBundle(projectDir, cfg, contracts.WailsProjectConfig{}); err == nil {
+		t.Fatal("expected invalid macOS asset target to be rejected")
 	}
 }
 

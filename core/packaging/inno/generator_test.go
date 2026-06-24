@@ -178,6 +178,78 @@ func TestGenerateIncludesBuildOutputAndCustomLaunchProgram(t *testing.T) {
 	assertNoInnoComments(t, script)
 }
 
+func TestGenerateUsesAssetTargetDestDir(t *testing.T) {
+	projectDir := t.TempDir()
+	projectConfig := contracts.WailsProjectConfig{
+		Info: contracts.WailsAppInfo{
+			ProductName:       "My Product",
+			ProductIdentifier: "com.mycompany.myproduct",
+			Version:           "0.0.1",
+		},
+	}
+	cfg := contracts.PackagingConfig{
+		SchemaVersion: 1,
+		Build: contracts.BuildSettings{
+			AppName: "demo",
+		},
+		Assets: []contracts.PackagingAsset{
+			{Src: "README.md", Type: "file", Required: false, Target: "/docs"},
+			{Src: "runtime", Type: "directory", Required: true, Target: "/data"},
+		},
+		Windows: contracts.WindowsConfig{
+			InnoScript:         "builder/windows/inno.iss",
+			DefaultDirName:     `{autopf}\${project.name}`,
+			PrivilegesRequired: "lowest",
+			SetupIcon:          "build/windows/icon.ico",
+			OutputBaseName:     "${build.appName}-${project.version}-windows-setup",
+		},
+		Artifacts: contracts.ArtifactConfig{OutputRoot: "builder/release"},
+	}
+
+	path, err := Generate(projectDir, cfg, projectConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	script := string(data)
+	for _, want := range []string{
+		`Source: "README.md"; DestDir: "{app}\docs"; Flags: ignoreversion skipifsourcedoesntexist`,
+		`Source: "runtime/*"; DestDir: "{app}\data\runtime"; Flags: ignoreversion recursesubdirs createallsubdirs`,
+	} {
+		if !strings.Contains(script, want) {
+			t.Fatalf("generated script missing %q:\n%s", want, script)
+		}
+	}
+}
+
+func TestGenerateRejectsInvalidAssetTarget(t *testing.T) {
+	projectDir := t.TempDir()
+	cfg := contracts.PackagingConfig{
+		Build: contracts.BuildSettings{AppName: "demo"},
+		Assets: []contracts.PackagingAsset{
+			{Src: "README.md", Type: "file", Required: false, Target: "docs"},
+		},
+		Windows: contracts.WindowsConfig{
+			InnoScript:     "builder/windows/inno.iss",
+			OutputBaseName: "${build.appName}",
+		},
+	}
+	projectConfig := contracts.WailsProjectConfig{
+		Info: contracts.WailsAppInfo{
+			ProductName:       "My Product",
+			ProductIdentifier: "com.mycompany.myproduct",
+			Version:           "0.0.1",
+		},
+	}
+
+	if _, err := Generate(projectDir, cfg, projectConfig); err == nil {
+		t.Fatal("expected invalid Windows asset target to be rejected")
+	}
+}
+
 func assertNoInnoComments(t *testing.T, script string) {
 	t.Helper()
 	for _, line := range strings.Split(script, "\n") {

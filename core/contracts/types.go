@@ -144,6 +144,7 @@ type PackagingAsset struct {
 	Src      string `json:"src"`
 	Type     string `json:"type"`
 	Required bool   `json:"required"`
+	Target   string `json:"target,omitempty"`
 }
 
 type WindowsConfig struct {

@@ -26,10 +26,8 @@ func prepareMacOSAppBundle(projectDir string, cfg contracts.PackagingConfig, pro
 	contentsDir := filepath.Join(appBundle, "Contents")
 	macOSDir := filepath.Join(contentsDir, "MacOS")
 	resourcesDir := filepath.Join(contentsDir, "Resources")
-	for _, dir := range []string{macOSDir, resourcesDir} {
-		if err := os.RemoveAll(dir); err != nil {
-			return "", err
-		}
+	if err := os.RemoveAll(contentsDir); err != nil {
+		return "", err
 	}
 	for _, dir := range []string{macOSDir, resourcesDir} {
 		if err := os.MkdirAll(dir, 0755); err != nil {
@@ -57,7 +55,7 @@ func prepareMacOSAppBundle(projectDir string, cfg contracts.PackagingConfig, pro
 		return "", err
 	}
 
-	if err := copyMacOSPayloads(projectDir, macOSDir, cfg, projectConfig); err != nil {
+	if err := copyMacOSPayloads(projectDir, contentsDir, cfg, projectConfig); err != nil {
 		return "", err
 	}
 
@@ -106,13 +104,19 @@ func renderMacOSInfoPlist(projectDir string, cfg contracts.PackagingConfig, proj
 	return text, nil
 }
 
-func copyMacOSPayloads(projectDir, macOSDir string, cfg contracts.PackagingConfig, projectConfig contracts.WailsProjectConfig) error {
+func copyMacOSPayloads(projectDir, contentsDir string, cfg contracts.PackagingConfig, projectConfig contracts.WailsProjectConfig) error {
+	macOSDir := filepath.Join(contentsDir, "MacOS")
 	for i, asset := range cfg.Assets {
 		src := strings.TrimSpace(config.RenderPlaceholders(asset.Src, cfg, projectConfig))
 		if src == "" {
 			continue
 		}
-		if err := copyMacOSPayload(projectDir, macOSDir, src, asset.Type, asset.Required); err != nil {
+		target, err := config.AssetTarget(asset, contracts.PlatformMacOS)
+		if err != nil {
+			return fmt.Errorf("macOS asset %d: %w", i, err)
+		}
+		targetDir := filepath.Join(contentsDir, filepath.FromSlash(target))
+		if err := copyMacOSPayload(projectDir, targetDir, src, asset.Type, asset.Required); err != nil {
 			return fmt.Errorf("macOS asset %d: %w", i, err)
 		}
 	}

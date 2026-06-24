@@ -101,6 +101,11 @@ func (s *PackagingService) SavePackagingConfig(projectDir string, cfg contracts.
 	if err != nil {
 		return contracts.PackagingConfig{}, err
 	}
+	if platform := runtimePlatform(); platform == contracts.PlatformWindows || platform == contracts.PlatformMacOS {
+		if err := config.ValidateAssetTargets(cfg, platform); err != nil {
+			return contracts.PackagingConfig{}, err
+		}
+	}
 	if err := config.SavePackagingConfig(projectDir, cfg); err != nil {
 		return contracts.PackagingConfig{}, err
 	}
@@ -202,6 +207,9 @@ func (s *PackagingService) Package(req contracts.PackageRequest) (result contrac
 		} else if cfg.Windows.InnoScript == "" {
 			return contracts.PackageResult{}, errors.New("Windows packaging has not been initialized")
 		} else {
+			if err := config.ValidateAssetTargets(cfg, contracts.PlatformWindows); err != nil {
+				return contracts.PackageResult{}, err
+			}
 			if _, err := inno.Generate(projectDir, cfg, projectConfig); err != nil {
 				return contracts.PackageResult{}, err
 			}
@@ -223,6 +231,9 @@ func (s *PackagingService) Package(req contracts.PackageRequest) (result contrac
 		} else if cfg.MacOS.DMGScript == "" {
 			return contracts.PackageResult{}, errors.New("macOS packaging has not been initialized")
 		} else {
+			if err := config.ValidateAssetTargets(cfg, contracts.PlatformMacOS); err != nil {
+				return contracts.PackageResult{}, err
+			}
 			if _, err := dmg.GenerateScript(projectDir, cfg, projectConfig); err != nil {
 				return contracts.PackageResult{}, err
 			}
