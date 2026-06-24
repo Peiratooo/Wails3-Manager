@@ -11,6 +11,7 @@ import (
 	"wails3-manager/core/contracts"
 	"wails3-manager/core/fsx"
 	"wails3-manager/core/packaging/config"
+	"wails3-manager/core/packaging/dmg"
 )
 
 func prepareMacOSAppBundle(projectDir string, cfg contracts.PackagingConfig, projectConfig contracts.WailsProjectConfig) (string, error) {
@@ -26,21 +27,26 @@ func prepareMacOSAppBundle(projectDir string, cfg contracts.PackagingConfig, pro
 	macOSDir := filepath.Join(contentsDir, "MacOS")
 	resourcesDir := filepath.Join(contentsDir, "Resources")
 	for _, dir := range []string{macOSDir, resourcesDir} {
-		if err := os.MkdirAll(dir, 0755); err != nil {
+		if err := os.RemoveAll(dir); err != nil {
 			return "", err
 		}
 	}
-
-	binarySrc := fsx.Resolve(projectDir, config.DefaultMacOSBinaryPath(cfg))
-	binaryDst := filepath.Join(macOSDir, config.AppName(cfg))
-	if err := copyRequiredFile(binarySrc, binaryDst, "macOS executable", 0755); err != nil {
-		return "", err
+	for _, dir := range []string{macOSDir, resourcesDir} {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return "", err
+		}
 	}
 
 	iconSrc := filepath.Join(projectDir, "build", "darwin", "icons.icns")
 	iconDst := filepath.Join(resourcesDir, "icons.icns")
 	if err := copyRequiredFile(iconSrc, iconDst, "macOS icon", 0644); err != nil {
 		return "", err
+	}
+	if strings.TrimSpace(cfg.MacOS.Background) != "" {
+		background := config.RenderPlaceholders(cfg.MacOS.Background, cfg, projectConfig)
+		if _, err := dmg.PrepareBackground(projectDir, background, cfg.MacOS.WindowWidth, cfg.MacOS.WindowHeight, filepath.Join(resourcesDir, "dmg-background.png")); err != nil {
+			return "", err
+		}
 	}
 
 	plist, err := renderMacOSInfoPlist(projectDir, cfg, projectConfig)
@@ -51,7 +57,13 @@ func prepareMacOSAppBundle(projectDir string, cfg contracts.PackagingConfig, pro
 		return "", err
 	}
 
-	if err := copyMacOSResources(projectDir, resourcesDir, cfg, projectConfig); err != nil {
+	if err := copyMacOSPayloads(projectDir, macOSDir, cfg, projectConfig); err != nil {
+		return "", err
+	}
+
+	binarySrc := fsx.Resolve(projectDir, config.DefaultMacOSBinaryPath(cfg))
+	binaryDst := filepath.Join(macOSDir, config.AppName(cfg))
+	if err := copyRequiredFile(binarySrc, binaryDst, "macOS executable", 0755); err != nil {
 		return "", err
 	}
 
@@ -94,13 +106,13 @@ func renderMacOSInfoPlist(projectDir string, cfg contracts.PackagingConfig, proj
 	return text, nil
 }
 
-func copyMacOSResources(projectDir, resourcesDir string, cfg contracts.PackagingConfig, projectConfig contracts.WailsProjectConfig) error {
+func copyMacOSPayloads(projectDir, macOSDir string, cfg contracts.PackagingConfig, projectConfig contracts.WailsProjectConfig) error {
 	for i, asset := range cfg.Assets {
 		src := strings.TrimSpace(config.RenderPlaceholders(asset.Src, cfg, projectConfig))
 		if src == "" {
 			continue
 		}
-		if err := copyMacOSResource(projectDir, resourcesDir, src, asset.Type, asset.Required); err != nil {
+		if err := copyMacOSPayload(projectDir, macOSDir, src, asset.Type, asset.Required); err != nil {
 			return fmt.Errorf("macOS asset %d: %w", i, err)
 		}
 	}
@@ -108,14 +120,14 @@ func copyMacOSResources(projectDir, resourcesDir string, cfg contracts.Packaging
 	if entry != "" &&
 		!config.SameAssetPath(entry, config.DefaultMacOSBinaryPath(cfg), contracts.PlatformMacOS) &&
 		!config.SameAssetPath(entry, config.MacOSAppBundlePath(cfg, projectConfig), contracts.PlatformMacOS) {
-		if err := copyMacOSResource(projectDir, resourcesDir, entry, "", true); err != nil {
+		if err := copyMacOSPayload(projectDir, macOSDir, entry, "", true); err != nil {
 			return fmt.Errorf("macOS launch program: %w", err)
 		}
 	}
 	return nil
 }
 
-func copyMacOSResource(projectDir, resourcesDir, src, assetType string, required bool) error {
+func copyMacOSPayload(projectDir, macOSDir, src, assetType string, required bool) error {
 	from := fsx.Resolve(projectDir, src)
 	if from == "" {
 		if required {
@@ -133,7 +145,7 @@ func copyMacOSResource(projectDir, resourcesDir, src, assetType string, required
 	if name == "." || name == string(filepath.Separator) {
 		return fmt.Errorf("asset has no filename: %s", from)
 	}
-	to := filepath.Join(resourcesDir, name)
+	to := filepath.Join(macOSDir, name)
 	if err := os.RemoveAll(to); err != nil {
 		return err
 	}

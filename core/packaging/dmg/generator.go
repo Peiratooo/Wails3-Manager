@@ -39,16 +39,11 @@ func GenerateScript(projectDir string, cfg contracts.PackagingConfig, projectCon
 	appBundle := config.MacOSAppBundlePath(cfg, projectConfig)
 	outputDir := config.MacOSOutputDir(cfg, projectConfig)
 	outputName := config.RenderPlaceholders(cfg.MacOS.OutputName, cfg, projectConfig)
-	background, err := prepareBackground(projectDir, config.RenderPlaceholders(cfg.MacOS.Background, cfg, projectConfig), cfg.MacOS.WindowWidth, cfg.MacOS.WindowHeight)
-	if err != nil {
-		return "", err
-	}
 	content := strings.NewReplacer(
 		"{{appName}}", projectName,
 		"{{appBundle}}", filepath.ToSlash(appBundle),
 		"{{outputDir}}", filepath.ToSlash(outputDir),
 		"{{outputName}}", outputName,
-		"{{background}}", filepath.ToSlash(background),
 		"{{windowWidth}}", fmt.Sprint(cfg.MacOS.WindowWidth),
 		"{{windowHeight}}", fmt.Sprint(cfg.MacOS.WindowHeight),
 		"{{iconSize}}", fmt.Sprint(cfg.MacOS.IconSize),
@@ -64,7 +59,7 @@ func GenerateScript(projectDir string, cfg contracts.PackagingConfig, projectCon
 	return path, os.WriteFile(path, []byte(content), 0755)
 }
 
-func prepareBackground(projectDir, background string, width, height int) (string, error) {
+func PrepareBackground(projectDir, background string, width, height int, output string) (string, error) {
 	background = strings.TrimSpace(background)
 	if background == "" {
 		return "", nil
@@ -79,7 +74,9 @@ func prepareBackground(projectDir, background string, width, height int) (string
 	if err != nil {
 		return "", fmt.Errorf("failed to decode DMG background: %w", err)
 	}
-	output := filepath.Join(projectDir, "builder", "macos", "background.png")
+	if strings.TrimSpace(output) == "" {
+		output = filepath.Join(projectDir, "builder", "macos", "background.png")
+	}
 	if err := os.MkdirAll(filepath.Dir(output), 0755); err != nil {
 		return "", err
 	}
@@ -124,7 +121,6 @@ APP_NAME="{{appName}}"
 APP_BUNDLE="{{appBundle}}"
 OUT_DIR="{{outputDir}}"
 DMG_NAME="{{outputName}}.dmg"
-BACKGROUND="{{background}}"
 CREATE_DMG="{{createDmg}}"
 FINAL_DMG="$OUT_DIR/$DMG_NAME"
 VOLUME_NAME="$APP_NAME"
@@ -146,6 +142,7 @@ fi
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
 cp -R "$APP_BUNDLE" "$TMP_DIR/$APP_NAME.app"
+BACKGROUND="$TMP_DIR/$APP_NAME.app/Contents/Resources/dmg-background.png"
 
 CREATE_DMG_ARGS=(
   --volname "$VOLUME_NAME"

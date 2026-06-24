@@ -1,6 +1,9 @@
 package packaging
 
 import (
+	"image"
+	"image/color"
+	"image/png"
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,6 +19,7 @@ func TestPrepareMacOSAppBundleCreatesBundleFromProjectConfig(t *testing.T) {
 	mustWriteFile(t, filepath.Join(projectDir, "assets", "runtime.dat"), "runtime")
 	mustWriteFile(t, filepath.Join(projectDir, "extras", "config.json"), "{}")
 	mustWriteFile(t, filepath.Join(projectDir, "launcher", "helper"), "helper")
+	writeTestPNG(t, filepath.Join(projectDir, "assets", "dmg-bg.png"))
 	mustWriteFile(t, filepath.Join(projectDir, "build", "darwin", "Info.plist"), `<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
     <dict>
@@ -39,7 +43,10 @@ func TestPrepareMacOSAppBundleCreatesBundleFromProjectConfig(t *testing.T) {
 		Build: contracts.BuildSettings{AppName: "demo"},
 		Entry: contracts.ProgramEntry{ExecutablePath: "launcher/helper"},
 		MacOS: contracts.MacOSConfig{
-			AppBundle: "bin/${project.name}.app",
+			AppBundle:    "bin/${project.name}.app",
+			Background:   "assets/dmg-bg.png",
+			WindowWidth:  320,
+			WindowHeight: 180,
 		},
 		Assets: []contracts.PackagingAsset{
 			{Src: "assets/runtime.dat", Type: "file", Required: true},
@@ -67,14 +74,39 @@ func TestPrepareMacOSAppBundleCreatesBundleFromProjectConfig(t *testing.T) {
 	}
 	for _, want := range []string{
 		filepath.Join(wantBundle, "Contents", "MacOS", "demo"),
+		filepath.Join(wantBundle, "Contents", "MacOS", "runtime.dat"),
+		filepath.Join(wantBundle, "Contents", "MacOS", "extras", "config.json"),
+		filepath.Join(wantBundle, "Contents", "MacOS", "helper"),
 		filepath.Join(wantBundle, "Contents", "Resources", "icons.icns"),
-		filepath.Join(wantBundle, "Contents", "Resources", "runtime.dat"),
-		filepath.Join(wantBundle, "Contents", "Resources", "extras", "config.json"),
-		filepath.Join(wantBundle, "Contents", "Resources", "helper"),
+		filepath.Join(wantBundle, "Contents", "Resources", "dmg-background.png"),
 	} {
 		if _, err := os.Stat(want); err != nil {
 			t.Fatalf("expected bundle file %s: %v", want, err)
 		}
+	}
+	for _, unwanted := range []string{
+		filepath.Join(wantBundle, "Contents", "Resources", "runtime.dat"),
+		filepath.Join(wantBundle, "Contents", "Resources", "extras"),
+		filepath.Join(wantBundle, "Contents", "Resources", "helper"),
+	} {
+		if _, err := os.Stat(unwanted); !os.IsNotExist(err) {
+			t.Fatalf("unexpected file in Resources: %s", unwanted)
+		}
+	}
+	backgroundFile, err := os.Open(filepath.Join(wantBundle, "Contents", "Resources", "dmg-background.png"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	background, err := png.Decode(backgroundFile)
+	closeErr := backgroundFile.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if closeErr != nil {
+		t.Fatal(closeErr)
+	}
+	if background.Bounds().Dx() != 320 || background.Bounds().Dy() != 180 {
+		t.Fatalf("background size = %dx%d, want 320x180", background.Bounds().Dx(), background.Bounds().Dy())
 	}
 
 	plist, err := os.ReadFile(filepath.Join(wantBundle, "Contents", "Info.plist"))
@@ -111,5 +143,26 @@ func mustWriteFile(t *testing.T, path, content string) {
 	}
 	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func writeTestPNG(t *testing.T, path string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		t.Fatal(err)
+	}
+	file, err := os.Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	img := image.NewNRGBA(image.Rect(0, 0, 2, 2))
+	img.Set(0, 0, color.NRGBA{R: 255, A: 255})
+	encodeErr := png.Encode(file, img)
+	closeErr := file.Close()
+	if encodeErr != nil {
+		t.Fatal(encodeErr)
+	}
+	if closeErr != nil {
+		t.Fatal(closeErr)
 	}
 }
