@@ -43,7 +43,6 @@ func GenerateScript(projectDir string, cfg contracts.PackagingConfig, projectCon
 	if err != nil {
 		return "", err
 	}
-	extraFiles := buildExtraFiles(projectDir, cfg, projectConfig, appBundle)
 	content := strings.NewReplacer(
 		"{{appName}}", projectName,
 		"{{appBundle}}", filepath.ToSlash(appBundle),
@@ -58,7 +57,6 @@ func GenerateScript(projectDir string, cfg contracts.PackagingConfig, projectCon
 		"{{applicationsX}}", fmt.Sprint(cfg.MacOS.ApplicationsX),
 		"{{applicationsY}}", fmt.Sprint(cfg.MacOS.ApplicationsY),
 		"{{createDmg}}", cfg.MacOS.CreateDMGPath,
-		"{{extraFiles}}", extraFiles,
 	).Replace(defaultTemplate)
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		return "", err
@@ -119,50 +117,6 @@ func coverImage(source image.Image, width, height int) *image.NRGBA {
 	return output
 }
 
-func buildExtraFiles(projectDir string, cfg contracts.PackagingConfig, projectConfig contracts.WailsProjectConfig, skipPaths ...string) string {
-	var lines []string
-	for _, asset := range config.EffectiveAssets(cfg, projectConfig, contracts.PlatformMacOS) {
-		if strings.TrimSpace(asset.Src) == "" {
-			continue
-		}
-		if shouldSkipAsset(asset.Src, skipPaths) {
-			continue
-		}
-		source := filepath.ToSlash(asset.Src)
-		requiredCheck := "echo \"Optional asset not found: " + source + "\" >&2"
-		if asset.Required {
-			requiredCheck = "echo \"Required asset not found: " + source + "\" >&2; exit 1"
-		}
-		// `cp -R src "$TMP_DIR/"` keeps a directory as "$TMP_DIR/<dirname>"
-		// and puts a file directly in the package root. That matches the GUI
-		// model: users only choose source assets, not custom target paths.
-		lines = append(lines,
-			fmt.Sprintf(`if [ -e %s ]; then`, shellQuote(source)),
-			fmt.Sprintf(`  cp -R %s "$TMP_DIR/"`, shellQuote(source)),
-			"else",
-			"  "+requiredCheck,
-			"fi",
-		)
-		if !fsx.Exists(fsx.Resolve(projectDir, asset.Src)) && asset.Required {
-			lines = append(lines, fmt.Sprintf(`# Required asset currently missing during script generation: %s`, source))
-		}
-	}
-	return strings.Join(lines, "\n")
-}
-
-func shouldSkipAsset(src string, skipPaths []string) bool {
-	for _, skipPath := range skipPaths {
-		if config.SameAssetPath(src, skipPath, contracts.PlatformMacOS) {
-			return true
-		}
-	}
-	return false
-}
-
-func shellQuote(value string) string {
-	return "'" + strings.ReplaceAll(value, "'", `'\''`) + "'"
-}
-
 const defaultTemplate = `#!/usr/bin/env bash
 set -euo pipefail
 
@@ -192,7 +146,6 @@ fi
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
 cp -R "$APP_BUNDLE" "$TMP_DIR/$APP_NAME.app"
-{{extraFiles}}
 
 CREATE_DMG_ARGS=(
   --volname "$VOLUME_NAME"

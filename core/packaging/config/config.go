@@ -88,34 +88,52 @@ func validatePackagingConfig(cfg contracts.PackagingConfig) error {
 			return fmt.Errorf("packaging assets[%d].type must be file or directory", i)
 		}
 	}
-	if strings.TrimSpace(cfg.Windows.InnoScript) == "" {
+	if cfg.Windows.Enabled {
+		if err := validateWindowsConfig(cfg.Windows); err != nil {
+			return err
+		}
+	}
+	if cfg.MacOS.Enabled {
+		if err := validateMacOSConfig(cfg.MacOS); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateWindowsConfig(cfg contracts.WindowsConfig) error {
+	if strings.TrimSpace(cfg.InnoScript) == "" {
 		return fmt.Errorf("packaging windows.innoScript is required")
 	}
-	if strings.TrimSpace(cfg.Windows.DefaultDirName) == "" {
+	if strings.TrimSpace(cfg.DefaultDirName) == "" {
 		return fmt.Errorf("packaging windows.defaultDirName is required")
 	}
-	if strings.TrimSpace(cfg.Windows.PrivilegesRequired) == "" {
+	if strings.TrimSpace(cfg.PrivilegesRequired) == "" {
 		return fmt.Errorf("packaging windows.privilegesRequired is required")
 	}
-	if strings.TrimSpace(cfg.Windows.SetupIcon) == "" {
+	if strings.TrimSpace(cfg.SetupIcon) == "" {
 		return fmt.Errorf("packaging windows.setupIcon is required")
 	}
-	if strings.TrimSpace(cfg.Windows.OutputBaseName) == "" {
+	if strings.TrimSpace(cfg.OutputBaseName) == "" {
 		return fmt.Errorf("packaging windows.outputBaseName is required")
 	}
-	if strings.TrimSpace(cfg.MacOS.AppBundle) == "" {
+	return nil
+}
+
+func validateMacOSConfig(cfg contracts.MacOSConfig) error {
+	if strings.TrimSpace(cfg.AppBundle) == "" {
 		return fmt.Errorf("packaging macos.appBundle is required")
 	}
-	if strings.TrimSpace(cfg.MacOS.DMGScript) == "" {
+	if strings.TrimSpace(cfg.DMGScript) == "" {
 		return fmt.Errorf("packaging macos.dmgScript is required")
 	}
-	if strings.TrimSpace(cfg.MacOS.OutputName) == "" {
+	if strings.TrimSpace(cfg.OutputName) == "" {
 		return fmt.Errorf("packaging macos.outputName is required")
 	}
-	if strings.TrimSpace(cfg.MacOS.CreateDMGPath) == "" {
+	if strings.TrimSpace(cfg.CreateDMGPath) == "" {
 		return fmt.Errorf("packaging macos.createDmgPath is required")
 	}
-	if cfg.MacOS.WindowWidth <= 0 || cfg.MacOS.WindowHeight <= 0 || cfg.MacOS.IconSize <= 0 {
+	if cfg.WindowWidth <= 0 || cfg.WindowHeight <= 0 || cfg.IconSize <= 0 {
 		return fmt.Errorf("packaging macos window size and icon size must be greater than zero")
 	}
 	return nil

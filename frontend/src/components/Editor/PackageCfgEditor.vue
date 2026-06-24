@@ -41,7 +41,7 @@
                         />
                     </div>
 
-                    <div class="build-icon-row">
+                    <div v-if="isWindows" class="build-icon-row">
                         <div class="setup-icon-stage">
                             <n-image
                                 v-if="currentSetupIcon"
@@ -177,44 +177,20 @@
                             </span>
 
                             <n-switch
-                                v-if="activePlatform === 'windows'"
+                                v-if="isWindows"
                                 v-model:value="cfg.windows.enabled"
                             />
 
                             <n-switch
-                                v-else
+                                v-else-if="isMacOS"
                                 v-model:value="cfg.macos.enabled"
                             />
                         </div>
                     </div>
                 </div>
 
-                <div class="platform-switch-row">
-                    <div class="platform-tabs">
-                        <button
-                            type="button"
-                            class="platform-tab"
-                            :class="{ active: activePlatform === 'windows' }"
-                            @click="activePlatform = 'windows'"
-                        >
-                            Windows
-                        </button>
-
-                        <button
-                            type="button"
-                            class="platform-tab"
-                            :class="{ active: activePlatform === 'macos' }"
-                            @click="activePlatform = 'macos'"
-                        >
-                            macOS
-                        </button>
-                    </div>
-
-<!--                    <div class="platform-switch-hint">{{ t("packageEditor.platformEnabledDesc") }}</div>-->
-                </div>
-
                 <div
-                    v-if="activePlatform === 'windows'"
+                    v-if="isWindows"
                     class="form-grid"
                     :class="{ disabled: !cfg.windows.enabled }"
                 >
@@ -247,7 +223,7 @@
                 </div>
 
                 <div
-                    v-else
+                    v-else-if="isMacOS"
                     class="form-grid"
                     :class="{ disabled: !cfg.macos.enabled }"
                 >
@@ -371,6 +347,7 @@
         </div>
 
         <DmgLayoutEditor
+            v-if="isMacOS"
             v-model:show="dmgEditorVisible"
             :macos="cfg.macos"
             :project-dir="projectDir"
@@ -404,6 +381,10 @@ const props = defineProps({
     projectDir: {
         type: String,
         required: true
+    },
+    currentPlatform: {
+        type: String,
+        default: "windows"
     }
 })
 
@@ -414,7 +395,6 @@ const message = useMessage()
 const cfg = ref(cloneData(props.packageCfg))
 const originalCfgJson = ref(JSON.stringify(cfg.value))
 const saving = ref(false)
-const activePlatform = ref("windows")
 const dmgEditorVisible = ref(false)
 const runtimeInfo = ref({
     defaultExecutablePath: "",
@@ -426,6 +406,10 @@ const setupIcon = ref({
     oldPath: "",
     newPath: ""
 })
+
+const activePlatform = computed(() => props.currentPlatform === "darwin" ? "macos" : "windows")
+const isWindows = computed(() => activePlatform.value === "windows")
+const isMacOS = computed(() => activePlatform.value === "macos")
 
 const privilegeOptions = computed(() => [
     {
@@ -509,7 +493,7 @@ function initConfig(data) {
     cfg.value = cloneData(data)
     originalCfgJson.value = JSON.stringify(cfg.value)
 
-    setupIcon.value.oldPath = cfg.value.windows.setupIcon
+    setupIcon.value.oldPath = cfg.value.windows?.setupIcon || ""
     setupIcon.value.newPath = ""
 }
 

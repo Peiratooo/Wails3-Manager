@@ -74,7 +74,7 @@ func TestGenerateScriptFitsBackgroundToWindowSize(t *testing.T) {
 	}
 }
 
-func TestGenerateScriptIncludesBuildOutputAndCustomLaunchProgram(t *testing.T) {
+func TestGenerateScriptUsesAppBundleOnly(t *testing.T) {
 	projectDir := t.TempDir()
 	sourcePath := filepath.Join(projectDir, "background.png")
 	writePNG(t, sourcePath, image.NewNRGBA(image.Rect(0, 0, 4, 4)))
@@ -99,7 +99,7 @@ func TestGenerateScriptIncludesBuildOutputAndCustomLaunchProgram(t *testing.T) {
 	}
 	projectConfig := contracts.WailsProjectConfig{
 		Info: contracts.WailsAppInfo{
-			ProductName: "Demo",
+			ProductName: "Demo Product",
 			Version:     "1.0.0",
 		},
 	}
@@ -114,16 +114,24 @@ func TestGenerateScriptIncludesBuildOutputAndCustomLaunchProgram(t *testing.T) {
 	}
 	text := string(script)
 	for _, want := range []string{
-		`APP_BUNDLE="launcher/Helper.app"`,
-		`if [ -e 'bin/demo.app' ]; then`,
-		`cp -R 'bin/demo.app' "$TMP_DIR/"`,
+		`APP_BUNDLE="bin/Demo Product.app"`,
+		`cp -R "$APP_BUNDLE" "$TMP_DIR/$APP_NAME.app"`,
+		`--window-size 300 400`,
+		`--icon "$APP_NAME.app" 90 200`,
+		`--app-drop-link 210 200`,
 	} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("generated script missing %q:\n%s", want, text)
 		}
 	}
-	if strings.Contains(text, `if [ -e 'launcher/Helper.app' ]; then`) {
-		t.Fatalf("primary app bundle should not be duplicated as an extra file:\n%s", text)
+	for _, unwanted := range []string{
+		`if [ -e 'bin/demo.app' ]; then`,
+		`if [ -e 'launcher/Helper.app' ]; then`,
+		`{{extraFiles}}`,
+	} {
+		if strings.Contains(text, unwanted) {
+			t.Fatalf("generated script should not contain %q:\n%s", unwanted, text)
+		}
 	}
 }
 

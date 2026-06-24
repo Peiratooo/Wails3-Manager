@@ -9,11 +9,7 @@ import (
 
 func WailsBuildOutputPath(cfg contracts.PackagingConfig, project contracts.WailsProjectConfig, platform contracts.Platform) string {
 	if platform == contracts.PlatformMacOS {
-		appBundle := strings.TrimSpace(cfg.MacOS.AppBundle)
-		if appBundle == "" {
-			appBundle = DefaultExecutablePath(cfg, platform)
-		}
-		return RenderPlaceholders(appBundle, cfg, project)
+		return MacOSAppBundlePath(cfg, project)
 	}
 	return RenderPlaceholders(DefaultExecutablePath(cfg, platform), cfg, project)
 }

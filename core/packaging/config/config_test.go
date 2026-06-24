@@ -134,11 +134,12 @@ func TestResolveMacOSAppBundlePathTreatsDefaultBundleAsDefault(t *testing.T) {
 		Build: contracts.BuildSettings{AppName: "demo"},
 		MacOS: contracts.MacOSConfig{AppBundle: "bin/${build.appName}.app"},
 	}
-	info := ResolveMacOSAppBundlePath(cfg, contracts.WailsProjectConfig{})
+	project := contracts.WailsProjectConfig{Info: contracts.WailsAppInfo{ProductName: "Demo Product"}}
+	info := ResolveMacOSAppBundlePath(cfg, project)
 	if !info.UsingDefaultExecutable {
 		t.Fatalf("UsingDefaultExecutable = false, want true")
 	}
-	if info.DefaultExecutablePath != "bin/demo.app" || info.EffectiveExecutablePath != "bin/demo.app" {
+	if info.DefaultExecutablePath != "bin/Demo Product.app" || info.EffectiveExecutablePath != "bin/Demo Product.app" {
 		t.Fatalf("runtime info = %#v", info)
 	}
 }
@@ -199,7 +200,7 @@ func TestEffectiveAssetsDeduplicatesImplicitAssets(t *testing.T) {
 	}
 }
 
-func TestEffectiveAssetsIncludesMacOSBuildOutputAndLaunchProgram(t *testing.T) {
+func TestEffectiveAssetsIncludesMacOSAppBundle(t *testing.T) {
 	cfg := contracts.PackagingConfig{
 		Build: contracts.BuildSettings{AppName: "demo"},
 		Entry: contracts.ProgramEntry{ExecutablePath: "launcher/Helper.app"},
@@ -208,10 +209,10 @@ func TestEffectiveAssetsIncludesMacOSBuildOutputAndLaunchProgram(t *testing.T) {
 		},
 	}
 
-	assets := EffectiveAssets(cfg, contracts.WailsProjectConfig{}, contracts.PlatformMacOS)
+	project := contracts.WailsProjectConfig{Info: contracts.WailsAppInfo{ProductName: "Demo Product"}}
+	assets := EffectiveAssets(cfg, project, contracts.PlatformMacOS)
 	want := []contracts.PackagingAsset{
-		{Src: "bin/demo.app", Type: "directory", Required: true},
-		{Src: "launcher/Helper.app", Type: "directory", Required: true},
+		{Src: "bin/Demo Product.app", Type: "directory", Required: true},
 	}
 	if len(assets) != len(want) {
 		t.Fatalf("EffectiveAssets length = %d, want %d: %#v", len(assets), len(want), assets)
@@ -220,5 +221,24 @@ func TestEffectiveAssetsIncludesMacOSBuildOutputAndLaunchProgram(t *testing.T) {
 		if assets[i] != want[i] {
 			t.Fatalf("EffectiveAssets[%d] = %#v, want %#v", i, assets[i], want[i])
 		}
+	}
+}
+
+func TestSavePackagingConfigAllowsDisabledPlatformSections(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "packaging.json")
+	cfg := contracts.PackagingConfig{
+		SchemaVersion: 1,
+		Build: contracts.BuildSettings{
+			Taskfile: "Taskfile.yml",
+			Task:     "release",
+			AppName:  "demo",
+		},
+		Artifacts: contracts.ArtifactConfig{OutputRoot: "builder/release"},
+		Windows:   contracts.WindowsConfig{Enabled: false},
+		MacOS:     contracts.MacOSConfig{Enabled: false},
+	}
+
+	if err := SavePackagingConfigFile(path, cfg); err != nil {
+		t.Fatal(err)
 	}
 }

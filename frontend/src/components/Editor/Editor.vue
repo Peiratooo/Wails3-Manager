@@ -86,6 +86,7 @@ const tabs = computed(() => [
         props: {
             packageCfg: props.packageCfg,
             projectDir: props.wails3Cfg.projectDir,
+            currentPlatform: props.wails3Cfg.project?.currentPlatform,
             onSaved: (cfg) => emit("package-saved", cfg)
         }
     }

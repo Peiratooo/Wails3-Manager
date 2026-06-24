@@ -229,6 +229,9 @@ func (s *PackagingService) Package(req contracts.PackageRequest) (result contrac
 			if req.DryRun || runtime.GOOS != "darwin" {
 				result.Warnings = append(result.Warnings, "macOS packaging generated the DMG script only; create-dmg was not executed.")
 			} else {
+				if _, err := prepareMacOSAppBundle(projectDir, cfg, projectConfig); err != nil {
+					return contracts.PackageResult{}, err
+				}
 				if err := validateMacOSPackagingInputs(projectDir, cfg, projectConfig); err != nil {
 					return contracts.PackageResult{}, err
 				}
@@ -380,7 +383,7 @@ func defaultPackagingConfig(projectDir string, projectConfig contracts.WailsProj
 		},
 		MacOS: contracts.MacOSConfig{
 			Enabled:       true,
-			AppBundle:     "bin/${build.appName}.app",
+			AppBundle:     "bin/${project.name}.app",
 			DMGScript:     "builder/macos/dmg.sh",
 			Background:    "assets/install-grid.png",
 			OutputName:    "${build.appName}-${project.version}",

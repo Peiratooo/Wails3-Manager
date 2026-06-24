@@ -64,6 +64,27 @@ func DefaultExecutablePath(cfg contracts.PackagingConfig, platform contracts.Pla
 	}
 }
 
+func DefaultMacOSBinaryPath(cfg contracts.PackagingConfig) string {
+	return filepath.ToSlash(filepath.Join("bin", AppName(cfg)))
+}
+
+func DefaultMacOSAppBundlePath(cfg contracts.PackagingConfig, project contracts.WailsProjectConfig) string {
+	return filepath.ToSlash(filepath.Join("bin", MacOSAppBundleName(project)+".app"))
+}
+
+func MacOSAppBundleName(project contracts.WailsProjectConfig) string {
+	name := ProjectName(project)
+	if name == "" {
+		return "app"
+	}
+	name = strings.NewReplacer("/", "-", `\`, "-", ":", "-").Replace(name)
+	name = strings.Trim(name, ". ")
+	if name == "" {
+		return "app"
+	}
+	return name
+}
+
 func ResolveExecutablePath(cfg contracts.PackagingConfig, project contracts.WailsProjectConfig, platform contracts.Platform) contracts.PackagingRuntimeInfo {
 	defaultPath := DefaultExecutablePath(cfg, platform)
 	configuredPath := strings.TrimSpace(cfg.Entry.ExecutablePath)
@@ -90,13 +111,9 @@ func MacOSAppBundlePath(cfg contracts.PackagingConfig, project contracts.WailsPr
 }
 
 func ResolveMacOSAppBundlePath(cfg contracts.PackagingConfig, project contracts.WailsProjectConfig) contracts.PackagingRuntimeInfo {
-	if strings.TrimSpace(cfg.Entry.ExecutablePath) != "" {
-		return ResolveExecutablePath(cfg, project, contracts.PlatformMacOS)
-	}
-
-	defaultPath := DefaultExecutablePath(cfg, contracts.PlatformMacOS)
+	defaultPath := DefaultMacOSAppBundlePath(cfg, project)
 	configuredPath := strings.TrimSpace(cfg.MacOS.AppBundle)
-	if configuredPath == "" {
+	if configuredPath == "" || configuredPath == "bin/${build.appName}.app" {
 		return contracts.PackagingRuntimeInfo{
 			DefaultExecutablePath:   defaultPath,
 			EffectiveExecutablePath: defaultPath,
