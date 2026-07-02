@@ -7,7 +7,7 @@ import router from './router'
 import { createPinia } from 'pinia'
 import { useAppStore } from './store'
 import { createI18n } from './i18n'
-import { SettingsService } from '../bindings/wails3-manager/core/settings'
+import { Service as SettingsService } from '../bindings/wails3-manager/core/settings'
 
 const defaultSettings = {
 	isDark: true,

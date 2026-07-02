@@ -11,22 +11,22 @@ import (
 	"wails3-manager/core/runlog"
 )
 
-type SettingsService struct {
+type Service struct {
 	Log             *runlog.Logger
 	InitPackagingFn func(projectDir string) error
 }
 
-func NewService(log *runlog.Logger) *SettingsService {
-	return &SettingsService{Log: log}
+func NewService(log *runlog.Logger) *Service {
+	return &Service{Log: log}
 }
 
-func (s *SettingsService) ListProjects() ([]contracts.ProjectRecord, error) {
+func (s *Service) ListProjects() ([]contracts.ProjectRecord, error) {
 	userState := project.LoadUserState()
 	project.SortProjects(userState.Projects)
 	return userState.Projects, nil
 }
 
-func (s *SettingsService) OpenProject(projectDir string) (contracts.ProjectRecord, error) {
+func (s *Service) OpenProject(projectDir string) (contracts.ProjectRecord, error) {
 	projectDir, err := fsx.NormalizePath(projectDir)
 	if err != nil {
 		return contracts.ProjectRecord{}, err
@@ -59,7 +59,7 @@ func (s *SettingsService) OpenProject(projectDir string) (contracts.ProjectRecor
 	return record, nil
 }
 
-func (s *SettingsService) RemoveProject(projectDir string, restoreOriginal bool) error {
+func (s *Service) RemoveProject(projectDir string, restoreOriginal bool) error {
 	projectDir, err := fsx.NormalizePath(projectDir)
 	if err != nil {
 		return err
@@ -79,11 +79,11 @@ func (s *SettingsService) RemoveProject(projectDir string, restoreOriginal bool)
 	return project.RemoveProjectRecord(projectDir)
 }
 
-func (s *SettingsService) GetSettings() (contracts.ManagerSettings, error) {
+func (s *Service) GetSettings() (contracts.ManagerSettings, error) {
 	return LoadManagerSettings(), nil
 }
 
-func (s *SettingsService) SaveSettings(settings contracts.ManagerSettings) (contracts.ManagerSettings, error) {
+func (s *Service) SaveSettings(settings contracts.ManagerSettings) (contracts.ManagerSettings, error) {
 	saved, err := SaveManagerSettings(settings)
 	if err != nil {
 		return contracts.ManagerSettings{}, err
@@ -94,13 +94,13 @@ func (s *SettingsService) SaveSettings(settings contracts.ManagerSettings) (cont
 	return saved, nil
 }
 
-func (s *SettingsService) ClearLogs() {
+func (s *Service) ClearLogs() {
 	if s.Log != nil {
 		s.Log.Clear()
 	}
 }
 
-func (s *SettingsService) GetABSPath(projectDir, path string) string {
+func (s *Service) GetABSPath(projectDir, path string) string {
 	return fsx.ResolveProjectFile(projectDir, path)
 }
 

@@ -1,5 +1,5 @@
 <template>
-    <n-modal v-model:show="visible" class="settings-modal">
+    <n-modal v-model:show="store.panels.settings" class="settings-modal">
         <div class="settings-card">
             <div class="settings-head">
                 <div>
@@ -7,7 +7,7 @@
                     <div class="settings-subtitle">{{ t("app.title") }}</div>
                 </div>
 
-                <n-button quaternary size="small" @click="visible = false">
+                <n-button quaternary size="small" @click="store.panels.settings = false">
                     {{ t("editor.cancel") }}
                 </n-button>
             </div>
@@ -138,20 +138,11 @@
 </template>
 
 <script setup>
-import { computed, inject, nextTick, ref, watch } from "vue"
+import { inject, nextTick, ref, watch } from "vue"
 import { NButton, NModal, NScrollbar, NSelect, NSwitch, useMessage } from "naive-ui"
-import { SettingsService } from "../../bindings/wails3-manager/core/settings"
+import { Service as SettingsService } from "../../bindings/wails3-manager/core/settings"
 import { useI18n } from "../i18n"
 import { logEntryLevel } from "../utils/logs"
-
-const props = defineProps({
-    show: {
-        type: Boolean,
-        default: false
-    }
-})
-
-const emit = defineEmits(["update:show"])
 
 const store = inject("store")
 const message = useMessage()
@@ -161,15 +152,6 @@ const saving = ref(false)
 const clearingLogs = ref(false)
 const followLatestLogs = ref(true)
 const logScrollbarRef = ref(null)
-
-const visible = computed({
-    get() {
-        return props.show
-    },
-    set(value) {
-        emit("update:show", value)
-    }
-})
 
 async function saveSettings(nextSettings) {
     if (saving.value) return
@@ -253,7 +235,7 @@ watch(
 )
 
 watch(
-    () => props.show,
+    () => store.panels.settings,
     (show) => {
         if (show) {
             scrollLogsToBottom()
@@ -386,7 +368,7 @@ watch(followLatestLogs, (enabled) => {
     box-sizing: border-box;
     border-radius: 8px;
     border: 1px solid var(--wm-border-subtle);
-    background: color-mix(in srgb, var(--wm-control-bg) 86%, #000 14%);
+    background: var(--wm-control-bg);
     overflow: hidden;
 
     display: flex;
@@ -406,7 +388,7 @@ watch(followLatestLogs, (enabled) => {
 
     font-size: 11px;
     color: var(--wm-text-muted);
-    background: color-mix(in srgb, var(--wm-surface-2) 74%, #000 26%);
+    background: var(--wm-surface-2);
 }
 
 .log-head-actions {

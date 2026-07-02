@@ -44,8 +44,8 @@ func TestLoadManagerWithConfigCompletionWritesMissingInfoKeys(t *testing.T) {
 			t.Fatalf("completed config is missing %s\n%s", key, text)
 		}
 	}
-	if !strings.Contains(text, `version: "v0.0.1"`) {
-		t.Fatalf("missing version was not completed with v0.0.1\n%s", text)
+	if !strings.Contains(text, `version: "0.0.1"`) {
+		t.Fatalf("missing version was not completed with 0.0.1\n%s", text)
 	}
 }
 

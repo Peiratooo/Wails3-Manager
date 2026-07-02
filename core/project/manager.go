@@ -140,7 +140,7 @@ func SaveWailsConfig(projectDir string, cfg contracts.WailsProjectConfig) (contr
 		"description":       cfg.Info.Description,
 		"copyright":         cfg.Info.Copyright,
 		"comments":          cfg.Info.Comments,
-		"version":           ensureVersionPrefix(cfg.Info.Version),
+		"version":           normalizedVersion(cfg.Info.Version),
 	}
 	for key, value := range updates {
 		text = setInfoValue(text, key, value)

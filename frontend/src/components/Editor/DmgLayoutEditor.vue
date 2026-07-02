@@ -184,6 +184,7 @@ import { NButton, NInput, NInputNumber, NModal, NScrollbar, useMessage } from "n
 import { AppService } from "../../../bindings/wails3-manager/desktop"
 import { useI18n } from "../../i18n"
 import applicationsIcon from "../../../../assets/applications.png"
+import { localFileUrl } from "../../utils/files"
 
 const props = defineProps({
     show: {
@@ -326,7 +327,7 @@ function projectFilePath(path) {
 }
 
 function localFileURL(path, version) {
-    return "/local/file?path=" + encodeURIComponent(projectFilePath(path)) + "&v=" + version
+    return localFileUrl(projectFilePath(path), version)
 }
 
 async function chooseBackground() {
@@ -675,8 +676,8 @@ function cloneData(data) {
     text-align: center;
     font-size: 11px;
     line-height: 1.25;
-    color: var(--wm-text-primary);
-    text-shadow: 0 1px 8px rgba(0, 0, 0, 0.28);
+    color: rgba(0, 0, 0, 0.88);
+    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.72);
     pointer-events: none;
     transform: translateX(-50%);
 }

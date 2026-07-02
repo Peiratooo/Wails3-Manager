@@ -4,7 +4,6 @@
 
 export {
     Artifact,
-    CreateWailsProjectRequest,
     EnvironmentReport,
     LogLineEvent,
     ManagerSettings,

@@ -160,13 +160,10 @@ func quoteYAML(value string) string {
 	return `"` + value + `"`
 }
 
-func ensureVersionPrefix(version string) string {
+func normalizedVersion(version string) string {
 	version = strings.TrimSpace(version)
 	if version == "" {
-		return "v0.0.1"
+		return "0.0.1"
 	}
-	if strings.HasPrefix(strings.ToLower(version), "v") {
-		return version
-	}
-	return "v" + version
+	return version
 }

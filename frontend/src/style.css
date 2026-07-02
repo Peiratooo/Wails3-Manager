@@ -76,7 +76,7 @@ body,
     gap: 8px;
 }
 
-.delete-popover-actions :deep(.n-button) {
-    width: 100%;
+.delete-popover-actions .n-button {
+
     justify-content: center;
 }

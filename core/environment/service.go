@@ -14,17 +14,17 @@ type CommandProbe interface {
 	Version(command string) string
 }
 
-type EnvironmentService struct {
+type Service struct {
 	Probe     CommandProbe
 	Inno      func(string) contracts.ToolRequirement
 	CreateDMG func(string) contracts.ToolRequirement
 }
 
-func NewService() *EnvironmentService {
-	return &EnvironmentService{}
+func NewService() *Service {
+	return &Service{}
 }
 
-func (s *EnvironmentService) CheckEnvironment() contracts.EnvironmentReport {
+func (s *Service) CheckEnvironment() contracts.EnvironmentReport {
 	probe := s.probe()
 
 	report := contracts.EnvironmentReport{
@@ -42,7 +42,7 @@ func (s *EnvironmentService) CheckEnvironment() contracts.EnvironmentReport {
 	return report
 }
 
-func (s *EnvironmentService) probe() CommandProbe {
+func (s *Service) probe() CommandProbe {
 	if s.Probe != nil {
 		return s.Probe
 	}
@@ -59,31 +59,27 @@ func commonEnvironmentChecks(probe CommandProbe) []contracts.ToolCheck {
 	}
 }
 
-func (s *EnvironmentService) platformEnvironmentChecks(goos string) []contracts.ToolCheck {
+func (s *Service) platformEnvironmentChecks(goos string) []contracts.ToolCheck {
 	switch goos {
 	case "windows":
-		req := s.innoRequirement("")
-		req.Required = true
-		return []contracts.ToolCheck{toolRequirementCheck(req)}
+		return []contracts.ToolCheck{toolRequirementCheck(s.innoRequirement(""))}
 
 	case "darwin":
-		req := s.createDMGRequirement("")
-		req.Required = true
-		return []contracts.ToolCheck{toolRequirementCheck(req)}
+		return []contracts.ToolCheck{toolRequirementCheck(s.createDMGRequirement(""))}
 
 	default:
 		return nil
 	}
 }
 
-func (s *EnvironmentService) innoRequirement(configured string) contracts.ToolRequirement {
+func (s *Service) innoRequirement(configured string) contracts.ToolRequirement {
 	if s.Inno != nil {
 		return s.Inno(configured)
 	}
 	return InnoRequirement(configured)
 }
 
-func (s *EnvironmentService) createDMGRequirement(configured string) contracts.ToolRequirement {
+func (s *Service) createDMGRequirement(configured string) contracts.ToolRequirement {
 	if s.CreateDMG != nil {
 		return s.CreateDMG(configured)
 	}

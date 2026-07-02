@@ -28,7 +28,6 @@
                 <div class="section-head">
                     <div>
                         <div class="section-title">{{ t("packageEditor.buildTitle") }}</div>
-<!--                        <div class="section-desc">{{ t("packageEditor.buildDesc") }}</div>-->
                     </div>
                 </div>
 
@@ -124,7 +123,6 @@
                 <div class="section-head">
                     <div>
                         <div class="section-title">{{ t("packageEditor.entryTitle") }}</div>
-<!--                        <div class="section-desc">{{ t("packageEditor.entryDesc") }}</div>-->
                     </div>
                 </div>
 
@@ -165,9 +163,6 @@
                         <div class="section-title">
                             {{ activePlatform === "windows" ? t("packageEditor.windowsTitle") : t("packageEditor.macosTitle") }}
                         </div>
-<!--                        <div class="section-desc">-->
-<!--                            {{ activePlatform === "windows" ? t("packageEditor.windowsDesc") : t("packageEditor.macosDesc") }}-->
-<!--                        </div>-->
                     </div>
 
                     <div class="platform-actions">
@@ -215,7 +210,6 @@
                     <div class="switch-area full">
 
                             <div>{{ t("packageEditor.createDesktopShortcut") }}</div>
-<!--                            <div class="hint">{{ t("packageEditor.createDesktopShortcutDesc") }}</div>-->
 
 
                         <n-switch v-model:value="cfg.windows.createDesktopShortcut" />
@@ -261,7 +255,6 @@
                 <div class="section-head">
                     <div>
                         <div class="section-title">{{ t("packageEditor.assetsTitle") }}</div>
-<!--                        <div class="section-desc">{{ t("packageEditor.assetsDesc") }}</div>-->
                     </div>
 
                     <div v-if="isWindows" class="asset-add-actions">
@@ -299,14 +292,14 @@
                             <n-input
                                 v-model:value="customMacArea"
                                 size="small"
-                                placeholder="自定义区域"
+                                :placeholder="t('packageEditor.customAreaPlaceholder')"
                             />
                             <n-button
                                 size="small"
                                 :disabled="saving || !canAddCustomMacArea"
                                 @click="addCustomMacArea"
                             >
-                                添加区域
+                                {{ t("packageEditor.addArea") }}
                             </n-button>
                         </div>
                     </div>
@@ -350,7 +343,7 @@
                                     :disabled="saving"
                                     @click="removeMacArea(area)"
                                 >
-                                    删除区域
+                                    {{ t("packageEditor.removeArea") }}
                                 </n-button>
                             </div>
                         </div>
@@ -374,7 +367,7 @@
                                 </div>
 
                                 <div class="asset-main vertical">
-                                    <div class="asset-label">主程序</div>
+                                    <div class="asset-label">{{ t("packageEditor.mainProgram") }}</div>
                                     <n-ellipsis class="path-value">{{ macMainProgramPath }}</n-ellipsis>
                                 </div>
                             </div>
@@ -393,7 +386,7 @@
                                 </div>
 
                                 <div class="asset-main vertical">
-                                    <div class="asset-label">启动程序</div>
+                                    <div class="asset-label">{{ t("packageEditor.startupProgram") }}</div>
                                     <n-ellipsis class="path-value">{{ macStartupProgramPath }}</n-ellipsis>
                                 </div>
                             </div>
@@ -479,40 +472,53 @@
                                 :placeholder="t('packageEditor.assetSrcPlaceholder')"
                             />
 
-                            <div class="asset-options">
+                            <div
+                                class="asset-target-inline"
+                                :class="{ invalid: !!windowsAssetTargetError(asset) }"
+                            >
+                                <span class="asset-target-label">{{ t("packageEditor.assetTarget") }}</span>
 
+                                <n-input
+                                    v-if="editingWindowsTarget === index"
+                                    :data-windows-target="index"
+                                    v-model:value="asset.target"
+                                    size="small"
+                                    class="asset-target-input"
+                                    placeholder="/"
+                                    :status="windowsAssetTargetError(asset) ? 'error' : undefined"
+                                    @blur="stopWindowsTargetEdit"
+                                    @keydown.enter.prevent="stopWindowsTargetEdit"
+                                />
+
+                                <button
+                                    v-else
+                                    class="asset-target-toggle"
+                                    type="button"
+                                    @click="startWindowsTargetEdit(index)"
+                                >
+                                    {{ normalizedWindowsTarget(asset.target) }}
+                                </button>
+
+                                <n-popover
+                                    v-if="windowsAssetTargetError(asset)"
+                                    trigger="hover"
+                                    placement="top"
+                                >
+                                    <template #trigger>
+                                        <n-icon class="asset-target-warning" size="16">
+                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+                                                <path d="M16 3a13 13 0 1 0 0 26a13 13 0 0 0 0-26zm1 20h-2v-2h2zm0-4h-2V9h2z" fill="currentColor"></path>
+                                            </svg>
+                                        </n-icon>
+                                    </template>
+                                    {{ windowsAssetTargetError(asset) }}
+                                </n-popover>
+                            </div>
+
+                            <div class="asset-options">
                                 <div class="asset-required">
                                     <span>{{ t("packageEditor.assetRequired") }}</span>
                                     <n-switch v-model:value="asset.required" />
-                                </div>
-                            </div>
-
-                            <div class="asset-target-summary">
-                                <button
-                                    class="asset-target-toggle"
-                                    type="button"
-                                    :class="{ invalid: !!windowsAssetTargetError(asset) }"
-                                    @click="toggleWindowsTarget(index)"
-                                >
-                                    目标目录 {{ normalizedWindowsTarget(asset.target) }}
-                                </button>
-
-                                <div
-                                    v-if="expandedWindowsTargets[index]"
-                                    class="asset-target-panel"
-                                >
-                                    <n-input
-                                        v-model:value="asset.target"
-                                        size="small"
-                                        placeholder="/"
-                                    />
-
-                                    <div
-                                        v-if="windowsAssetTargetError(asset)"
-                                        class="asset-target-error"
-                                    >
-                                        {{ windowsAssetTargetError(asset) }}
-                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -559,21 +565,23 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from "vue"
+import { computed, nextTick, onMounted, ref, watch } from "vue"
 import {
     NButton,
     NEllipsis,
     NIcon,
     NImage,
     NInput,
+    NPopover,
     NSelect,
     NSwitch,
     useMessage
 } from "naive-ui"
 import { useI18n } from "../../i18n"
-import { PackagingService } from "../../../bindings/wails3-manager/core/packaging"
+import { Service as PackagingService } from "../../../bindings/wails3-manager/core/packaging"
 import { AppService } from "../../../bindings/wails3-manager/desktop"
 import DmgLayoutEditor from "./DmgLayoutEditor.vue"
+import { localFileUrl } from "../../utils/files"
 
 const props = defineProps({
     packageCfg: {
@@ -587,6 +595,10 @@ const props = defineProps({
     currentPlatform: {
         type: String,
         default: "windows"
+    },
+    appIconVersion: {
+        type: Number,
+        default: 0
     }
 })
 
@@ -610,7 +622,7 @@ const setupIcon = ref({
 })
 const customMacArea = ref("")
 const addedMacAreas = ref([])
-const expandedWindowsTargets = ref({})
+const editingWindowsTarget = ref(-1)
 
 const defaultMacAssetAreas = ["MacOS", "Resources"]
 const fixedMacAssetAreas = ["Frameworks", "PlugIns", "SharedSupport"]
@@ -639,7 +651,10 @@ const currentSetupIcon = computed(() => {
     if (!path) {
         return ""
     }
-    return "/local/file?" + projectFilePath(path)
+    return localFileUrl(
+        projectFilePath(path),
+        setupIcon.value.newPath ? 0 : setupIconVersion(path)
+    )
 })
 
 const isDirty = computed(() => {
@@ -704,7 +719,7 @@ const customMacAreaError = computed(() => {
         return ""
     }
     if (macAssetAreas.value.includes(area)) {
-        return "区域已存在"
+        return t("packageEditor.errors.areaExists")
     }
     return macTargetError(area, false)
 })
@@ -751,7 +766,7 @@ function initConfig(data) {
     setupIcon.value.newPath = ""
     customMacArea.value = ""
     addedMacAreas.value = []
-    expandedWindowsTargets.value = {}
+    editingWindowsTarget.value = -1
 }
 
 async function savePackageCfg() {
@@ -818,6 +833,20 @@ function projectFilePath(path) {
         return path
     }
     return props.projectDir + "/" + path
+}
+
+function setupIconVersion(path) {
+    return samePath(projectFilePath(path), projectFilePath("build/windows/icon.ico"))
+        ? props.appIconVersion
+        : 0
+}
+
+function samePath(a, b) {
+    return normalizePath(a) === normalizePath(b)
+}
+
+function normalizePath(path) {
+    return String(path || "").replace(/\\/g, "/").replace(/\/+$/, "").toLowerCase()
 }
 
 async function chooseExecutablePath() {
@@ -906,8 +935,17 @@ function removeMacArea(area) {
     addedMacAreas.value = addedMacAreas.value.filter((item) => item !== area)
 }
 
-function toggleWindowsTarget(index) {
-    expandedWindowsTargets.value[index] = !expandedWindowsTargets.value[index]
+function startWindowsTargetEdit(index) {
+    editingWindowsTarget.value = index
+    nextTick(() => {
+        const input = document.querySelector(`[data-windows-target="${index}"] input`)
+        input?.focus()
+        input?.select()
+    })
+}
+
+function stopWindowsTargetEdit() {
+    editingWindowsTarget.value = -1
 }
 
 function defaultAssetTarget() {
@@ -934,10 +972,10 @@ function normalizedMacTarget(target) {
 function windowsAssetTargetError(asset) {
     const target = normalizedWindowsTarget(asset?.target)
     if (!target.startsWith("/")) {
-        return "目标目录必须以 / 开始"
+        return t("packageEditor.errors.windowsTargetRoot")
     }
     if (target.includes("\\")) {
-        return "目标目录只能使用 / 分隔"
+        return t("packageEditor.errors.windowsTargetSlash")
     }
     return targetPartsError(target.slice(1), target)
 }
@@ -953,27 +991,27 @@ function macAreaTargetError(area) {
 function macTargetError(target, allowEmpty) {
     const value = String(target || "").trim()
     if (!value) {
-        return allowEmpty ? "" : "请输入区域名称"
+        return allowEmpty ? "" : t("packageEditor.errors.areaRequired")
     }
     if (value.startsWith("/") || value.startsWith("\\")) {
-        return "区域必须是 Contents 下的相对路径"
+        return t("packageEditor.errors.macAreaRelative")
     }
     if (value.includes("\\")) {
-        return "区域只能使用 / 分隔"
+        return t("packageEditor.errors.macAreaSlash")
     }
     return targetPartsError(value, value)
 }
 
 function targetPartsError(raw, original) {
     if (/[:*?"<>|]/.test(raw)) {
-        return "路径包含非法字符"
+        return t("packageEditor.errors.pathInvalidChars")
     }
     if (!raw) {
         return ""
     }
     const parts = raw.split("/")
     if (parts.some((part) => !part || part === "." || part === "..")) {
-        return `非法路径：${original}`
+        return t("packageEditor.errors.pathInvalid", { path: original })
     }
     return ""
 }
@@ -987,6 +1025,10 @@ function baseName(path) {
 function cloneData(data) {
     return JSON.parse(JSON.stringify(data))
 }
+
+defineExpose({
+    save: savePackageCfg
+})
 </script>
 
 <style lang="scss" scoped>
@@ -1095,13 +1137,6 @@ function cloneData(data) {
     font-size: 15px;
     font-weight: 500;
     color: var(--wm-text-primary);
-}
-
-.section-desc {
-    margin-top: 6px;
-    font-size: 12px;
-    line-height: 1.5;
-    color: var(--wm-text-muted);
 }
 
 .platform-actions {
@@ -1527,8 +1562,7 @@ function cloneData(data) {
     min-width: 0;
     display: flex;
     align-items: center;
-    flex-wrap: wrap;
-    gap: 16px;
+    gap: 12px;
 }
 
 .asset-main.vertical {
@@ -1572,42 +1606,62 @@ function cloneData(data) {
     color: var(--wm-text-muted);
 }
 
-.asset-target-summary {
-    flex: 0 0 100%;
+.asset-target-inline {
+    flex: 0 0 auto;
     min-width: 0;
     display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
+    align-items: center;
+    gap: 6px;
+    min-height: 28px;
+    font-size: 12px;
+    color: var(--wm-text-muted);
+}
+
+.asset-target-label {
+    white-space: nowrap;
+}
+
+.asset-target-input {
+    flex: 0 0 120px !important;
+    width: 120px;
+    min-width: 120px !important;
 }
 
 .asset-target-toggle {
-    border: 0;
-    padding: 0;
-    background: transparent;
+    max-width: 150px;
+    height: 28px;
+    padding: 0 9px;
+    border-radius: 6px;
+    border: 1px solid var(--wm-border-soft);
+    background: var(--wm-control-bg);
     color: var(--wm-text-muted);
     font-size: 12px;
+    line-height: 26px;
     cursor: pointer;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .asset-target-toggle:hover {
     color: var(--wm-color-primary-hover);
+    border-color: var(--wm-color-primary-border);
 }
 
-.asset-target-toggle.invalid,
-.asset-target-error {
+.asset-target-inline.invalid .asset-target-toggle {
     color: var(--wm-color-danger);
+    border-color: var(--wm-color-danger);
 }
 
-.asset-target-panel {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
+.asset-target-warning {
+    color: var(--wm-color-danger);
+    cursor: help;
 }
 
 .asset-target-error {
     font-size: 12px;
+    color: var(--wm-color-danger);
+    white-space: nowrap;
 }
 
 .asset-remove {
@@ -1694,9 +1748,9 @@ function cloneData(data) {
 }
 
 :deep(.n-button--primary-type) {
-    --n-color: linear-gradient(180deg, var(--wm-color-logo-start) 0%, var(--wm-color-primary) 100%) !important;
-    --n-color-hover: linear-gradient(180deg, var(--wm-color-primary-hover) 0%, var(--wm-color-primary) 100%) !important;
-    --n-color-pressed: linear-gradient(180deg, var(--wm-color-primary) 0%, var(--wm-color-primary-pressed) 100%) !important;
+    --n-color: var(--wm-color-primary) !important;
+    --n-color-hover: var(--wm-color-primary-hover) !important;
+    --n-color-pressed: var(--wm-color-primary-pressed) !important;
     --n-border: 1px solid var(--wm-color-primary-border) !important;
     --n-border-hover: 1px solid var(--wm-border-strong) !important;
     --n-border-pressed: 1px solid var(--wm-color-primary-border) !important;

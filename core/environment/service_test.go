@@ -1,6 +1,10 @@
 package environment
 
-import "testing"
+import (
+	"testing"
+
+	"wails3-manager/core/contracts"
+)
 
 func TestNormalizeCommandVersion(t *testing.T) {
 	tests := []struct {
@@ -81,6 +85,29 @@ func TestVersionAttempts(t *testing.T) {
 						t.Fatalf("attempt %d arg %d = %q, want %q", i, j, arg, tt.want[i][j])
 					}
 				}
+			}
+		})
+	}
+}
+
+func TestPlatformInstallersAreOptional(t *testing.T) {
+	service := &Service{
+		Inno: func(string) contracts.ToolRequirement {
+			return contracts.ToolRequirement{ID: "inno", Command: "ISCC.exe"}
+		},
+		CreateDMG: func(string) contracts.ToolRequirement {
+			return contracts.ToolRequirement{ID: "create-dmg", Command: "create-dmg"}
+		},
+	}
+
+	for _, goos := range []string{"windows", "darwin"} {
+		t.Run(goos, func(t *testing.T) {
+			checks := service.platformEnvironmentChecks(goos)
+			if len(checks) != 1 {
+				t.Fatalf("platformEnvironmentChecks(%q) returned %d checks, want 1", goos, len(checks))
+			}
+			if checks[0].Required {
+				t.Fatalf("%s installer check should be optional", goos)
 			}
 		})
 	}

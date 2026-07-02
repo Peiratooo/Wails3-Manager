@@ -47,16 +47,20 @@ func GenerateScript(projectDir string, cfg contracts.PackagingConfig, projectCon
 		"{{windowWidth}}", fmt.Sprint(cfg.MacOS.WindowWidth),
 		"{{windowHeight}}", fmt.Sprint(cfg.MacOS.WindowHeight),
 		"{{iconSize}}", fmt.Sprint(cfg.MacOS.IconSize),
-		"{{appX}}", fmt.Sprint(cfg.MacOS.AppX),
-		"{{appY}}", fmt.Sprint(cfg.MacOS.AppY),
-		"{{applicationsX}}", fmt.Sprint(cfg.MacOS.ApplicationsX),
-		"{{applicationsY}}", fmt.Sprint(cfg.MacOS.ApplicationsY),
+		"{{appX}}", fmt.Sprint(finderItemPosition(cfg.MacOS.AppX, cfg.MacOS.IconSize)),
+		"{{appY}}", fmt.Sprint(finderItemPosition(cfg.MacOS.AppY, cfg.MacOS.IconSize)),
+		"{{applicationsX}}", fmt.Sprint(finderItemPosition(cfg.MacOS.ApplicationsX, cfg.MacOS.IconSize)),
+		"{{applicationsY}}", fmt.Sprint(finderItemPosition(cfg.MacOS.ApplicationsY, cfg.MacOS.IconSize)),
 		"{{createDmg}}", cfg.MacOS.CreateDMGPath,
 	).Replace(defaultTemplate)
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		return "", err
 	}
 	return path, os.WriteFile(path, []byte(content), 0755)
+}
+
+func finderItemPosition(center, iconSize int) int {
+	return center - iconSize/2
 }
 
 func PrepareBackground(projectDir, background string, width, height int, output string) (string, error) {

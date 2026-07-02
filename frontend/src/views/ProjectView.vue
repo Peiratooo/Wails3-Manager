@@ -23,7 +23,7 @@
                             <div>
                                 {{ projectName }}
                             </div>
-                            <span v-if="projectVersion" class="version">v{{ projectVersion }}</span>
+                            <span v-if="projectVersion" class="version">{{ projectVersion }}</span>
                         </div>
 
                         <div class="path-line">
@@ -35,6 +35,7 @@
                 </div>
 
                 <div class="head-actions">
+                    <Environment />
                     <n-button class="settings-button" circle quaternary @click="store.panels.settings = true">
                         <n-icon size="20">
                             <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 32 32"><g fill="none"><path d="M16 11a5 5 0 1 0 0 10a5 5 0 0 0 0-10zm-3 5a3 3 0 1 1 6 0a3 3 0 0 1-6 0zm-.16 13.628c1.035.247 2.096.372 3.16.372a13.643 13.643 0 0 0 3.156-.375a1.478 1.478 0 0 0 1.13-1.276l.234-2.13a1.471 1.471 0 0 1 2.066-1.2l1.955.856a1.472 1.472 0 0 0 1.671-.345a14.245 14.245 0 0 0 3.156-5.443a1.478 1.478 0 0 0-.535-1.627l-1.729-1.275a1.481 1.481 0 0 1 .003-2.396l1.72-1.27a1.474 1.474 0 0 0 .537-1.63a14.199 14.199 0 0 0-3.157-5.443a1.48 1.48 0 0 0-1.674-.345l-1.946.856a1.483 1.483 0 0 1-2.067-1.2l-.236-2.12a1.476 1.476 0 0 0-1.147-1.283a15.123 15.123 0 0 0-3.127-.363a15.395 15.395 0 0 0-3.146.363a1.469 1.469 0 0 0-1.147 1.28l-.237 2.122a1.493 1.493 0 0 1-2.073 1.206l-1.946-.857a1.493 1.493 0 0 0-1.67.35a14.245 14.245 0 0 0-3.16 5.446a1.478 1.478 0 0 0 .536 1.625l1.725 1.272a1.488 1.488 0 0 1 0 2.397L3.167 18.47a1.477 1.477 0 0 0-.535 1.63a14.253 14.253 0 0 0 3.16 5.45a1.458 1.458 0 0 0 1.077.465c.203 0 .404-.042.591-.123l1.955-.859a1.485 1.485 0 0 1 2.065 1.2l.235 2.126a1.476 1.476 0 0 0 1.125 1.27zm5.501-1.866a11.638 11.638 0 0 1-4.677 0l-.195-1.74a3.48 3.48 0 0 0-1.14-2.208a3.534 3.534 0 0 0-3.718-.6l-1.606.7a12.237 12.237 0 0 1-2.348-4.05l1.424-1.052a3.488 3.488 0 0 0 0-5.616L4.66 12.147a12.243 12.243 0 0 1 2.348-4.046l1.6.7a3.45 3.45 0 0 0 1.4.294a3.5 3.5 0 0 0 3.467-3.108l.194-1.747c.774-.15 1.56-.23 2.347-.24c.782.01 1.562.09 2.33.24l.186 1.74a3.48 3.48 0 0 0 1.137 2.216a3.525 3.525 0 0 0 3.727.6l1.6-.7a12.212 12.212 0 0 1 2.35 4.047l-1.423 1.046a3.48 3.48 0 0 0 0 5.62l1.422 1.05A12.273 12.273 0 0 1 25 23.901l-1.6-.7a3.473 3.473 0 0 0-4.866 2.81l-.193 1.75z" fill="currentColor"></path></g></svg>
@@ -55,13 +56,11 @@
                     <Editor
                         :wails3Cfg="wails3Cfg"
                         :packageCfg="packageCfg"
+                        :app-icon-version="iconVersion"
                         v-if="loaded"
+                        @wails3-saved="handleWails3Saved"
                         @package-saved="setPackageCfg"
                     />
-                </div>
-
-                <div class="env">
-                    <Environment />
                 </div>
             </div>
 
@@ -85,8 +84,10 @@
 
                     </div>
 
-                    <div
+                    <button
                         class="open-folder-button"
+                        type="button"
+                        :aria-label="t('project.openInFinder')"
                         :title="t('project.openInFinder')"
                         @click="openProjectFolder"
                     >
@@ -96,7 +97,7 @@
                                 <path d="M21 4v2h3.586L14.293 16.293l1.414 1.414L26 7.414V11h2V4z" fill="currentColor"></path>
                             </svg>
                         </n-icon>
-                    </div>
+                    </button>
                 </div>
 
                 <div class="build-card">
@@ -120,7 +121,7 @@
                 </div>
             </div>
         </div>
-        <Settings v-model:show="store.panels.settings" />
+        <Settings />
 
         <PackageRunCard
             v-model:show="packageModalVisible"
@@ -138,8 +139,8 @@
 </template>
 
 <script setup>
-import { SettingsService } from "../../bindings/wails3-manager/core/settings"
-import { PackagingService } from "../../bindings/wails3-manager/core/packaging"
+import { Service as SettingsService } from "../../bindings/wails3-manager/core/settings"
+import { Service as PackagingService } from "../../bindings/wails3-manager/core/packaging"
 import { AppService } from "../../bindings/wails3-manager/desktop"
 import { NButton, NEllipsis, NIcon, useMessage } from "naive-ui"
 import { computed, inject, onMounted, ref } from "vue"
@@ -149,6 +150,7 @@ import Settings from "../components/Settings.vue";
 import Editor from "../components/Editor/Editor.vue";
 import PackageRunCard from "../components/PackageRunCard.vue"
 import {useI18n} from "../i18n/index.js";
+import { localFileUrl } from "../utils/files"
 const { t } = useI18n()
 const route = inject("route")
 const formatTimestamp = inject("formatTimestamp")
@@ -166,6 +168,7 @@ const packageProgress = ref(0)
 const packageError = ref("")
 const packageResult = ref(null)
 const packageTransactionId = ref("")
+const iconVersion = ref(0)
 
 const projectName = computed(() => {
     return wails3Cfg.value?.project?.wailsConfig?.info?.productName || t("project.unnamed")
@@ -177,7 +180,7 @@ const projectVersion = computed(() => {
 
 const iconSrc = computed(() => {
     if (!wails3Cfg.value?.iconPath) return ""
-    return "/local/file?" + wails3Cfg.value.iconPath
+    return localFileUrl(wails3Cfg.value.iconPath, iconVersion.value)
 })
 
 const packageLogEntries = computed(() => {
@@ -255,6 +258,26 @@ function setPackageCfg(nextCfg) {
     packageCfg.value = nextCfg
 }
 
+async function handleWails3Saved(payload) {
+    const record = payload?.record
+    if (!record) {
+        return
+    }
+
+    const iconPath = await SettingsService.GetABSPath(
+        record.projectDir,
+        record.project.wailsConfig.icon
+    )
+    wails3Cfg.value = {
+        ...record,
+        iconPath
+    }
+    if (payload.iconChanged) {
+        iconLoadError.value = false
+        iconVersion.value = Date.now()
+    }
+}
+
 onMounted(async () => {
     try {
         const wCfg = await SettingsService.OpenProject(projectDir)
@@ -283,6 +306,7 @@ function backToHome() {
         name: "home"
     })
 }
+
 </script>
 
 <style lang="scss" scoped>
@@ -297,8 +321,7 @@ function backToHome() {
     flex-direction: column;
     gap: 16px;
     height: 100%;
-    min-height: 0;
-    padding: 24px 28px;
+    padding: 18px;
     box-sizing: border-box;
     overflow: hidden;
     color: var(--wm-text-secondary);
@@ -486,14 +509,12 @@ function backToHome() {
 .body {
     flex: 1 1 0;
     min-height: 0;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 300px;
-    gap: 16px;
+    display: flex;
     overflow: hidden;
 }
 
-.editor,
-.env {
+.editor {
+    flex: 1;
     min-width: 0;
     min-height: 0;
     height: 100%;
@@ -568,6 +589,7 @@ function backToHome() {
     justify-content: center;
     border-radius: 8px;
     border: 1px solid var(--wm-border-soft);
+    color: inherit;
     cursor: pointer;
     transition: 300ms;
     &:hover {

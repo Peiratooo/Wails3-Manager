@@ -336,25 +336,6 @@ type PackageRequest struct {
 	TransactionID string   `json:"transactionId"`
 }
 
-type CreateWailsProjectRequest struct {
-	Name                      string `json:"name"`
-	Dir                       string `json:"dir"`
-	Template                  string `json:"template"`
-	PackageName               string `json:"packageName"`
-	GoModule                  string `json:"goModule"`
-	Git                       string `json:"git"`
-	ProductName               string `json:"productName"`
-	ProductDescription        string `json:"productDescription"`
-	ProductVersion            string `json:"productVersion"`
-	ProductCompany            string `json:"productCompany"`
-	ProductCopyright          string `json:"productCopyright"`
-	ProductComments           string `json:"productComments"`
-	ProductIdentifier         string `json:"productIdentifier"`
-	Quiet                     bool   `json:"quiet"`
-	SkipRemoteTemplateWarning bool   `json:"skipRemoteTemplateWarning"`
-	SkipGoModTidy             bool   `json:"skipGoModTidy"`
-}
-
 type PackageResult struct {
 	OK               bool       `json:"ok"`
 	Message          string     `json:"message"`

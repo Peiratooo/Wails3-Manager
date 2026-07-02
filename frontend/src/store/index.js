@@ -13,11 +13,15 @@ export const useAppStore = defineStore('app', {
             env:{
                 data:{},
                 loaded:false,
+                passed:false,
+                error:"",
             },
 			logEntries: [],
 			packageTransactions: {},
             panels:{
-                settings:false
+                settings:false,
+                environment:false,
+                creator:false,
             }
 		}
 	},

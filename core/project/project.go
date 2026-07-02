@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 
 	"wails3-manager/core/contracts"
 	"wails3-manager/core/fsx"
@@ -14,16 +15,19 @@ import (
 )
 
 var platformOverride contracts.Platform
+var runProjectCommand = func(log *runlog.Logger, projectDir string, command []string) error {
+	return (runlog.Runner{Log: log}).Run(context.Background(), projectDir, command)
+}
 
 func SetPlatformOverride(platform contracts.Platform) {
 	platformOverride = platform
 }
 
-func (s *ProjectService) ScanProject(projectDir string) (contracts.ScanResult, error) {
+func (s *Service) ScanProject(projectDir string) (contracts.ScanResult, error) {
 	return scanner.Scan(projectDir)
 }
 
-func (s *ProjectService) ImportProject(projectDir string) error {
+func (s *Service) ImportProject(projectDir string) error {
 	projectDir, err := fsx.NormalizePath(projectDir)
 	if err != nil {
 		return err
@@ -71,9 +75,12 @@ func (s *ProjectService) ImportProject(projectDir string) error {
 	return nil
 }
 
-func (s *ProjectService) SaveProject(record contracts.ProjectRecord) (contracts.ProjectRecord, error) {
+func (s *Service) SaveProject(record contracts.ProjectRecord) (contracts.ProjectRecord, error) {
 	projectDir, err := fsx.NormalizePath(record.ProjectDir)
 	if err != nil {
+		return contracts.ProjectRecord{}, err
+	}
+	if err := validateProjectInfoForSave(record.Project.WailsConfig.Info); err != nil {
 		return contracts.ProjectRecord{}, err
 	}
 	// SaveManager is the only place that writes build/config.yml and Taskfile.yml
@@ -84,7 +91,7 @@ func (s *ProjectService) SaveProject(record contracts.ProjectRecord) (contracts.
 	if err != nil {
 		return contracts.ProjectRecord{}, err
 	}
-	if err := (runlog.Runner{Log: s.Log}).Run(context.Background(), projectDir, []string{"wails3", "task", "common:update:build-assets"}); err != nil {
+	if err := runProjectCommand(s.Log, projectDir, []string{"wails3", "task", "common:update:build-assets"}); err != nil {
 		return contracts.ProjectRecord{}, err
 	}
 	existing, _ := LoadProjectRecord(projectDir)
@@ -107,7 +114,27 @@ func (s *ProjectService) SaveProject(record contracts.ProjectRecord) (contracts.
 	return record, nil
 }
 
-func (s *ProjectService) ReplaceProjectIcon(projectDir string, pngBase64 string) (contracts.ProjectRecord, error) {
+func validateProjectInfoForSave(info contracts.WailsAppInfo) error {
+	required := []struct {
+		name  string
+		value string
+	}{
+		{"productName", info.ProductName},
+		{"version", info.Version},
+		{"companyName", info.CompanyName},
+		{"productIdentifier", info.ProductIdentifier},
+		{"description", info.Description},
+		{"copyright", info.Copyright},
+	}
+	for _, field := range required {
+		if strings.TrimSpace(field.value) == "" {
+			return fmt.Errorf("project info %s is required", field.name)
+		}
+	}
+	return nil
+}
+
+func (s *Service) ReplaceProjectIcon(projectDir string, pngBase64 string) (contracts.ProjectRecord, error) {
 	projectDir, err := fsx.NormalizePath(projectDir)
 	if err != nil {
 		return contracts.ProjectRecord{}, err
@@ -122,7 +149,10 @@ func (s *ProjectService) ReplaceProjectIcon(projectDir string, pngBase64 string)
 	if err := writeProjectIconPNGBase64(projectDir, pngBase64); err != nil {
 		return contracts.ProjectRecord{}, fmt.Errorf("failed to write build/appicon.png: %w", err)
 	}
-	if err := (runlog.Runner{Log: s.Log}).Run(context.Background(), projectDir, []string{"wails3", "task", "common:update:build-assets"}); err != nil {
+	if err := generateProjectIcons(s.Log, projectDir); err != nil {
+		return contracts.ProjectRecord{}, err
+	}
+	if err := runProjectCommand(s.Log, projectDir, []string{"wails3", "task", "common:update:build-assets"}); err != nil {
 		return contracts.ProjectRecord{}, err
 	}
 	manager, err := LoadManagerWithConfigCompletion(projectDir)
@@ -140,6 +170,23 @@ func (s *ProjectService) ReplaceProjectIcon(projectDir string, pngBase64 string)
 		return contracts.ProjectRecord{}, err
 	}
 	return record, nil
+}
+
+func generateProjectIcons(log *runlog.Logger, projectDir string) error {
+	for _, dir := range []string{
+		filepath.Join(projectDir, "build", "darwin"),
+		filepath.Join(projectDir, "build", "windows"),
+	} {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return err
+		}
+	}
+	return runProjectCommand(log, projectDir, []string{
+		"wails3", "generate", "icons",
+		"-input", "build/appicon.png",
+		"-macfilename", "build/darwin/icons.icns",
+		"-windowsfilename", "build/windows/icon.ico",
+	})
 }
 
 func createManagedProjectLayout(projectDir string) error {

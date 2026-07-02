@@ -33,7 +33,7 @@ tasks:
         vars:
           APP_NAME: "{{.APP_NAME}}"
           CGO_ENABLED: "{{.CGO_ENABLED}}"
-          PRODUCTION: "{{.PRODUCTION}}"
+          PRODUCTION: "true"
 
   package:
     summary: Packages a production build of the application

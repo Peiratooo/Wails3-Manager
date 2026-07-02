@@ -27,7 +27,6 @@
             <div class="icon-panel">
                 <div class="panel-head">
                     <div class="panel-title">{{ t("editor.appIcon") }}</div>
-<!--                    <div class="panel-desc">{{ t("editor.iconPanelDesc") }}</div>-->
                 </div>
 
                 <div class="icon-area">
@@ -81,58 +80,29 @@
             <div class="info-panel">
                 <div class="panel-head">
                     <div class="panel-title">{{ t("editor.basicInfo") }}</div>
-<!--                    <div class="panel-desc">{{ t("editor.basicInfoDesc") }}</div>-->
                 </div>
 
                 <div class="form-grid">
-                    <div class="input-area">
-                        <div class="label">{{ t("editor.productName") }}</div>
+                    <div
+                        v-for="field in infoFields"
+                        :key="field.path"
+                        class="input-area"
+                        :class="{ full: field.full }"
+                    >
+                        <div class="label">{{ field.label }}</div>
                         <n-input
-                            v-model:value="cfg.productName"
-                            :placeholder="t('editor.productNamePlaceholder')"
+                            v-model:value="cfg[field.path]"
+                            v-bind="field.props || {}"
+                            :status="visibleFieldError(field.path) ? 'error' : undefined"
+                            :placeholder="field.placeholder"
+                            @blur="touchField(field.path)"
                         />
-                    </div>
-
-                    <div class="input-area">
-                        <div class="label">{{ t("editor.version") }}</div>
-                        <n-input
-                            v-model:value="cfg.version"
-                            :placeholder="t('editor.versionPlaceholder')"
-                        />
-                    </div>
-
-                    <div class="input-area">
-                        <div class="label">{{ t("editor.companyName") }}</div>
-                        <n-input
-                            v-model:value="cfg.companyName"
-                            :placeholder="t('editor.companyNamePlaceholder')"
-                        />
-                    </div>
-
-                    <div class="input-area">
-                        <div class="label">{{ t("editor.productIdentifier") }}</div>
-                        <n-input
-                            v-model:value="cfg.productIdentifier"
-                            :placeholder="t('editor.productIdentifierPlaceholder')"
-                        />
-                    </div>
-
-                    <div class="input-area full">
-                        <div class="label">{{ t("editor.description") }}</div>
-                        <n-input
-                            v-model:value="cfg.description"
-                            type="textarea"
-                            :autosize="{ minRows: 4, maxRows: 7 }"
-                            :placeholder="t('editor.descriptionPlaceholder')"
-                        />
-                    </div>
-
-                    <div class="input-area full">
-                        <div class="label">{{ t("editor.copyright") }}</div>
-                        <n-input
-                            v-model:value="cfg.copyright"
-                            :placeholder="t('editor.copyrightPlaceholder')"
-                        />
+                        <div
+                            v-if="visibleFieldError(field.path)"
+                            class="field-error"
+                        >
+                            {{ visibleFieldError(field.path) }}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -142,10 +112,11 @@
 
 <script setup>
 import { useI18n } from "../../i18n"
-import { computed, onMounted, ref } from "vue"
+import { computed, onMounted, reactive, ref } from "vue"
 import { NButton, NIcon, NImage, NInput, useMessage } from "naive-ui"
-import { ProjectService } from "../../../bindings/wails3-manager/core/project"
+import { Service as ProjectService } from "../../../bindings/wails3-manager/core/project"
 import { AppService } from "../../../bindings/wails3-manager/desktop"
+import { localFileUrl } from "../../utils/files"
 
 const props = defineProps({
     wails3Cfg: {
@@ -153,12 +124,14 @@ const props = defineProps({
         required: true
     },
 })
+const emit = defineEmits(["saved"])
 
 const { t } = useI18n()
 const message = useMessage()
 
 const cfg = ref({})
 const originalCfgJson = ref("")
+const touchedFields = reactive({})
 
 const icon = ref({
     oldIcon: "",
@@ -166,6 +139,69 @@ const icon = ref({
 })
 
 const saving = ref(false)
+const requiredFields = [
+    "productName",
+    "version",
+    "companyName",
+    "productIdentifier",
+    "description",
+    "copyright"
+]
+
+const infoFields = computed(() => [
+    {
+        path: "productName",
+        label: t("editor.productName"),
+        placeholder: t("editor.productNamePlaceholder")
+    },
+    {
+        path: "version",
+        label: t("editor.version"),
+        placeholder: t("editor.versionPlaceholder")
+    },
+    {
+        path: "companyName",
+        label: t("editor.companyName"),
+        placeholder: t("editor.companyNamePlaceholder")
+    },
+    {
+        path: "productIdentifier",
+        label: t("editor.productIdentifier"),
+        placeholder: t("editor.productIdentifierPlaceholder")
+    },
+    {
+        path: "description",
+        label: t("editor.description"),
+        placeholder: t("editor.descriptionPlaceholder"),
+        full: true,
+        props: {
+            type: "textarea",
+            autosize: {
+                minRows: 3,
+                maxRows: 5
+            }
+        }
+    },
+    {
+        path: "comments",
+        label: t("createProject.fields.productComments.label"),
+        placeholder: t("createProject.fields.productComments.placeholder"),
+        full: true,
+        props: {
+            type: "textarea",
+            autosize: {
+                minRows: 2,
+                maxRows: 4
+            }
+        }
+    },
+    {
+        path: "copyright",
+        label: t("editor.copyright"),
+        placeholder: t("editor.copyrightPlaceholder"),
+        full: true
+    }
+])
 
 const currentIcon = computed(() => {
     return icon.value.newIcon || icon.value.oldIcon
@@ -175,19 +211,29 @@ const isDirty = computed(() => {
     return JSON.stringify(cfg.value) !== originalCfgJson.value || !!icon.value.newIcon
 })
 
+const firstFieldError = computed(() => {
+    for (const field of infoFields.value) {
+        const error = fieldError(field.path)
+        if (error) {
+            return error
+        }
+    }
+    return ""
+})
+
 onMounted(async () => {
     cfg.value = cloneData(props.wails3Cfg.project.wailsConfig.info || {})
     originalCfgJson.value = JSON.stringify(cfg.value)
 
     if (props.wails3Cfg.iconPath) {
-        icon.value.oldIcon = await imageUrlToBase64("/local/file?" + props.wails3Cfg.iconPath)
+        icon.value.oldIcon = await imageUrlToBase64(localFileUrl(props.wails3Cfg.iconPath))
     }
 })
 
 function chooseIcon() {
     AppService.ChooseIcon().then((res)=>{
         if (res) {
-            setNewIconByUrl("/local/file?"+res)
+            setNewIconByUrl(localFileUrl(res))
         }
     })
 }
@@ -201,7 +247,13 @@ function cancelIcon() {
 }
 
 async function saveWails3Cfg() {
-    if (!isDirty.value || saving.value) return
+    if (saving.value) return
+    if (firstFieldError.value) {
+        touchAllFields()
+        message.error(firstFieldError.value)
+        return
+    }
+    if (!isDirty.value) return
 
     try {
         saving.value = true
@@ -209,20 +261,28 @@ async function saveWails3Cfg() {
         const nextProject = cloneData(props.wails3Cfg)
         nextProject.project.wailsConfig.info = cloneData(cfg.value)
 
-        await ProjectService.SaveProject(nextProject)
+        let savedProject = await ProjectService.SaveProject(nextProject)
+        let iconChanged = false
 
         if (icon.value.newIcon) {
-            await ProjectService.ReplaceProjectIcon(
+            savedProject = await ProjectService.ReplaceProjectIcon(
                 props.wails3Cfg.projectDir,
                 icon.value.newIcon
             )
 
             icon.value.oldIcon = icon.value.newIcon
             icon.value.newIcon = ""
+            iconChanged = true
         }
 
-        props.wails3Cfg.project.wailsConfig.info = cloneData(cfg.value)
+        props.wails3Cfg.project = cloneData(savedProject.project)
+        props.wails3Cfg.importedAt = savedProject.importedAt
+        props.wails3Cfg.lastOpenedAt = savedProject.lastOpenedAt
         originalCfgJson.value = JSON.stringify(cfg.value)
+        emit("saved", {
+            record: cloneData(savedProject),
+            iconChanged
+        })
 
         message.success(t("editor.saveSuccess"))
     } catch (error) {
@@ -234,6 +294,44 @@ async function saveWails3Cfg() {
 
 function cloneData(data) {
     return JSON.parse(JSON.stringify(data || {}))
+}
+
+function touchField(path) {
+    touchedFields[path] = true
+}
+
+function touchAllFields() {
+    for (const field of infoFields.value) {
+        touchField(field.path)
+    }
+}
+
+function visibleFieldError(path) {
+    if (!touchedFields[path]) {
+        return ""
+    }
+    return fieldError(path)
+}
+
+function fieldError(path) {
+    const value = String(cfg.value[path] ?? "").trim()
+    if (requiredFields.includes(path) && !value) {
+        return t("editor.requiredField", {
+            field: fieldLabel(path)
+        })
+    }
+    if (
+        path === "productIdentifier" &&
+        value &&
+        !/^[A-Za-z][A-Za-z0-9]*(?:\.[A-Za-z0-9][A-Za-z0-9-]*)+$/.test(value)
+    ) {
+        return t("createProject.validation.identifierInvalid")
+    }
+    return ""
+}
+
+function fieldLabel(path) {
+    return infoFields.value.find(field => field.path === path)?.label || path
 }
 
 function imageUrlToBase64(url) {
@@ -274,6 +372,9 @@ function imageUrlToBase64(url) {
     })
 }
 
+defineExpose({
+    save: saveWails3Cfg
+})
 
 </script>
 
@@ -383,13 +484,6 @@ function imageUrlToBase64(url) {
     color: var(--wm-text-primary);
 }
 
-.panel-desc {
-    margin-top: 6px;
-    font-size: 12px;
-    line-height: 1.5;
-    color: var(--wm-text-muted);
-}
-
 .icon-area {
     flex: 1;
 
@@ -467,30 +561,6 @@ function imageUrlToBase64(url) {
     padding-top: 16px;
 }
 
-.icon-status {
-    margin-bottom: 12px;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-
-    font-size: 12px;
-    color: var(--wm-text-muted);
-}
-
-.icon-status-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--wm-text-muted);
-}
-
-.icon-status-dot.active {
-    background: var(--wm-color-primary);
-    box-shadow: 0 0 0 4px var(--wm-color-primary-shadow);
-}
-
 .icon-actions {
     display: flex;
     flex-direction: column;
@@ -533,6 +603,13 @@ function imageUrlToBase64(url) {
     color: var(--wm-text-muted);
 }
 
+.field-error {
+    margin-top: 6px;
+    font-size: 11px;
+    line-height: 16px;
+    color: var(--wm-color-danger);
+}
+
 :deep(.n-input) {
     --n-color: var(--wm-control-bg) !important;
     --n-color-focus: var(--wm-control-bg-hover) !important;
@@ -560,9 +637,9 @@ function imageUrlToBase64(url) {
 }
 
 :deep(.n-button--primary-type) {
-    --n-color: linear-gradient(180deg, var(--wm-color-logo-start) 0%, var(--wm-color-primary) 100%) !important;
-    --n-color-hover: linear-gradient(180deg, var(--wm-color-primary-hover) 0%, var(--wm-color-primary) 100%) !important;
-    --n-color-pressed: linear-gradient(180deg, var(--wm-color-primary) 0%, var(--wm-color-primary-pressed) 100%) !important;
+    --n-color: var(--wm-color-primary) !important;
+    --n-color-hover: var(--wm-color-primary-hover) !important;
+    --n-color-pressed: var(--wm-color-primary-pressed) !important;
     --n-border: 1px solid var(--wm-color-primary-border) !important;
     --n-border-hover: 1px solid var(--wm-border-strong) !important;
     --n-border-pressed: 1px solid var(--wm-color-primary-border) !important;

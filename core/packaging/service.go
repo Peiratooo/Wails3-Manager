@@ -21,7 +21,7 @@ import (
 	"wails3-manager/core/runlog"
 )
 
-type PackagingService struct {
+type Service struct {
 	Log              *runlog.Logger
 	DMGBackgroundPNG []byte
 }
@@ -45,15 +45,15 @@ func SetPlatformOverride(platform contracts.Platform) {
 	platformOverride = platform
 }
 
-func NewService(log *runlog.Logger) *PackagingService {
+func NewService(log *runlog.Logger) *Service {
 	return NewServiceWithOptions(log, ServiceOptions{})
 }
 
-func NewServiceWithOptions(log *runlog.Logger, options ServiceOptions) *PackagingService {
-	return &PackagingService{Log: log, DMGBackgroundPNG: options.DMGBackgroundPNG}
+func NewServiceWithOptions(log *runlog.Logger, options ServiceOptions) *Service {
+	return &Service{Log: log, DMGBackgroundPNG: options.DMGBackgroundPNG}
 }
 
-func (s *PackagingService) InitPackaging(projectDir string) (contracts.PackagingConfig, error) {
+func (s *Service) InitPackaging(projectDir string) (contracts.PackagingConfig, error) {
 	projectDir, err := fsx.NormalizePath(projectDir)
 	if err != nil {
 		return contracts.PackagingConfig{}, err
@@ -88,11 +88,11 @@ func (s *PackagingService) InitPackaging(projectDir string) (contracts.Packaging
 	return config.LoadPackagingConfig(projectDir)
 }
 
-func (s *PackagingService) LoadPackagingConfig(projectDir string) (contracts.PackagingConfig, error) {
+func (s *Service) LoadPackagingConfig(projectDir string) (contracts.PackagingConfig, error) {
 	return config.LoadPackagingConfig(projectDir)
 }
 
-func (s *PackagingService) SavePackagingConfig(projectDir string, cfg contracts.PackagingConfig) (contracts.PackagingConfig, error) {
+func (s *Service) SavePackagingConfig(projectDir string, cfg contracts.PackagingConfig) (contracts.PackagingConfig, error) {
 	projectDir, err := fsx.NormalizePath(projectDir)
 	if err != nil {
 		return contracts.PackagingConfig{}, err
@@ -118,7 +118,7 @@ func (s *PackagingService) SavePackagingConfig(projectDir string, cfg contracts.
 	return config.LoadPackagingConfig(projectDir)
 }
 
-func (s *PackagingService) GetPackagingRuntimeInfo(projectDir string) (contracts.PackagingRuntimeInfo, error) {
+func (s *Service) GetPackagingRuntimeInfo(projectDir string) (contracts.PackagingRuntimeInfo, error) {
 	projectDir, err := fsx.NormalizePath(projectDir)
 	if err != nil {
 		return contracts.PackagingRuntimeInfo{}, err
@@ -137,7 +137,7 @@ func (s *PackagingService) GetPackagingRuntimeInfo(projectDir string) (contracts
 	return config.ResolveExecutablePath(cfg, projectConfig, runtimePlatform()), nil
 }
 
-func (s *PackagingService) Package(req contracts.PackageRequest) (result contracts.PackageResult, err error) {
+func (s *Service) Package(req contracts.PackageRequest) (result contracts.PackageResult, err error) {
 	projectDir, err := fsx.NormalizePath(req.ProjectDir)
 	if err != nil {
 		return contracts.PackageResult{}, err
@@ -257,7 +257,7 @@ func (s *PackagingService) Package(req contracts.PackageRequest) (result contrac
 	return result, nil
 }
 
-func (s *PackagingService) Artifacts(projectDir string) []contracts.Artifact {
+func (s *Service) Artifacts(projectDir string) []contracts.Artifact {
 	projectDir, err := fsx.NormalizePath(projectDir)
 	if err != nil {
 		return []contracts.Artifact{}
@@ -265,7 +265,7 @@ func (s *PackagingService) Artifacts(projectDir string) []contracts.Artifact {
 	return release.ReleaseArtifacts(projectDir)
 }
 
-func (s *PackagingService) writeTemplates(projectDir string, cfg contracts.PackagingConfig, projectConfig contracts.WailsProjectConfig) error {
+func (s *Service) writeTemplates(projectDir string, cfg contracts.PackagingConfig, projectConfig contracts.WailsProjectConfig) error {
 	switch runtimePlatform() {
 	case "windows":
 		if !cfg.Windows.Enabled || cfg.Windows.InnoScript == "" {
@@ -294,7 +294,7 @@ func (s *PackagingService) writeTemplates(projectDir string, cfg contracts.Packa
 	return nil
 }
 
-func (s *PackagingService) runBuild(ctx context.Context, projectDir string, cfg contracts.PackagingConfig, dryRun bool, tx runlog.Transaction) error {
+func (s *Service) runBuild(ctx context.Context, projectDir string, cfg contracts.PackagingConfig, dryRun bool, tx runlog.Transaction) error {
 	cmd, err := buildCommand(cfg)
 	if err != nil {
 		return err
@@ -303,7 +303,7 @@ func (s *PackagingService) runBuild(ctx context.Context, projectDir string, cfg 
 	return (runlog.Runner{Log: s.Log, DryRun: dryRun, Env: env, Transaction: tx}).Run(ctx, projectDir, cmd)
 }
 
-func (s *PackagingService) runISCC(ctx context.Context, projectDir string, cfg contracts.PackagingConfig, tx runlog.Transaction) error {
+func (s *Service) runISCC(ctx context.Context, projectDir string, cfg contracts.PackagingConfig, tx runlog.Transaction) error {
 	req := environment.InnoRequirement(cfg.Windows.ISCCPath)
 	if !req.Found {
 		return errors.New(req.Message)
@@ -350,7 +350,7 @@ func waitForInnoRetry(ctx context.Context, delay time.Duration) error {
 	}
 }
 
-func (s *PackagingService) runDMG(ctx context.Context, projectDir string, cfg contracts.PackagingConfig, tx runlog.Transaction) error {
+func (s *Service) runDMG(ctx context.Context, projectDir string, cfg contracts.PackagingConfig, tx runlog.Transaction) error {
 	req := environment.CreateDMGRequirement(cfg.MacOS.CreateDMGPath)
 	if !req.Found {
 		return errors.New(req.Message)
@@ -518,7 +518,7 @@ func packageOutputDir(projectDir string, cfg contracts.PackagingConfig, projectC
 	return ""
 }
 
-func (s *PackagingService) defaultDMGBackgroundPNG() []byte {
+func (s *Service) defaultDMGBackgroundPNG() []byte {
 	if len(s.DMGBackgroundPNG) > 0 {
 		return s.DMGBackgroundPNG
 	}

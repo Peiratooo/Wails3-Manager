@@ -1,4 +1,4 @@
-// Tool detection lives beside EnvironmentService because both environment
+// Tool detection lives beside the environment service because both environment
 // checks and packaging need the same executable lookup rules.
 package environment
 
@@ -24,7 +24,7 @@ func InnoRequirement(configured string) contracts.ToolRequirement {
 		Name:           "Inno Setup / ISCC",
 		Platform:       contracts.PlatformWindows,
 		Command:        "ISCC.exe",
-		Required:       true,
+		Required:       false,
 		ConfiguredPath: cleanConfiguredPath(configured),
 		Path:           path,
 		Found:          path != "",
@@ -53,7 +53,7 @@ func CreateDMGRequirement(configured string) contracts.ToolRequirement {
 		Name:           "create-dmg",
 		Platform:       contracts.PlatformMacOS,
 		Command:        "create-dmg",
-		Required:       true,
+		Required:       false,
 		ConfiguredPath: cleanConfiguredPath(configured),
 		Path:           path,
 		Found:          path != "",

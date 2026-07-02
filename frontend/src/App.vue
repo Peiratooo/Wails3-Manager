@@ -23,8 +23,8 @@
 import {useAppStore} from './store'
 import {Events, WML} from "@wailsio/runtime"
 import {useRoute} from "vue-router";
-import {SettingsService} from '../bindings/wails3-manager/core/settings'
-import {EnvironmentService} from "../bindings/wails3-manager/core/environment"
+import { Service as SettingsService } from '../bindings/wails3-manager/core/settings'
+import { Service as EnvironmentService } from "../bindings/wails3-manager/core/environment"
 import {
     dateDeDE,
     dateEnUS,
@@ -106,11 +106,20 @@ watch(
     {immediate: true}
 )
 
-function initEnvironment() {
-    EnvironmentService.CheckEnvironment().then(res=>{
+async function initEnvironment() {
+    store.env.loaded = false
+    store.env.error = ""
+    try {
+        const res = await EnvironmentService.CheckEnvironment()
         store.env.data = res
+        store.env.passed = Boolean(res?.ok)
         store.env.loaded = true
-    })
+    } catch (error) {
+        store.env.data = {}
+        store.env.passed = false
+        store.env.error = error?.message || String(error)
+        store.env.loaded = true
+    }
 }
 
 const formatTimestamp = (timestamp) => {
