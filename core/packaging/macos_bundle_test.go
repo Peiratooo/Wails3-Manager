@@ -124,7 +124,7 @@ func TestPrepareMacOSAppBundleCreatesBundleFromProjectConfig(t *testing.T) {
 		`<key>CFBundleDisplayName</key>
         <string>Demo Product</string>`,
 		`<key>CFBundleExecutable</key>
-        <string>demo</string>`,
+        <string>helper</string>`,
 		`<key>CFBundleIdentifier</key>
         <string>com.example.demo</string>`,
 		`<key>CFBundleVersion</key>

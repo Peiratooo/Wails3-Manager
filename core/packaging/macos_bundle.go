@@ -83,7 +83,7 @@ func renderMacOSInfoPlist(projectDir string, cfg contracts.PackagingConfig, proj
 	updates := map[string]string{
 		"CFBundleName":               config.ProjectName(projectConfig),
 		"CFBundleDisplayName":        config.ProjectName(projectConfig),
-		"CFBundleExecutable":         config.AppName(cfg),
+		"CFBundleExecutable":         macOSBundleExecutableName(cfg, projectConfig),
 		"CFBundleIdentifier":         config.ProjectBundleID(projectConfig),
 		"CFBundleVersion":            config.ProjectVersion(projectConfig),
 		"CFBundleShortVersionString": config.ProjectVersion(projectConfig),
@@ -102,6 +102,18 @@ func renderMacOSInfoPlist(projectDir string, cfg contracts.PackagingConfig, proj
 		text = setPlistString(text, key, value)
 	}
 	return text, nil
+}
+
+func macOSBundleExecutableName(cfg contracts.PackagingConfig, projectConfig contracts.WailsProjectConfig) string {
+	entry := strings.TrimSpace(config.RenderPlaceholders(cfg.Entry.ExecutablePath, cfg, projectConfig))
+	if entry == "" {
+		return config.AppName(cfg)
+	}
+	name := filepath.Base(strings.TrimRight(strings.ReplaceAll(entry, "\\", "/"), "/"))
+	if name == "" || name == "." || name == string(filepath.Separator) {
+		return config.AppName(cfg)
+	}
+	return name
 }
 
 func copyMacOSPayloads(projectDir, contentsDir string, cfg contracts.PackagingConfig, projectConfig contracts.WailsProjectConfig) error {
