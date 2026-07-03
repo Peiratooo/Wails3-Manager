@@ -331,6 +331,9 @@ func TestGetPackagingRuntimeInfoUsesDefaultExecutableWhenEntryIsEmpty(t *testing
 	}
 
 	wantDefault := packagingConfig.DefaultExecutablePath(cfg, runtimePlatform())
+	if runtimePlatform() == contracts.PlatformMacOS {
+		wantDefault = packagingConfig.DefaultMacOSBinaryPath(cfg)
+	}
 	if !info.UsingDefaultExecutable {
 		t.Fatalf("UsingDefaultExecutable = false, want true")
 	}

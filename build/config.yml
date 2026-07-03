@@ -6,11 +6,11 @@ version: '3'
 # This information is used to generate the build assets.
 info:
   companyName: "Peirato" # The name of the company
-  productName: "Wails Builder" # The name of the application
-  productIdentifier: "com.peirato.wailsbuilder" # The unique product identifier
-  description: "Universal Wails3 packaging helper" # The application description
+  productName: "Wails3 Manager" # The name of the application
+  productIdentifier: "com.peirato.wails3manager" # The unique product identifier
+  description: "Desktop manager for Wails 3 projects" # The application description
   copyright: "(c) 2026, Peirato" # Copyright text
-  comments: "Some Product Comments" # Comments
+  comments: "Create, configure, build, and package Wails 3 projects." # Comments
   version: "v0.1.0" # The application version
 
 # Dev mode configuration

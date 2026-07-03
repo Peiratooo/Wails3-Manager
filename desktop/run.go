@@ -39,8 +39,8 @@ func Run(assets embed.FS, options Options) {
 	}
 	application.RegisterEvent[contracts.LogLineEvent]("manager:log-line")
 	App = application.New(application.Options{
-		Name:        "Wails Manager",
-		Description: "Universal Wails3 manager",
+		Name:        "Wails3 Manager",
+		Description: "Desktop manager for Wails 3 projects",
 		Services: []application.Service{
 			application.NewService(&AppService{}),
 			application.NewServiceWithOptions(creator.NewService(logSink), application.ServiceOptions{Name: "CreatorService"}),
@@ -67,7 +67,7 @@ func Run(assets embed.FS, options Options) {
 		}
 	}
 	App.Window.NewWithOptions(application.WebviewWindowOptions{
-		Title: "Wails Manager",
+		Title: "Wails3 Manager",
 		Width: 1280, Height: 820, MinWidth: 980, MinHeight: 680,
 		URL: "/", EnableFileDrop: true,
 		Mac:     application.MacWindow{InvisibleTitleBarHeight: 44, TitleBar: application.MacTitleBarHidden},

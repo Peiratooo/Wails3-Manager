@@ -8,27 +8,27 @@
         AllowPromptForPassword="false">
     </Settings>
     <Installer
-        Path="wails3-manager.exe"
+        Path="wails_manager.exe"
         Arguments=""
-        InstallLocation="C:\Program Files\My Company\My Product">
+        InstallLocation="C:\Program Files\Peirato\Wails3 Manager">
     </Installer>
     <PackageInformation
-        PackageName="My Product"
-        PackageDisplayName="My Product"
-        PublisherName="CN=My Company"
-        PublisherDisplayName="My Company"
+        PackageName="com.peirato.wails3manager"
+        PackageDisplayName="Wails3 Manager"
+        PublisherName="CN=Peirato"
+        PublisherDisplayName="Peirato"
         Version="0.1.0.0"
-        PackageDescription="A wails3-manager application">
+        PackageDescription="Desktop manager for Wails 3 projects">
         <Capabilities>
             <Capability Name="runFullTrust" />
             
         </Capabilities>
         <Applications>
             <Application
-                Id="com.example.wails3manager"
-                Description="A wails3-manager application"
-                DisplayName="My Product"
-                ExecutableName="wails3-manager.exe"
+                Id="com.peirato.wails3manager"
+                Description="Desktop manager for Wails 3 projects"
+                DisplayName="Wails3 Manager"
+                ExecutableName="wails_manager.exe"
                 EntryPoint="Windows.FullTrustApplication">
                 
             </Application>
@@ -41,13 +41,13 @@
         </Dependencies>
         <Properties>
             <Framework>false</Framework>
-            <DisplayName>My Product</DisplayName>
-            <PublisherDisplayName>My Company</PublisherDisplayName>
-            <Description>A wails3-manager application</Description>
+            <DisplayName>Wails3 Manager</DisplayName>
+            <PublisherDisplayName>Peirato</PublisherDisplayName>
+            <Description>Desktop manager for Wails 3 projects</Description>
             <Logo>Assets\AppIcon.png</Logo>
         </Properties>
     </PackageInformation>
-    <SaveLocation PackagePath="wails3-manager.msix" />
+    <SaveLocation PackagePath="wails_manager.msix" />
     <PackageIntegrity>
         <CertificatePath></CertificatePath>
     </PackageIntegrity>

@@ -22,7 +22,6 @@
 <script setup>
 import {useAppStore} from './store'
 import {Events, WML} from "@wailsio/runtime"
-import {useRoute} from "vue-router";
 import { Service as SettingsService } from '../bindings/wails3-manager/core/settings'
 import { Service as EnvironmentService } from "../bindings/wails3-manager/core/environment"
 import {
@@ -55,7 +54,6 @@ import {
     themeNameFromIsDark,
 } from './theme'
 
-const route = useRoute()
 const store = useAppStore()
 
 let offLogLine = null
@@ -152,7 +150,6 @@ onBeforeUnmount(() => {
 
 provide("formatTimestamp",formatTimestamp)
 provide("store",store)
-provide("route",route)
 provide("theme", {
     themeName,
     isDarkTheme,

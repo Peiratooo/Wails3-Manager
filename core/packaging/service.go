@@ -132,7 +132,13 @@ func (s *Service) GetPackagingRuntimeInfo(projectDir string) (contracts.Packagin
 		return contracts.PackagingRuntimeInfo{}, err
 	}
 	if runtimePlatform() == contracts.PlatformMacOS {
-		return config.ResolveMacOSAppBundlePath(cfg, projectConfig), nil
+		defaultPath := config.DefaultMacOSBinaryPath(cfg)
+		effectivePath := macOSLaunchExecutablePath(cfg, projectConfig)
+		return contracts.PackagingRuntimeInfo{
+			DefaultExecutablePath:   defaultPath,
+			EffectiveExecutablePath: effectivePath,
+			UsingDefaultExecutable:  config.SameAssetPath(effectivePath, defaultPath, contracts.PlatformMacOS),
+		}, nil
 	}
 	return config.ResolveExecutablePath(cfg, projectConfig, runtimePlatform()), nil
 }

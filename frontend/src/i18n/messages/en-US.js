@@ -1,6 +1,6 @@
 export default {
 	app: {
-		title: 'Wails Builder',
+		title: 'Wails3 Manager',
 	},
 	settings: {
 		title: 'Settings',

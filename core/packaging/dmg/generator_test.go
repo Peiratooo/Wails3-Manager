@@ -70,6 +70,7 @@ func TestGenerateScriptUsesAppBundleOnly(t *testing.T) {
 		`APP_BUNDLE="bin/Demo Product.app"`,
 		`cp -R "$APP_BUNDLE" "$TMP_DIR/$APP_NAME.app"`,
 		`--window-size 300 400`,
+		`--text-size 12`,
 		`--icon "$APP_NAME.app" 42 152`,
 		`--app-drop-link 162 152`,
 	} {

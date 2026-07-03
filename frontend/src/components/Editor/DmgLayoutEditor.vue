@@ -648,8 +648,8 @@ function cloneData(data) {
 }
 
 .dmg-item.active {
-    background: color-mix(in srgb, var(--wm-color-primary) 9%, transparent);
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--wm-color-primary) 24%, transparent);
+    background: color-mix(in srgb, #60a5fa 10%, rgba(148, 163, 184, 0.10));
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, #60a5fa 36%, rgba(148, 163, 184, 0.28));
 }
 
 .app-preview,

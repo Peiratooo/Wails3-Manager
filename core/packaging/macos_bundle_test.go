@@ -140,6 +140,89 @@ func TestPrepareMacOSAppBundleCreatesBundleFromProjectConfig(t *testing.T) {
 	}
 }
 
+func TestPrepareMacOSAppBundleKeepsSelectedLaunchProgramWhenNamesOverlap(t *testing.T) {
+	projectDir := t.TempDir()
+	mustWriteFile(t, filepath.Join(projectDir, "bin", "demo"), "wails binary")
+	mustWriteFile(t, filepath.Join(projectDir, "build", "darwin", "icons.icns"), "icon")
+	mustWriteFile(t, filepath.Join(projectDir, "launcher", "demo"), "selected launcher")
+
+	cfg := contracts.PackagingConfig{
+		Build: contracts.BuildSettings{AppName: "demo"},
+		Entry: contracts.ProgramEntry{ExecutablePath: "launcher/demo"},
+		MacOS: contracts.MacOSConfig{
+			AppBundle: "bin/${project.name}.app",
+		},
+	}
+	projectConfig := contracts.WailsProjectConfig{
+		Info: contracts.WailsAppInfo{
+			ProductName:       "Demo Product",
+			ProductIdentifier: "com.example.demo",
+			Version:           "1.0.0",
+		},
+	}
+
+	appBundle, err := prepareMacOSAppBundle(projectDir, cfg, projectConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	executable, err := os.ReadFile(filepath.Join(appBundle, "Contents", "MacOS", "demo"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(executable) != "selected launcher" {
+		t.Fatalf("launch executable content = %q, want selected launcher", executable)
+	}
+
+	plist, err := os.ReadFile(filepath.Join(appBundle, "Contents", "Info.plist"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(plist), `<key>CFBundleExecutable</key>
+        <string>demo</string>`) {
+		t.Fatalf("Info.plist should point at selected launch executable:\n%s", plist)
+	}
+}
+
+func TestPrepareMacOSAppBundleDoesNotUseAppBundleAsExecutable(t *testing.T) {
+	projectDir := t.TempDir()
+	mustWriteFile(t, filepath.Join(projectDir, "bin", "demo"), "binary")
+	mustWriteFile(t, filepath.Join(projectDir, "build", "darwin", "icons.icns"), "icon")
+
+	cfg := contracts.PackagingConfig{
+		Build: contracts.BuildSettings{AppName: "demo"},
+		Entry: contracts.ProgramEntry{ExecutablePath: "bin/${project.name}.app"},
+		MacOS: contracts.MacOSConfig{
+			AppBundle: "bin/${project.name}.app",
+		},
+	}
+	projectConfig := contracts.WailsProjectConfig{
+		Info: contracts.WailsAppInfo{
+			ProductName:       "Demo Product",
+			ProductIdentifier: "com.example.demo",
+			Version:           "1.0.0",
+		},
+	}
+
+	appBundle, err := prepareMacOSAppBundle(projectDir, cfg, projectConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	plist, err := os.ReadFile(filepath.Join(appBundle, "Contents", "Info.plist"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(plist)
+	if strings.Contains(text, `<string>Demo Product.app</string>`) {
+		t.Fatalf("Info.plist should not use .app bundle as CFBundleExecutable:\n%s", text)
+	}
+	if !strings.Contains(text, `<key>CFBundleExecutable</key>
+        <string>demo</string>`) {
+		t.Fatalf("Info.plist should point at default executable inside Contents/MacOS:\n%s", text)
+	}
+}
+
 func TestPrepareMacOSAppBundleRejectsInvalidAssetTarget(t *testing.T) {
 	projectDir := t.TempDir()
 	mustWriteFile(t, filepath.Join(projectDir, "bin", "demo"), "binary")

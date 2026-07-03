@@ -738,6 +738,9 @@ const macStartupProgramPath = computed(() => {
     if (!entry) {
         return ""
     }
+    if (isMacAppBundlePath(entry)) {
+        return ""
+    }
     return `Contents/MacOS/${baseName(entry)}`
 })
 
@@ -824,8 +827,10 @@ function cancelSetupIcon() {
     cfg.value.windows.setupIcon = setupIcon.value.oldPath
 }
 
-function setMacOSLayout(nextMacOS) {
+async function setMacOSLayout(nextMacOS) {
     cfg.value.macos = cloneData(nextMacOS)
+    await nextTick()
+    await savePackageCfg()
 }
 
 function projectFilePath(path) {
@@ -1020,6 +1025,10 @@ function baseName(path) {
     const clean = String(path || "").replace(/\\/g, "/").replace(/\/+$/, "")
     const parts = clean.split("/")
     return parts[parts.length - 1] || clean || "app"
+}
+
+function isMacAppBundlePath(path) {
+    return String(path || "").replace(/\\/g, "/").replace(/\/+$/, "").toLowerCase().endsWith(".app")
 }
 
 function cloneData(data) {

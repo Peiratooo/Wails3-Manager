@@ -1,15 +1,15 @@
 {
 	"fixed": {
-		"file_version": "0.1.0"
+		"file_version": "v0.1.0"
 	},
 	"info": {
 		"0000": {
-			"ProductVersion": "0.1.0",
-			"CompanyName": "My Company",
-			"FileDescription": "My Product Description",
-			"LegalCopyright": "© now, My Company",
-			"ProductName": "My Product",
-			"Comments": "This is a comment"
+			"ProductVersion": "v0.1.0",
+			"CompanyName": "Peirato",
+			"FileDescription": "Desktop manager for Wails 3 projects",
+			"LegalCopyright": "(c) 2026, Peirato",
+			"ProductName": "Wails3 Manager",
+			"Comments": "Create, configure, build, and package Wails 3 projects."
 		}
 	}
 }

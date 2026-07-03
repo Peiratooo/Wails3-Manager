@@ -143,8 +143,9 @@ import { Service as SettingsService } from "../../bindings/wails3-manager/core/s
 import { Service as PackagingService } from "../../bindings/wails3-manager/core/packaging"
 import { AppService } from "../../bindings/wails3-manager/desktop"
 import { NButton, NEllipsis, NIcon, useMessage } from "naive-ui"
-import { computed, inject, onMounted, ref } from "vue"
+import { computed, inject, ref, watch } from "vue"
 import router from "../router/index.js"
+import { useRoute } from "vue-router"
 import Environment from "../components/Environment.vue"
 import Settings from "../components/Settings.vue";
 import Editor from "../components/Editor/Editor.vue";
@@ -152,11 +153,11 @@ import PackageRunCard from "../components/PackageRunCard.vue"
 import {useI18n} from "../i18n/index.js";
 import { localFileUrl } from "../utils/files"
 const { t } = useI18n()
-const route = inject("route")
+const route = useRoute()
 const formatTimestamp = inject("formatTimestamp")
 const message = useMessage()
 const store = inject("store")
-const projectDir = decodeURIComponent(route.query.projectDir || "")
+const projectDir = computed(() => decodeURIComponent(route.query.projectDir || ""))
 const wails3Cfg = ref({})
 const packageCfg = ref({})
 const loaded = ref(false)
@@ -169,6 +170,7 @@ const packageError = ref("")
 const packageResult = ref(null)
 const packageTransactionId = ref("")
 const iconVersion = ref(0)
+let loadProjectSeq = 0
 
 const projectName = computed(() => {
     return wails3Cfg.value?.project?.wailsConfig?.info?.productName || t("project.unnamed")
@@ -211,7 +213,7 @@ const packageDirectories = computed(() => {
 })
 
 async function openProjectFolder() {
-    await openPath(projectDir)
+    await openPath(projectDir.value)
 }
 
 async function runBuild() {
@@ -228,7 +230,7 @@ async function runBuild() {
         packageProgress.value = 32
 
         const result = await PackagingService.Package({
-            projectDir,
+            projectDir: projectDir.value,
             platform: "auto",
             dryRun: false,
             runBuild: true,
@@ -278,15 +280,31 @@ async function handleWails3Saved(payload) {
     }
 }
 
-onMounted(async () => {
+async function loadProject() {
+    const currentProjectDir = projectDir.value
+    const seq = ++loadProjectSeq
+
+    if (!currentProjectDir) {
+        backToHome()
+        return
+    }
+
+    loaded.value = false
+    iconLoadError.value = false
+
     try {
-        const wCfg = await SettingsService.OpenProject(projectDir)
-        const pCfg = await PackagingService.LoadPackagingConfig(projectDir)
+        const wCfg = await SettingsService.OpenProject(currentProjectDir)
+        const pCfg = await PackagingService.LoadPackagingConfig(currentProjectDir)
 
         const iconPath = await SettingsService.GetABSPath(
             wCfg.projectDir,
             wCfg.project.wailsConfig.icon
         )
+
+        if (seq !== loadProjectSeq) {
+            return
+        }
+
         packageCfg.value = pCfg
         wails3Cfg.value = {
             ...wCfg,
@@ -295,10 +313,21 @@ onMounted(async () => {
 
         loaded.value = true
     } catch (error) {
+        if (seq !== loadProjectSeq) {
+            return
+        }
         message.error(error?.message || String(error))
         backToHome()
     }
-})
+}
+
+watch(
+    projectDir,
+    () => {
+        loadProject()
+    },
+    { immediate: true }
+)
 
 
 function backToHome() {

@@ -65,6 +65,13 @@ func prepareMacOSAppBundle(projectDir string, cfg contracts.PackagingConfig, pro
 		return "", err
 	}
 
+	launchSrc := macOSLaunchExecutablePath(cfg, projectConfig)
+	if !config.SameAssetPath(launchSrc, config.DefaultMacOSBinaryPath(cfg), contracts.PlatformMacOS) {
+		if err := copyMacOSLaunchExecutable(projectDir, macOSDir, launchSrc); err != nil {
+			return "", err
+		}
+	}
+
 	return appBundle, nil
 }
 
@@ -105,19 +112,32 @@ func renderMacOSInfoPlist(projectDir string, cfg contracts.PackagingConfig, proj
 }
 
 func macOSBundleExecutableName(cfg contracts.PackagingConfig, projectConfig contracts.WailsProjectConfig) string {
-	entry := strings.TrimSpace(config.RenderPlaceholders(cfg.Entry.ExecutablePath, cfg, projectConfig))
-	if entry == "" {
-		return config.AppName(cfg)
-	}
-	name := filepath.Base(strings.TrimRight(strings.ReplaceAll(entry, "\\", "/"), "/"))
+	name := filepath.Base(cleanMacOSPath(macOSLaunchExecutablePath(cfg, projectConfig)))
 	if name == "" || name == "." || name == string(filepath.Separator) {
 		return config.AppName(cfg)
 	}
 	return name
 }
 
+func macOSLaunchExecutablePath(cfg contracts.PackagingConfig, projectConfig contracts.WailsProjectConfig) string {
+	entry := strings.TrimSpace(config.RenderPlaceholders(cfg.Entry.ExecutablePath, cfg, projectConfig))
+	if entry == "" ||
+		isMacOSAppBundlePath(entry) ||
+		config.SameAssetPath(entry, config.MacOSAppBundlePath(cfg, projectConfig), contracts.PlatformMacOS) {
+		return config.DefaultMacOSBinaryPath(cfg)
+	}
+	return entry
+}
+
+func isMacOSAppBundlePath(path string) bool {
+	return strings.HasSuffix(strings.ToLower(cleanMacOSPath(path)), ".app")
+}
+
+func cleanMacOSPath(path string) string {
+	return strings.TrimRight(strings.ReplaceAll(strings.TrimSpace(path), "\\", "/"), "/")
+}
+
 func copyMacOSPayloads(projectDir, contentsDir string, cfg contracts.PackagingConfig, projectConfig contracts.WailsProjectConfig) error {
-	macOSDir := filepath.Join(contentsDir, "MacOS")
 	for i, asset := range cfg.Assets {
 		src := strings.TrimSpace(config.RenderPlaceholders(asset.Src, cfg, projectConfig))
 		if src == "" {
@@ -132,15 +152,22 @@ func copyMacOSPayloads(projectDir, contentsDir string, cfg contracts.PackagingCo
 			return fmt.Errorf("macOS asset %d: %w", i, err)
 		}
 	}
-	entry := strings.TrimSpace(config.RenderPlaceholders(cfg.Entry.ExecutablePath, cfg, projectConfig))
-	if entry != "" &&
-		!config.SameAssetPath(entry, config.DefaultMacOSBinaryPath(cfg), contracts.PlatformMacOS) &&
-		!config.SameAssetPath(entry, config.MacOSAppBundlePath(cfg, projectConfig), contracts.PlatformMacOS) {
-		if err := copyMacOSPayload(projectDir, macOSDir, entry, "", true); err != nil {
-			return fmt.Errorf("macOS launch program: %w", err)
-		}
-	}
 	return nil
+}
+
+func copyMacOSLaunchExecutable(projectDir, macOSDir, src string) error {
+	from := fsx.Resolve(projectDir, src)
+	if from == "" {
+		return fmt.Errorf("macOS launch program path is empty")
+	}
+	if !fsx.FileExists(from) {
+		return fmt.Errorf("macOS launch program file not found: %s", from)
+	}
+	name := filepath.Base(cleanMacOSPath(from))
+	if name == "" || name == "." || name == string(filepath.Separator) {
+		return fmt.Errorf("macOS launch program has no filename: %s", from)
+	}
+	return copyRequiredFile(from, filepath.Join(macOSDir, name), "macOS launch program", 0755)
 }
 
 func copyMacOSPayload(projectDir, macOSDir, src, assetType string, required bool) error {

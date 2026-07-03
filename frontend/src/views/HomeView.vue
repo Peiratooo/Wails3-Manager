@@ -22,7 +22,11 @@
                         <n-input v-model:value="keywords" :placeholder="t('home.searchProject')" />
                     </div>
                     <div class="import">
-                        <n-button @click="importProject()">
+                        <n-button
+                            :loading="importingProject"
+                            :disabled="importingProject"
+                            @click="importProject()"
+                        >
                             <n-icon size="18" style="margin-right: 8px">
                                 <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 48 48"><g fill="none"><path d="M40.75 24c.69 0 1.25-.56 1.25-1.25v-9.5A7.25 7.25 0 0 0 34.75 6h-21.5A7.25 7.25 0 0 0 6 13.25v21.5A7.25 7.25 0 0 0 13.25 42h9.5a1.25 1.25 0 1 0 0-2.5h-9.5a4.75 4.75 0 0 1-4.75-4.75v-21.5a4.75 4.75 0 0 1 4.75-4.75h21.5a4.75 4.75 0 0 1 4.75 4.75v9.5c0 .69.56 1.25 1.25 1.25zm-21.5-6c-.69 0-1.25.56-1.25 1.25v13.5a1.25 1.25 0 1 0 2.5 0V22.268l15.366 15.366a1.25 1.25 0 1 0 1.768-1.768L22.268 20.5H32.75a1.25 1.25 0 1 0 0-2.5h-13.5z" fill="currentColor"></path></g></svg>
                             </n-icon>
@@ -71,6 +75,7 @@ const keywords = ref("")
 const formatTimestamp = inject("formatTimestamp")
 const projects = ref([])
 const deletePopoverProjectDir = ref("")
+const importingProject = ref(false)
 
 const rowProps = (row) => {
     return {
@@ -91,6 +96,9 @@ const rowProps = (row) => {
 }
 
 async function importProject() {
+    if (importingProject.value) return
+
+    importingProject.value = true
     try {
         const res = await AppService.ChooseFolder()
         if (res) {
@@ -99,6 +107,8 @@ async function importProject() {
         }
     } catch (error) {
         message.error(error?.message || String(error))
+    } finally {
+        importingProject.value = false
     }
 }
 

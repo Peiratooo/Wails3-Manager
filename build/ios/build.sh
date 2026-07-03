@@ -2,8 +2,8 @@
 set -e
 
 # Build configuration
-APP_NAME="wails3-manager.exe"
-BUNDLE_ID="com.example.wails3manager"
+APP_NAME="wails_manager"
+BUNDLE_ID="com.peirato.wails3manager"
 VERSION="0.1.0"
 BUILD_NUMBER="0.1.0"
 BUILD_DIR="build/ios"

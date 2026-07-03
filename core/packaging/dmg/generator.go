@@ -47,10 +47,11 @@ func GenerateScript(projectDir string, cfg contracts.PackagingConfig, projectCon
 		"{{windowWidth}}", fmt.Sprint(cfg.MacOS.WindowWidth),
 		"{{windowHeight}}", fmt.Sprint(cfg.MacOS.WindowHeight),
 		"{{iconSize}}", fmt.Sprint(cfg.MacOS.IconSize),
-		"{{appX}}", fmt.Sprint(cfg.MacOS.AppX),
-		"{{appY}}", fmt.Sprint(cfg.MacOS.AppY),
-		"{{applicationsX}}", fmt.Sprint(cfg.MacOS.ApplicationsX),
-		"{{applicationsY}}", fmt.Sprint(cfg.MacOS.ApplicationsY),
+		"{{textSize}}", "12",
+		"{{appX}}", fmt.Sprint(iconOrigin(cfg.MacOS.AppX, cfg.MacOS.IconSize)),
+		"{{appY}}", fmt.Sprint(iconOrigin(cfg.MacOS.AppY, cfg.MacOS.IconSize)),
+		"{{applicationsX}}", fmt.Sprint(iconOrigin(cfg.MacOS.ApplicationsX, cfg.MacOS.IconSize)),
+		"{{applicationsY}}", fmt.Sprint(iconOrigin(cfg.MacOS.ApplicationsY, cfg.MacOS.IconSize)),
 		"{{createDmg}}", cfg.MacOS.CreateDMGPath,
 	).Replace(defaultTemplate)
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
@@ -93,6 +94,10 @@ func PrepareBackground(projectDir, background string, width, height int, output 
 		return "", closeErr
 	}
 	return output, nil
+}
+
+func iconOrigin(center, size int) int {
+	return center - size/2
 }
 
 func coverImage(source image.Image, width, height int) *image.NRGBA {
@@ -148,6 +153,7 @@ CREATE_DMG_ARGS=(
   --volname "$VOLUME_NAME"
   --window-size {{windowWidth}} {{windowHeight}}
   --icon-size {{iconSize}}
+  --text-size {{textSize}}
   --icon "$APP_NAME.app" {{appX}} {{appY}}
   --app-drop-link {{applicationsX}} {{applicationsY}}
 )
