@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"wails3-manager/core/contracts"
@@ -24,6 +25,8 @@ import (
 type Service struct {
 	Log              *runlog.Logger
 	DMGBackgroundPNG []byte
+	packageMu        sync.Mutex
+	packageRunning   bool
 }
 
 type ServiceOptions struct {
@@ -152,6 +155,10 @@ func (s *Service) Package(req contracts.PackageRequest) (result contracts.Packag
 	if transactionID == "" {
 		return contracts.PackageResult{}, errors.New("package transactionId is required")
 	}
+	if !s.beginPackage() {
+		return contracts.PackageResult{}, errors.New("another package task is already running")
+	}
+	defer s.endPackage()
 	cfg, err := config.LoadPackagingConfig(projectDir)
 	if err != nil {
 		return contracts.PackageResult{}, err
@@ -529,6 +536,23 @@ func (s *Service) defaultDMGBackgroundPNG() []byte {
 		return s.DMGBackgroundPNG
 	}
 	return dmg.DefaultBackgroundPNG()
+}
+
+func (s *Service) beginPackage() bool {
+	s.packageMu.Lock()
+	defer s.packageMu.Unlock()
+	if s.packageRunning {
+		return false
+	}
+	// ponytail: global package lock, switch to per-project locks if multi-project builds matter.
+	s.packageRunning = true
+	return true
+}
+
+func (s *Service) endPackage() {
+	s.packageMu.Lock()
+	defer s.packageMu.Unlock()
+	s.packageRunning = false
 }
 
 func boolString(v bool) string {

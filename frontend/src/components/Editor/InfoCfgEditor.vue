@@ -226,16 +226,23 @@ onMounted(async () => {
     originalCfgJson.value = JSON.stringify(cfg.value)
 
     if (props.wails3Cfg.iconPath) {
-        icon.value.oldIcon = await imageUrlToBase64(localFileUrl(props.wails3Cfg.iconPath))
+        try {
+            icon.value.oldIcon = await imageUrlToBase64(localFileUrl(props.wails3Cfg.iconPath))
+        } catch {
+            icon.value.oldIcon = ""
+        }
     }
 })
 
-function chooseIcon() {
-    AppService.ChooseIcon().then((res)=>{
+async function chooseIcon() {
+    try {
+        const res = await AppService.ChooseIcon()
         if (res) {
-            setNewIconByUrl(localFileUrl(res))
+            await setNewIconByUrl(localFileUrl(res))
         }
-    })
+    } catch (error) {
+        message.error(error?.message || String(error))
+    }
 }
 
 async function setNewIconByUrl(url) {

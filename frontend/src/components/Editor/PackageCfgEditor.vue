@@ -760,6 +760,10 @@ watch(
 
 function initConfig(data) {
     cfg.value = cloneData(data)
+    cfg.value.build = cfg.value.build || {}
+    cfg.value.entry = cfg.value.entry || {}
+    cfg.value.windows = cfg.value.windows || {}
+    cfg.value.macos = cfg.value.macos || {}
     if (!Array.isArray(cfg.value.assets)) {
         cfg.value.assets = []
     }

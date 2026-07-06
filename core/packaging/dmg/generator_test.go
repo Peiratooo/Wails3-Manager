@@ -29,7 +29,9 @@ func TestGenerateScriptUsesBundledBackgroundPath(t *testing.T) {
 		t.Fatal(err)
 	}
 	if bash, err := exec.LookPath("bash"); err == nil {
-		if output, err := exec.Command(bash, "-n", scriptPath).CombinedOutput(); err != nil {
+		cmd := exec.Command(bash, "-n", "-")
+		cmd.Stdin = strings.NewReader(string(script))
+		if output, err := cmd.CombinedOutput(); err != nil {
 			t.Fatalf("generated script is not valid bash: %v\n%s", err, output)
 		}
 	}

@@ -32,3 +32,4 @@ go.work.sum
 /task/
 /frontend/bindings
 /docs
+/.codex-ui-test

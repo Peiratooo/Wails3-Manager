@@ -7,8 +7,11 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"wails3-manager/core/contracts"
 	packagingConfig "wails3-manager/core/packaging/config"
@@ -708,4 +711,80 @@ func TestPackageLogsCarryTransaction(t *testing.T) {
 			t.Fatalf("log event transaction = %#v", event)
 		}
 	}
+}
+
+func TestPackageRejectsConcurrentRuns(t *testing.T) {
+	projectDir := t.TempDir()
+	wailsConfig := contracts.WailsProjectConfig{
+		Info: contracts.WailsAppInfo{
+			ProductName:       "Demo",
+			ProductIdentifier: "com.example.demo",
+			Version:           "1.0.0",
+		},
+	}
+	if err := project.SaveProjectRecord(contracts.ProjectRecord{
+		ProjectDir: projectDir,
+		Project: contracts.WailsProjectManager{
+			ProjectDir:  projectDir,
+			WailsConfig: wailsConfig,
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	writeManagedTaskfile(t, projectDir)
+
+	cfg := defaultPackagingConfig(projectDir, wailsConfig)
+	cfg.Build.Command = sleepCommand()
+	cfg.Windows.Enabled = false
+	if err := packagingConfig.SavePackagingConfig(projectDir, cfg); err != nil {
+		t.Fatal(err)
+	}
+
+	svc := NewService(nil)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	firstErr := make(chan error, 1)
+	go func() {
+		defer wg.Done()
+		_, err := svc.Package(contracts.PackageRequest{
+			ProjectDir:    projectDir,
+			Platform:      contracts.PlatformWindows,
+			RunBuild:      true,
+			TransactionID: "package-1",
+		})
+		firstErr <- err
+	}()
+
+	deadline := time.Now().Add(time.Second)
+	for {
+		if !svc.beginPackage() {
+			break
+		}
+		svc.endPackage()
+		if time.Now().After(deadline) {
+			t.Fatal("first package did not acquire the package lock")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	_, err := svc.Package(contracts.PackageRequest{
+		ProjectDir:    projectDir,
+		Platform:      contracts.PlatformWindows,
+		TransactionID: "package-2",
+	})
+	if err == nil || !strings.Contains(err.Error(), "already running") {
+		t.Fatalf("Package() error = %v, want already running", err)
+	}
+
+	wg.Wait()
+	if err := <-firstErr; err != nil {
+		t.Fatal(err)
+	}
+}
+
+func sleepCommand() []string {
+	if runtime.GOOS == "windows" {
+		return []string{"powershell", "-NoProfile", "-Command", "Start-Sleep -Milliseconds 250"}
+	}
+	return []string{"sh", "-c", "sleep 0.25"}
 }
