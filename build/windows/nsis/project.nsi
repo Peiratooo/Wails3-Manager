@@ -11,19 +11,19 @@ Unicode true
 ## > wails build --target windows/amd64 --nsis
 ## Then you can call makensis on this file with specifying the path to your binary:
 ## For a AMD64 only installer:
-## > makensis -DARG_WAILS_AMD64_BINARY=..\..\bin\app.exe
+## > makensis -DARG_WAILS_AMD64_BINARY=..\..\bin\wails_manager.exe
 ## For a ARM64 only installer:
-## > makensis -DARG_WAILS_ARM64_BINARY=..\..\bin\app.exe
+## > makensis -DARG_WAILS_ARM64_BINARY=..\..\bin\wails_manager.exe
 ## For a installer with both architectures:
-## > makensis -DARG_WAILS_AMD64_BINARY=..\..\bin\app-amd64.exe -DARG_WAILS_ARM64_BINARY=..\..\bin\app-arm64.exe
+## > makensis -DARG_WAILS_AMD64_BINARY=..\..\bin\wails_manager-amd64.exe -DARG_WAILS_ARM64_BINARY=..\..\bin\wails_manager-arm64.exe
 ####
 ## The following information is taken from the wails_tools.nsh file, but they can be overwritten here.
 ####
-## !define INFO_PROJECTNAME    "my-project" # Default "app"
-## !define INFO_COMPANYNAME    "My Company" # Default "My Company"
-## !define INFO_PRODUCTNAME    "My Product Name" # Default "My Product"
+## !define INFO_PROJECTNAME    "wails_manager" # Default "wails_manager"
+## !define INFO_COMPANYNAME    "Peirato" # Default "Peirato"
+## !define INFO_PRODUCTNAME    "Wails3 Manager" # Default "Wails3 Manager"
 ## !define INFO_PRODUCTVERSION "1.0.0"     # Default "0.1.0"
-## !define INFO_COPYRIGHT      "(c) Now, My Company" # Default "© now, My Company"
+## !define INFO_COPYRIGHT      "(c) 2026, Peirato" # Default "(c) 2026, Peirato"
 ###
 ## !define PRODUCT_EXECUTABLE  "Application.exe"      # Default "${INFO_PROJECTNAME}.exe"
 ## !define UNINST_KEY_NAME     "UninstKeyInRegistry"  # Default "${INFO_COMPANYNAME}${INFO_PRODUCTNAME}"

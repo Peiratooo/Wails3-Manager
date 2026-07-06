@@ -4,31 +4,27 @@
 
 export {
     Artifact,
-    ArtifactConfig,
-    BuildSettings,
     EnvironmentReport,
-    LogSnapshot,
-    MacOSConfig,
+    LogLineEvent,
     ManagerSettings,
     PackageRequest,
     PackageResult,
-    PackagingAsset,
-    PackagingConfig,
+    PackagingRuntimeInfo,
     Platform,
-    ProgramEntry,
-    ProjectInfo,
     ProjectRecord,
     ScanResult,
     ToolCheck,
     WailsAppInfo,
     WailsFileAssociation,
     WailsProjectConfig,
-    WailsProjectManager,
-    WailsTaskVars,
-    WindowsConfig
+    WailsProjectManager
 } from "./models.js";
 
 import * as $models from "./models.js";
+
+/**
+ * @typedef {$models.PackagingConfig} PackagingConfig
+ */
 
 /**
  * UnixTime stores timestamps as Unix seconds in JSON.

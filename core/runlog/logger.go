@@ -7,31 +7,44 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 	"time"
 )
 
 type Logger struct {
-	mu      sync.Mutex
-	writers []io.Writer
-	lines   []string
-	OnLine  func(string)
+	mu         sync.Mutex
+	writers    []io.Writer
+	lines      []string
+	recordLogs bool
+	OnLine     func(Line)
+}
+
+type Transaction struct {
+	ID    string
+	Type  string
+	Title string
+}
+
+type Line struct {
+	Text             string
+	TransactionID    string
+	TransactionType  string
+	TransactionTitle string
 }
 
 func New(writers ...io.Writer) *Logger {
 	if len(writers) == 0 {
 		writers = []io.Writer{os.Stdout}
 	}
-	return &Logger{writers: writers, lines: []string{}}
+	return &Logger{writers: writers, lines: []string{}, recordLogs: true}
 }
 
 func (l *Logger) Lines() []string {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	out := make([]string, len(l.lines))
-	copy(out, l.lines)
-	return out
+	return slices.Clone(l.lines)
 }
 
 func (l *Logger) Since(cursor int) (int, []string) {
@@ -43,9 +56,7 @@ func (l *Logger) Since(cursor int) (int, []string) {
 	if cursor > len(l.lines) {
 		cursor = len(l.lines)
 	}
-	out := make([]string, len(l.lines[cursor:]))
-	copy(out, l.lines[cursor:])
-	return len(l.lines), out
+	return len(l.lines), slices.Clone(l.lines[cursor:])
 }
 
 func (l *Logger) Cursor() int {
@@ -60,21 +71,40 @@ func (l *Logger) Clear() {
 	l.lines = []string{}
 }
 
-func (l *Logger) Println(args ...any)               { l.write(fmt.Sprintln(args...)) }
-func (l *Logger) Printf(format string, args ...any) { l.write(fmt.Sprintf(format, args...)) }
-func (l *Logger) Section(title string)              { l.write("\n== " + title + " ==\n") }
+func (l *Logger) SetRecordLogs(recordLogs bool) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.recordLogs = recordLogs
+}
 
-func (l *Logger) write(s string) {
+func (l *Logger) Println(args ...any) { l.write(Transaction{}, fmt.Sprintln(args...)) }
+func (l *Logger) Printf(format string, args ...any) {
+	l.write(Transaction{}, fmt.Sprintf(format, args...))
+}
+func (l *Logger) Section(title string) { l.write(Transaction{}, "\n== "+title+" ==\n") }
+func (l *Logger) PrintlnWithTransaction(tx Transaction, args ...any) {
+	l.write(tx, fmt.Sprintln(args...))
+}
+
+func (l *Logger) write(tx Transaction, s string) {
 	s = strings.TrimRight(s, "\n")
 	line := fmt.Sprintf("[%s] %s", time.Now().Format("15:04:05"), s)
 	l.mu.Lock()
-	l.lines = append(l.lines, line)
+	recordLogs := l.recordLogs
+	if recordLogs {
+		l.lines = append(l.lines, line)
+	}
 	for _, w := range l.writers {
 		_, _ = fmt.Fprintln(w, line)
 	}
 	on := l.OnLine
 	l.mu.Unlock()
-	if on != nil {
-		on(line)
+	if recordLogs && on != nil {
+		on(Line{
+			Text:             line,
+			TransactionID:    tx.ID,
+			TransactionType:  tx.Type,
+			TransactionTitle: tx.Title,
+		})
 	}
 }

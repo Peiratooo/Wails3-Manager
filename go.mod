@@ -2,7 +2,10 @@ module wails3-manager
 
 go 1.25.0
 
-require github.com/wailsapp/wails/v3 v3.0.0-alpha.96
+require (
+	github.com/wailsapp/wails/v3 v3.0.0-alpha.96
+	golang.org/x/image v0.40.0
+)
 
 require (
 	dario.cat/mergo v1.0.2 // indirect

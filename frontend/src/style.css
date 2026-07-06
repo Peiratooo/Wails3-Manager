@@ -1,22 +1,82 @@
 * {
+    box-sizing: border-box;
     padding: 0;
     margin: 0;
-    line-height: 1;
 }
 
-html {
-    width: 100vw;
-    height: 100vh;
-    background: #f5f5f5;
+html,
+body,
+#app {
+    width: 100%;
+    min-height: 100vh;
+    background: var(--wm-bg-app);
+    color: var(--wm-text-primary);
+    transition:
+        background-color 0.18s ease,
+        color 0.18s ease;
 }
 
 .delete-icon {
     cursor: pointer;
-    color: #999;
+    color: var(--wm-text-muted);
     font-size: 16px;
     transition: color 0.2s ease;
 }
 
 .delete-icon:hover {
-    color: #e5484d;
+    color: var(--wm-color-danger);
+}
+.delete-trigger {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.delete-icon {
+    cursor: pointer;
+    color: var(--wm-text-muted);
+    font-size: 17px;
+    transition:
+            color 0.18s ease,
+            opacity 0.18s ease,
+            transform 0.18s ease;
+}
+
+.delete-icon:hover {
+    color: var(--wm-color-danger);
+    transform: scale(1.06);
+}
+
+.delete-popover {
+
+    display: flex;
+    gap: 12px;
+    flex-direction: column;
+}
+
+.delete-popover-title {
+    font-size: 14px;
+    color: var(--wm-text-primary);
+}
+
+.delete-popover-path {
+    margin-top: 8px;
+    font-size: 12px;
+    line-height: 1.45;
+    color: var(--wm-text-muted);
+    word-break: break-all;
+}
+
+.delete-popover-actions {
+
+    display: flex;
+
+    gap: 8px;
+}
+
+.delete-popover-actions .n-button {
+
+    justify-content: center;
 }

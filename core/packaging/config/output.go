@@ -5,26 +5,19 @@ import (
 	"strings"
 
 	"wails3-manager/core/contracts"
-	"wails3-manager/core/fsx"
 )
 
 // ExportRoot is the single user-facing release directory.
-func ExportRoot(cfg contracts.PackagingConfig) string {
-	return RenderPlaceholders(fsx.FirstNonEmpty(cfg.Artifacts.OutputRoot, "builder/release"), cfg)
+func ExportRoot(cfg contracts.PackagingConfig, project contracts.WailsProjectConfig) string {
+	return RenderPlaceholders(cfg.Artifacts.OutputRoot, cfg, project)
 }
 
-func WindowsOutputDir(cfg contracts.PackagingConfig) string {
-	root := strings.TrimSpace(ExportRoot(cfg))
-	if root == "" {
-		root = "builder/release"
-	}
+func WindowsOutputDir(cfg contracts.PackagingConfig, project contracts.WailsProjectConfig) string {
+	root := strings.TrimSpace(ExportRoot(cfg, project))
 	return filepath.ToSlash(filepath.Join(root, "windows"))
 }
 
-func MacOSOutputDir(cfg contracts.PackagingConfig) string {
-	root := strings.TrimSpace(ExportRoot(cfg))
-	if root == "" {
-		root = "builder/release"
-	}
+func MacOSOutputDir(cfg contracts.PackagingConfig, project contracts.WailsProjectConfig) string {
+	root := strings.TrimSpace(ExportRoot(cfg, project))
 	return filepath.ToSlash(filepath.Join(root, "macos"))
 }

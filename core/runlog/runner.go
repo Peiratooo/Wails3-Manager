@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strings"
@@ -11,27 +12,29 @@ import (
 )
 
 type Runner struct {
-	Log    *Logger
-	DryRun bool
+	Log         *Logger
+	DryRun      bool
+	Env         map[string]string
+	Transaction Transaction
 }
 
-func (r Runner) Run(ctx context.Context, workDir string, command []string) error {
+func (runner Runner) Run(ctx context.Context, workDir string, command []string) error {
 	if len(command) == 0 {
-		return fmt.Errorf("命令为空")
+		return fmt.Errorf("command is empty")
 	}
-	if r.Log != nil {
-		r.Log.Println("执行命令：", strings.Join(command, " "))
-		r.Log.Println("工作目录：", workDir)
+	if runner.Log != nil {
+		runner.Log.PrintlnWithTransaction(runner.Transaction, "Running command:", strings.Join(command, " "))
+		runner.Log.PrintlnWithTransaction(runner.Transaction, "Working directory:", workDir)
 	}
-	if r.DryRun {
-		if r.Log != nil {
-			r.Log.Println("dry-run：跳过命令执行")
+	if runner.DryRun {
+		if runner.Log != nil {
+			runner.Log.PrintlnWithTransaction(runner.Transaction, "dry-run: command execution skipped")
 		}
 		return nil
 	}
 	cmd := exec.CommandContext(ctx, command[0], command[1:]...)
 	cmd.Dir = workDir
-	cmd.Env = os.Environ()
+	cmd.Env = append(os.Environ(), envPairs(runner.Env)...)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return err
@@ -44,20 +47,53 @@ func (r Runner) Run(ctx context.Context, workDir string, command []string) error
 		return err
 	}
 	var wg sync.WaitGroup
-	pump := func(prefix string, s *bufio.Scanner) {
+	readErrs := make(chan error, 2)
+	pump := func(prefix string, source io.Reader) {
 		defer wg.Done()
-		for s.Scan() {
-			if r.Log != nil {
-				r.Log.Println(prefix + s.Text())
+		reader := bufio.NewReader(source)
+		for {
+			line, err := reader.ReadString('\n')
+			if line != "" {
+				line = strings.TrimRight(line, "\r\n")
+				if runner.Log != nil {
+					runner.Log.PrintlnWithTransaction(runner.Transaction, prefix+line)
+				}
 			}
+			if err == nil {
+				continue
+			}
+			if err != io.EOF {
+				readErrs <- err
+			}
+			return
 		}
 	}
 	wg.Add(2)
-	go pump("", bufio.NewScanner(stdout))
-	go pump("", bufio.NewScanner(stderr))
+	go pump("", stdout)
+	go pump("", stderr)
 	wg.Wait()
+	close(readErrs)
 	if err := cmd.Wait(); err != nil {
-		return fmt.Errorf("命令执行失败：%s：%w", strings.Join(command, " "), err)
+		return fmt.Errorf("command failed: %s: %w", strings.Join(command, " "), err)
+	}
+	for readErr := range readErrs {
+		if readErr != nil {
+			return fmt.Errorf("read command output: %w", readErr)
+		}
 	}
 	return nil
+}
+
+func envPairs(env map[string]string) []string {
+	if len(env) == 0 {
+		return nil
+	}
+	pairs := make([]string, 0, len(env))
+	for k, v := range env {
+		if strings.TrimSpace(k) == "" {
+			continue
+		}
+		pairs = append(pairs, k+"="+v)
+	}
+	return pairs
 }

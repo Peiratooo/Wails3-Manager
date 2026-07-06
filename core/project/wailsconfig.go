@@ -26,7 +26,7 @@ func LoadWailsConfig(projectDir string) (contracts.WailsProjectConfig, error) {
 	path := ConfigPath(projectDir)
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return contracts.WailsProjectConfig{}, fmt.Errorf("读取 build/config.yml 失败：%w", err)
+		return contracts.WailsProjectConfig{}, fmt.Errorf("failed to read build/config.yml: %w", err)
 	}
 	text := string(data)
 	cfg := contracts.WailsProjectConfig{
@@ -35,6 +35,36 @@ func LoadWailsConfig(projectDir string) (contracts.WailsProjectConfig, error) {
 		FileAssociations: parseFileAssociations(text),
 	}
 	return cfg, nil
+}
+
+func WailsConfigNeedsCompletion(projectDir string) (bool, error) {
+	projectDir, err := fsx.NormalizePath(projectDir)
+	if err != nil {
+		return false, err
+	}
+	data, err := os.ReadFile(ConfigPath(projectDir))
+	if err != nil {
+		return false, fmt.Errorf("failed to read build/config.yml: %w", err)
+	}
+	text := string(data)
+	info := sectionBlock(text, "info", 0)
+	if strings.TrimSpace(info) == "" {
+		return true, nil
+	}
+	for _, key := range []string{
+		"companyName",
+		"productName",
+		"productIdentifier",
+		"description",
+		"copyright",
+		"comments",
+		"version",
+	} {
+		if !regexp.MustCompile(`(?m)^\s{2}` + regexp.QuoteMeta(key) + `\s*:`).MatchString(info) {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 func parseInfo(text string) contracts.WailsAppInfo {
@@ -130,13 +160,10 @@ func quoteYAML(value string) string {
 	return `"` + value + `"`
 }
 
-func ensureVersionPrefix(version string) string {
+func normalizedVersion(version string) string {
 	version = strings.TrimSpace(version)
 	if version == "" {
-		return "v0.0.1"
+		return "0.0.1"
 	}
-	if strings.HasPrefix(strings.ToLower(version), "v") {
-		return version
-	}
-	return "v" + version
+	return version
 }

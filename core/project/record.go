@@ -4,7 +4,6 @@ package project
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
 
@@ -27,15 +26,18 @@ func LoadProjectRecord(projectDir string) (contracts.ProjectRecord, bool) {
 	if json.Unmarshal(data, &record) != nil {
 		return contracts.ProjectRecord{}, false
 	}
-	return NormalizeProjectRecord(record, projectDir), true
+	record.ProjectDir = projectDir
+	record.Project.ProjectDir = projectDir
+	return record, true
 }
 
 func SaveProjectRecord(record contracts.ProjectRecord) error {
-	projectDir, err := NormalizeProjectDir(record)
+	projectDir, err := fsx.NormalizePath(record.ProjectDir)
 	if err != nil {
 		return err
 	}
-	record = NormalizeProjectRecord(record, projectDir)
+	record.ProjectDir = projectDir
+	record.Project.ProjectDir = projectDir
 	path := fsx.ProjectConfigPath(projectDir)
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		return err
@@ -48,25 +50,11 @@ func SaveProjectRecord(record contracts.ProjectRecord) error {
 	return os.WriteFile(path, append(data, '\n'), 0644)
 }
 
-func NormalizeProjectRecord(record contracts.ProjectRecord, projectDir string) contracts.ProjectRecord {
-	record.ProjectDir = projectDir
-	record.Project.ProjectDir = projectDir
-	return record
-}
-
-func NormalizeProjectDir(record contracts.ProjectRecord) (string, error) {
-	projectDir := fsx.FirstNonEmpty(record.ProjectDir, record.Project.ProjectDir)
-	if projectDir == "" {
-		return "", fmt.Errorf("项目路径不能为空")
-	}
-	return fsx.NormalizePath(projectDir)
-}
-
 func SameProjectPath(a, b string) bool {
 	aa, errA := fsx.NormalizePath(a)
 	bb, errB := fsx.NormalizePath(b)
 	if errA != nil || errB != nil {
-		return filepath.Clean(a) == filepath.Clean(b)
+		return false
 	}
-	return filepath.Clean(aa) == filepath.Clean(bb)
+	return aa == bb
 }

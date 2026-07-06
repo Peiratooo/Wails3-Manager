@@ -1,10 +1,17 @@
 <template>
-    <n-config-provider :date-locale="dateZhCN" :locale="zhCN">
+    <n-config-provider
+        :date-locale="activeNaiveDateLocale"
+        :locale="activeNaiveLocale"
+        :theme="naiveTheme"
+        :theme-overrides="currentNaiveThemeOverrides"
+    >
         <n-modal-provider>
             <n-loading-bar-provider>
                 <n-message-provider>
                     <n-notification-provider :max="3" placement="top-right">
-                        <router-view />
+                        <div class="app-view">
+                            <router-view />
+                        </div>
                     </n-notification-provider>
                 </n-message-provider>
             </n-loading-bar-provider>
@@ -14,32 +21,156 @@
 
 <script setup>
 import {useAppStore} from './store'
-import {useRoute} from 'vue-router'
-import {WML} from "@wailsio/runtime"
+import {Events, WML} from "@wailsio/runtime"
+import { Service as SettingsService } from '../bindings/wails3-manager/core/settings'
+import { Service as EnvironmentService } from "../bindings/wails3-manager/core/environment"
 import {
+    dateDeDE,
+    dateEnUS,
+    dateFrFR,
+    dateJaJP,
+    dateKoKR,
     dateZhCN,
+    dateZhTW,
+    darkTheme,
+    deDE,
+    enUS,
+    frFR,
+    jaJP,
+    koKR,
     NConfigProvider,
     NLoadingBarProvider,
     NMessageProvider,
     NModalProvider,
     NNotificationProvider,
-    useMessage,
-    useNotification,
-    zhCN
+    zhCN,
+    zhTW
 } from 'naive-ui'
-import {onMounted,provide} from "vue";
+import {computed, onBeforeUnmount, onMounted, provide, watch} from "vue";
+import {
+    applyThemeToDocument,
+    naiveThemeOverrides,
+    themeCssVariables,
+    themeNameFromIsDark,
+} from './theme'
 
 const store = useAppStore()
-const route = useRoute()
 
+let offLogLine = null
+
+const themeName = computed(() => themeNameFromIsDark(store.settings.isDark))
+const isDarkTheme = computed(() => store.settings.isDark)
+const naiveTheme = computed(() => isDarkTheme.value ? darkTheme : null)
+const currentNaiveThemeOverrides = computed(() => naiveThemeOverrides[themeName.value])
+const currentThemeCssVariables = computed(() => themeCssVariables[themeName.value])
+const naiveLocaleMap = {
+    'zh-CN': { locale: zhCN, dateLocale: dateZhCN },
+    'zh-TW': { locale: zhTW, dateLocale: dateZhTW },
+    'en-US': { locale: enUS, dateLocale: dateEnUS },
+    'ja-JP': { locale: jaJP, dateLocale: dateJaJP },
+    'ko-KR': { locale: koKR, dateLocale: dateKoKR },
+    'fr-FR': { locale: frFR, dateLocale: dateFrFR },
+    'de-DE': { locale: deDE, dateLocale: dateDeDE },
+}
+const activeNaive = computed(() => naiveLocaleMap[store.settings.language] || naiveLocaleMap['zh-CN'])
+const activeNaiveLocale = computed(() => activeNaive.value.locale)
+const activeNaiveDateLocale = computed(() => activeNaive.value.dateLocale)
+
+const setDarkMode = async (isDark) => {
+    const previousSettings = {...store.settings}
+    const nextSettings = {
+        ...store.settings,
+        isDark: Boolean(isDark),
+    }
+    store.setSettings(nextSettings)
+    try {
+        const savedSettings = await SettingsService.SaveSettings(nextSettings)
+        store.setSettings(savedSettings)
+    } catch (error) {
+        store.setSettings(previousSettings)
+        console.error(error)
+    }
+}
+
+const toggleTheme = () => {
+    return setDarkMode(!isDarkTheme.value)
+}
+
+watch(
+    themeName,
+    (nextThemeName) => {
+        applyThemeToDocument(nextThemeName)
+    },
+    {immediate: true}
+)
+
+async function initEnvironment() {
+    store.env.loaded = false
+    store.env.error = ""
+    try {
+        const res = await EnvironmentService.CheckEnvironment()
+        store.env.data = res
+        store.env.passed = Boolean(res?.ok)
+        store.env.loaded = true
+    } catch (error) {
+        store.env.data = {}
+        store.env.passed = false
+        store.env.error = error?.message || String(error)
+        store.env.loaded = true
+    }
+}
+
+const formatTimestamp = (timestamp) => {
+    if (!timestamp) return '-'
+
+    const date = new Date(timestamp * 1000)
+
+    const pad = (n) => String(n).padStart(2, '0')
+
+    const year = date.getFullYear()
+    const month = pad(date.getMonth() + 1)
+    const day = pad(date.getDate())
+    const hour = pad(date.getHours())
+    const minute = pad(date.getMinutes())
+
+    return `${year}-${month}-${day} ${hour}:${minute}`
+}
 
 onMounted(()=>{
+    offLogLine = Events.On('manager:log-line', (event) => {
+        store.appendLogEntry(event.data)
+    })
+    initEnvironment()
     WML.Reload()
 })
 
+onBeforeUnmount(() => {
+    offLogLine?.()
+})
+
+provide("formatTimestamp",formatTimestamp)
 provide("store",store)
+provide("theme", {
+    themeName,
+    isDarkTheme,
+    themeCssVariables: currentThemeCssVariables,
+    setDarkMode,
+    toggleTheme,
+})
+
+defineExpose({
+    themeName,
+    isDarkTheme,
+    themeCssVariables: currentThemeCssVariables,
+    setDarkMode,
+    toggleTheme,
+})
 </script>
 
 <style lang="scss" scoped>
-
+.app-view {
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+}
 </style>

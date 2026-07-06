@@ -4,7 +4,7 @@ includes:
   common: ../Taskfile.yml
 
 vars:
-  BUNDLE_ID: '{{.BUNDLE_ID | default "com.wails.app"}}'
+  BUNDLE_ID: '{{.BUNDLE_ID | default "com.peirato.wails3manager"}}'
   # SDK_PATH is computed lazily at task-level to avoid errors on non-macOS systems
   # Each task that needs it defines SDK_PATH in its own vars section
 

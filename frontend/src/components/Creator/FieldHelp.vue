@@ -1,0 +1,64 @@
+<template>
+    <n-popover
+        trigger="manual"
+        placement="top-start"
+        to="body"
+        :z-index="5000"
+        :show-arrow="false"
+        :show="show && !!content"
+    >
+        <template #trigger>
+            <button
+                class="field-help"
+                type="button"
+                :aria-label="content"
+                @blur="show = false"
+                @focus="show = true"
+                @mouseenter="show = true"
+                @mouseleave="show = false"
+            >
+                <n-icon>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" aria-hidden="true"><g fill="none"><path d="M17.5 22a1.5 1.5 0 1 1-3 0a1.5 1.5 0 0 1 3 0zM14 12c0-.537.18-1.041.497-1.398c.301-.339.774-.602 1.503-.602c1.308 0 2.382 1.348 2.03 2.758c-.18.722-.61 1.135-1.257 1.756l-.178.17C15.866 15.39 15 16.328 15 18a1 1 0 1 0 2 0c0-.827.353-1.267.985-1.877l.191-.182c.614-.58 1.466-1.385 1.794-2.698C20.618 10.653 18.692 8 16 8c-1.271 0-2.298.487-2.997 1.273C12.32 10.041 12 11.037 12 12a1 1 0 1 0 2 0zM2 16C2 8.268 8.268 2 16 2s14 6.268 14 14s-6.268 14-14 14S2 23.732 2 16zM16 4C9.373 4 4 9.373 4 16s5.373 12 12 12s12-5.373 12-12S22.627 4 16 4z" fill="currentColor"></path></g></svg>
+                </n-icon>
+            </button>
+        </template>
+
+        <div class="field-help-content">{{ content }}</div>
+    </n-popover>
+</template>
+
+<script setup>
+import { ref } from "vue"
+import { NIcon, NPopover } from "naive-ui"
+
+defineProps({ content: { type: String, default: "" } })
+
+const show = ref(false)
+</script>
+
+<style lang="scss" scoped>
+.field-help {
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    border: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--wm-text-muted);
+    background: transparent;
+    cursor: help;
+    font-size: 16px;
+}
+
+.field-help:focus-visible {
+    outline: 2px solid var(--wm-color-primary-border);
+    outline-offset: 2px;
+}
+
+.field-help-content {
+    color: var(--wm-text-secondary);
+    font-size: 11px;
+    line-height: 18px;
+}
+</style>

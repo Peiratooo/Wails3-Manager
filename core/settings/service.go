@@ -8,34 +8,36 @@ import (
 
 	"wails3-manager/core/contracts"
 	"wails3-manager/core/fsx"
+	packagingconfig "wails3-manager/core/packaging/config"
 	"wails3-manager/core/project"
 	"wails3-manager/core/runlog"
 )
 
-type SettingsService struct {
-	Log *runlog.Logger
+type Service struct {
+	Log             *runlog.Logger
+	InitPackagingFn func(projectDir string) error
 }
 
-func NewService(log *runlog.Logger) *SettingsService {
-	return &SettingsService{Log: log}
+func NewService(log *runlog.Logger) *Service {
+	return &Service{Log: log}
 }
 
-func (s *SettingsService) ListProjects() ([]contracts.ProjectRecord, error) {
+func (s *Service) ListProjects() ([]contracts.ProjectRecord, error) {
 	userState := project.LoadUserState()
 	project.SortProjects(userState.Projects)
 	return userState.Projects, nil
 }
 
-func (s *SettingsService) OpenProject(projectDir string) (contracts.ProjectRecord, error) {
+func (s *Service) OpenProject(projectDir string) (contracts.ProjectRecord, error) {
 	projectDir, err := fsx.NormalizePath(projectDir)
 	if err != nil {
 		return contracts.ProjectRecord{}, err
 	}
 	record, ok := project.LoadProjectRecord(projectDir)
 	if !ok {
-		return contracts.ProjectRecord{}, fmt.Errorf("项目未导入：%s", projectDir)
+		return contracts.ProjectRecord{}, fmt.Errorf("project is not imported: %s", projectDir)
 	}
-	manager, err := project.LoadManager(projectDir)
+	manager, err := project.LoadManagerWithConfigCompletion(projectDir)
 	if err != nil {
 		return contracts.ProjectRecord{}, err
 	}
@@ -51,20 +53,33 @@ func (s *SettingsService) OpenProject(projectDir string) (contracts.ProjectRecor
 	if err := project.UpsertProjectRecord(record); err != nil {
 		return contracts.ProjectRecord{}, err
 	}
+	if s.InitPackagingFn != nil {
+		if err := s.InitPackagingFn(projectDir); err != nil {
+			return contracts.ProjectRecord{}, fmt.Errorf("failed to initialize packaging config: %w", err)
+		}
+	}
 	return record, nil
 }
 
-func (s *SettingsService) RemoveProject(projectDir string, restoreOriginal bool) error {
+func (s *Service) RemoveProject(projectDir string, restoreOriginal bool) error {
 	projectDir, err := fsx.NormalizePath(projectDir)
 	if err != nil {
 		return err
 	}
-	if _, ok := project.LoadProjectRecord(projectDir); !ok {
-		return fmt.Errorf("项目未导入：%s", projectDir)
+	record, ok := project.LoadProjectRecord(projectDir)
+	if !ok {
+		removeStaleProjectDirs(projectDir)
+		return project.RemoveProjectRecord(projectDir)
 	}
 	if restoreOriginal {
+		cfg, cfgErr := packagingconfig.LoadPackagingConfig(projectDir)
 		if err := project.RestoreInitialSnapshot(projectDir); err != nil {
 			return err
+		}
+		if cfgErr == nil {
+			if err := removeManagedPackageOutputs(projectDir, cfg, record.Project.WailsConfig); err != nil {
+				return err
+			}
 		}
 		if err := removeBuilderDir(projectDir); err != nil {
 			return err
@@ -73,37 +88,80 @@ func (s *SettingsService) RemoveProject(projectDir string, restoreOriginal bool)
 	return project.RemoveProjectRecord(projectDir)
 }
 
-func (s *SettingsService) GetSettings() (contracts.ManagerSettings, error) {
+func (s *Service) GetSettings() (contracts.ManagerSettings, error) {
 	return LoadManagerSettings(), nil
 }
 
-func (s *SettingsService) SaveSettings(settings contracts.ManagerSettings) (contracts.ManagerSettings, error) {
-	return SaveManagerSettings(settings)
-}
-
-func (s *SettingsService) LogsSince(cursor int) contracts.LogSnapshot {
-	if s.Log == nil {
-		return contracts.LogSnapshot{Cursor: 0, Lines: []string{}}
+func (s *Service) SaveSettings(settings contracts.ManagerSettings) (contracts.ManagerSettings, error) {
+	saved, err := SaveManagerSettings(settings)
+	if err != nil {
+		return contracts.ManagerSettings{}, err
 	}
-	next, lines := s.Log.Since(cursor)
-	return contracts.LogSnapshot{Cursor: next, Lines: lines}
+	if s.Log != nil {
+		s.Log.SetRecordLogs(saved.RecordLogs)
+	}
+	return saved, nil
 }
 
-func (s *SettingsService) ClearLogs() {
+func (s *Service) ClearLogs() {
 	if s.Log != nil {
 		s.Log.Clear()
 	}
 }
 
-func (s *SettingsService) GetABSPath(projectDir, path string) string {
+func (s *Service) GetABSPath(projectDir, path string) string {
 	return fsx.ResolveProjectFile(projectDir, path)
+}
+
+func removeStaleProjectDirs(projectDir string) {
+	_ = removeBuilderDir(projectDir)
+	_ = os.Remove(projectDir)
 }
 
 func removeBuilderDir(projectDir string) error {
 	builderDir := fsx.BuilderDir(projectDir)
 	rel, err := filepath.Rel(projectDir, builderDir)
-	if err != nil || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.IsAbs(rel) {
-		return fmt.Errorf("拒绝删除异常 builder 目录：%s", builderDir)
+	if err != nil || rel == "." || !filepath.IsLocal(rel) {
+		return fmt.Errorf("refusing to delete an invalid builder directory: %s", builderDir)
 	}
 	return os.RemoveAll(builderDir)
+}
+
+func removeManagedPackageOutputs(projectDir string, cfg contracts.PackagingConfig, projectConfig contracts.WailsProjectConfig) error {
+	paths := []string{
+		packagingconfig.DefaultExecutablePath(cfg, contracts.PlatformWindows),
+		packagingconfig.DefaultMacOSBinaryPath(cfg),
+		packagingconfig.DefaultMacOSAppBundlePath(cfg, projectConfig),
+		packagingconfig.MacOSAppBundlePath(cfg, projectConfig),
+	}
+	seen := map[string]bool{}
+	for _, path := range paths {
+		abs := fsx.Resolve(projectDir, path)
+		if abs == "" || !isManagedBinPath(projectDir, abs) || seen[abs] {
+			continue
+		}
+		seen[abs] = true
+		if err := os.RemoveAll(abs); err != nil {
+			return err
+		}
+	}
+	removeEmptyBinDir(projectDir)
+	return nil
+}
+
+func isManagedBinPath(projectDir, absPath string) bool {
+	rel, err := filepath.Rel(projectDir, absPath)
+	if err != nil || rel == "." || !filepath.IsLocal(rel) {
+		return false
+	}
+	return strings.HasPrefix(filepath.ToSlash(rel), "bin/")
+}
+
+func removeEmptyBinDir(projectDir string) {
+	binDir := filepath.Join(projectDir, "bin")
+	entries, err := os.ReadDir(binDir)
+	if err != nil || len(entries) != 0 {
+		return
+	}
+	_ = os.Remove(binDir)
 }

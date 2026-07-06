@@ -1,6 +1,7 @@
 package contracts
 
 import (
+	"encoding/json"
 	"strconv"
 	"strings"
 	"time"
@@ -56,7 +57,6 @@ const (
 
 type PackagingConfig struct {
 	SchemaVersion int              `json:"schemaVersion"`
-	Project       ProjectInfo      `json:"project"`
 	Build         BuildSettings    `json:"build"`
 	Entry         ProgramEntry     `json:"entry"`
 	Assets        []PackagingAsset `json:"assets"`
@@ -65,17 +65,60 @@ type PackagingConfig struct {
 	Artifacts     ArtifactConfig   `json:"artifacts"`
 }
 
-type ProjectInfo struct {
-	Name           string `json:"name"`
-	Version        string `json:"version"`
-	BundleID       string `json:"bundleId"`
-	Author         string `json:"author"`
-	Publisher      string `json:"publisher"`
-	Homepage       string `json:"homepage"`
-	Copyright      string `json:"copyright"`
-	Description    string `json:"description"`
-	BuildOutputDir string `json:"buildOutputDir"`
-	Icon           string `json:"icon"`
+func (cfg PackagingConfig) MarshalJSON() ([]byte, error) {
+	type packagingConfigJSON struct {
+		SchemaVersion int              `json:"schemaVersion"`
+		Build         BuildSettings    `json:"build"`
+		Entry         ProgramEntry     `json:"entry"`
+		Assets        []PackagingAsset `json:"assets"`
+		Windows       *WindowsConfig   `json:"windows,omitempty"`
+		MacOS         *MacOSConfig     `json:"macos,omitempty"`
+		Artifacts     ArtifactConfig   `json:"artifacts"`
+	}
+	out := packagingConfigJSON{
+		SchemaVersion: cfg.SchemaVersion,
+		Build:         cfg.Build,
+		Entry:         cfg.Entry,
+		Assets:        cfg.Assets,
+		Artifacts:     cfg.Artifacts,
+	}
+	if includeWindowsConfig(cfg.Windows) {
+		windows := cfg.Windows
+		out.Windows = &windows
+	}
+	if includeMacOSConfig(cfg.MacOS) {
+		macos := cfg.MacOS
+		out.MacOS = &macos
+	}
+	return json.Marshal(out)
+}
+
+func includeWindowsConfig(cfg WindowsConfig) bool {
+	return cfg.Enabled ||
+		cfg.InnoScript != "" ||
+		cfg.ISCCPath != "" ||
+		cfg.DefaultDirName != "" ||
+		cfg.PrivilegesRequired != "" ||
+		cfg.SetupIcon != "" ||
+		cfg.OutputBaseName != "" ||
+		cfg.AppURL != "" ||
+		cfg.CreateDesktopShortcut
+}
+
+func includeMacOSConfig(cfg MacOSConfig) bool {
+	return cfg.Enabled ||
+		cfg.AppBundle != "" ||
+		cfg.DMGScript != "" ||
+		cfg.Background != "" ||
+		cfg.OutputName != "" ||
+		cfg.CreateDMGPath != "" ||
+		cfg.WindowWidth != 0 ||
+		cfg.WindowHeight != 0 ||
+		cfg.IconSize != 0 ||
+		cfg.AppX != 0 ||
+		cfg.AppY != 0 ||
+		cfg.ApplicationsX != 0 ||
+		cfg.ApplicationsY != 0
 }
 
 type BuildSettings struct {
@@ -91,10 +134,17 @@ type ProgramEntry struct {
 	ExecutablePath string `json:"executablePath"`
 }
 
+type PackagingRuntimeInfo struct {
+	DefaultExecutablePath   string `json:"defaultExecutablePath"`
+	EffectiveExecutablePath string `json:"effectiveExecutablePath"`
+	UsingDefaultExecutable  bool   `json:"usingDefaultExecutable"`
+}
+
 type PackagingAsset struct {
 	Src      string `json:"src"`
 	Type     string `json:"type"`
 	Required bool   `json:"required"`
+	Target   string `json:"target,omitempty"`
 }
 
 type WindowsConfig struct {
@@ -105,6 +155,7 @@ type WindowsConfig struct {
 	PrivilegesRequired    string `json:"privilegesRequired"`
 	SetupIcon             string `json:"setupIcon"`
 	OutputBaseName        string `json:"outputBaseName"`
+	AppURL                string `json:"appURL"`
 	CreateDesktopShortcut bool   `json:"createDesktopShortcut"`
 }
 
@@ -258,7 +309,6 @@ type WailsProjectManager struct {
 	ProjectDir      string             `json:"projectDir"`
 	CurrentPlatform Platform           `json:"currentPlatform"`
 	WailsConfig     WailsProjectConfig `json:"wailsConfig"`
-	TaskVars        WailsTaskVars      `json:"taskVars"`
 }
 
 type ProjectRecord struct {
@@ -273,24 +323,27 @@ type UserState struct {
 }
 
 type ManagerSettings struct {
-	Theme      string `json:"theme"`
+	IsDark     bool   `json:"isDark"`
 	Language   string `json:"language"`
 	RecordLogs bool   `json:"recordLogs"`
 }
 
 type PackageRequest struct {
-	ProjectDir string   `json:"projectDir"`
-	Platform   Platform `json:"platform"`
-	DryRun     bool     `json:"dryRun"`
-	RunBuild   bool     `json:"runBuild"`
+	ProjectDir    string   `json:"projectDir"`
+	Platform      Platform `json:"platform"`
+	DryRun        bool     `json:"dryRun"`
+	RunBuild      bool     `json:"runBuild"`
+	TransactionID string   `json:"transactionId"`
 }
 
 type PackageResult struct {
-	OK        bool       `json:"ok"`
-	Message   string     `json:"message"`
-	RunID     string     `json:"runId,omitempty"`
-	Artifacts []Artifact `json:"artifacts"`
-	Warnings  []string   `json:"warnings,omitempty"`
+	OK               bool       `json:"ok"`
+	Message          string     `json:"message"`
+	RunID            string     `json:"runId,omitempty"`
+	Artifacts        []Artifact `json:"artifacts"`
+	Warnings         []string   `json:"warnings,omitempty"`
+	BuildOutputDir   string     `json:"buildOutputDir,omitempty"`
+	PackageOutputDir string     `json:"packageOutputDir,omitempty"`
 }
 
 type LogEntry struct {
@@ -298,7 +351,9 @@ type LogEntry struct {
 	CreatedAt UnixTime `json:"createdAt"`
 }
 
-type LogSnapshot struct {
-	Cursor int      `json:"cursor"`
-	Lines  []string `json:"lines"`
+type LogLineEvent struct {
+	Line             string `json:"line"`
+	TransactionID    string `json:"transactionId"`
+	TransactionType  string `json:"transactionType"`
+	TransactionTitle string `json:"transactionTitle"`
 }

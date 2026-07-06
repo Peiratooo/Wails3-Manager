@@ -1,9 +1,9 @@
 version: '3'
 
 vars:
-  APP_NAME: "wails_builder"
+  APP_NAME: "wails_manager"
   BIN_DIR: "bin"
-  CGO_ENABLED: "0"
+  CGO_ENABLED: "1"
   PRODUCTION: "false"
   PACKAGE_MANAGER: '{{.PACKAGE_MANAGER | default "npm"}}'
   VITE_PORT: '{{.WAILS_VITE_PORT | default 9245}}'
@@ -22,6 +22,7 @@ tasks:
     cmds:
       - task: "{{OS}}:build"
         vars:
+          APP_NAME: "{{.APP_NAME}}"
           CGO_ENABLED: "{{.CGO_ENABLED}}"
           PRODUCTION: "{{.PRODUCTION}}"
 
@@ -30,13 +31,9 @@ tasks:
     cmds:
       - task: "{{OS}}:build"
         vars:
+          APP_NAME: "{{.APP_NAME}}"
           CGO_ENABLED: "{{.CGO_ENABLED}}"
           PRODUCTION: "true"
-
-  builder:release:
-    summary: Stable backend entry used by Wails Builder
-    cmds:
-      - task: release
 
   package:
     summary: Packages a production build of the application
