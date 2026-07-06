@@ -118,8 +118,10 @@ func TestGenerateScriptWrapsCreateDMGWithTimeoutCleanup(t *testing.T) {
 	text := string(script)
 	for _, want := range []string{
 		`CREATE_DMG_TIMEOUT_SECONDS="${CREATE_DMG_TIMEOUT_SECONDS:-180}"`,
+		`sleep "$CREATE_DMG_TIMEOUT_SECONDS" >/dev/null 2>&1`,
 		`kill_tree "$create_dmg_pid" TERM`,
 		`kill_tree "$create_dmg_pid" KILL`,
+		`kill_tree "$watchdog_pid" TERM`,
 		`cleanup_partial_dmg`,
 		`return 124`,
 	} {
