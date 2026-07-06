@@ -209,7 +209,7 @@ run_create_dmg() {
 
   if [ "$CREATE_DMG_TIMEOUT_SECONDS" -gt 0 ] 2>/dev/null; then
     (
-      sleep "$CREATE_DMG_TIMEOUT_SECONDS"
+      sleep "$CREATE_DMG_TIMEOUT_SECONDS" >/dev/null 2>&1
       if kill -0 "$create_dmg_pid" 2>/dev/null; then
         echo "create-dmg timed out after ${CREATE_DMG_TIMEOUT_SECONDS}s; terminating it." >&2
         : > "$timeout_marker"
@@ -224,7 +224,7 @@ run_create_dmg() {
   local status=0
   wait "$create_dmg_pid" || status="$?"
   if [ -n "$watchdog_pid" ]; then
-    kill "$watchdog_pid" 2>/dev/null || true
+    kill_tree "$watchdog_pid" TERM
     wait "$watchdog_pid" 2>/dev/null || true
   fi
 
