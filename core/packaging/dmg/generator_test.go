@@ -2,6 +2,7 @@ package dmg
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -26,6 +27,11 @@ func TestGenerateScriptUsesBundledBackgroundPath(t *testing.T) {
 	script, err := os.ReadFile(scriptPath)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if bash, err := exec.LookPath("bash"); err == nil {
+		if output, err := exec.Command(bash, "-n", scriptPath).CombinedOutput(); err != nil {
+			t.Fatalf("generated script is not valid bash: %v\n%s", err, output)
+		}
 	}
 	text := string(script)
 	for _, want := range []string{
@@ -71,8 +77,8 @@ func TestGenerateScriptUsesAppBundleOnly(t *testing.T) {
 		`cp -R "$APP_BUNDLE" "$TMP_DIR/$APP_NAME.app"`,
 		`--window-size 300 400`,
 		`--text-size 12`,
-		`--icon "$APP_NAME.app" 42 152`,
-		`--app-drop-link 162 152`,
+		`--icon "$APP_NAME.app" 90 200`,
+		`--app-drop-link 210 200`,
 	} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("generated script missing %q:\n%s", want, text)
@@ -85,6 +91,38 @@ func TestGenerateScriptUsesAppBundleOnly(t *testing.T) {
 	} {
 		if strings.Contains(text, unwanted) {
 			t.Fatalf("generated script should not contain %q:\n%s", unwanted, text)
+		}
+	}
+}
+
+func TestGenerateScriptWrapsCreateDMGWithTimeoutCleanup(t *testing.T) {
+	projectDir := t.TempDir()
+	cfg := testConfig()
+	projectConfig := contracts.WailsProjectConfig{
+		Info: contracts.WailsAppInfo{
+			ProductName: "Demo",
+			Version:     "1.0.0",
+		},
+	}
+
+	scriptPath, err := GenerateScript(projectDir, cfg, projectConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	script, err := os.ReadFile(scriptPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(script)
+	for _, want := range []string{
+		`CREATE_DMG_TIMEOUT_SECONDS="${CREATE_DMG_TIMEOUT_SECONDS:-180}"`,
+		`kill_tree "$create_dmg_pid" TERM`,
+		`kill_tree "$create_dmg_pid" KILL`,
+		`cleanup_partial_dmg`,
+		`return 124`,
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("generated script missing %q:\n%s", want, text)
 		}
 	}
 }

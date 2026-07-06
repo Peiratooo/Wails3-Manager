@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"wails3-manager/core/contracts"
 	"wails3-manager/core/fsx"
+	packagingconfig "wails3-manager/core/packaging/config"
 	"wails3-manager/core/project"
 	"wails3-manager/core/runlog"
 )
@@ -64,13 +66,20 @@ func (s *Service) RemoveProject(projectDir string, restoreOriginal bool) error {
 	if err != nil {
 		return err
 	}
-	if _, ok := project.LoadProjectRecord(projectDir); !ok {
+	record, ok := project.LoadProjectRecord(projectDir)
+	if !ok {
 		removeStaleProjectDirs(projectDir)
 		return project.RemoveProjectRecord(projectDir)
 	}
 	if restoreOriginal {
+		cfg, cfgErr := packagingconfig.LoadPackagingConfig(projectDir)
 		if err := project.RestoreInitialSnapshot(projectDir); err != nil {
 			return err
+		}
+		if cfgErr == nil {
+			if err := removeManagedPackageOutputs(projectDir, cfg, record.Project.WailsConfig); err != nil {
+				return err
+			}
 		}
 		if err := removeBuilderDir(projectDir); err != nil {
 			return err
@@ -116,4 +125,43 @@ func removeBuilderDir(projectDir string) error {
 		return fmt.Errorf("refusing to delete an invalid builder directory: %s", builderDir)
 	}
 	return os.RemoveAll(builderDir)
+}
+
+func removeManagedPackageOutputs(projectDir string, cfg contracts.PackagingConfig, projectConfig contracts.WailsProjectConfig) error {
+	paths := []string{
+		packagingconfig.DefaultExecutablePath(cfg, contracts.PlatformWindows),
+		packagingconfig.DefaultMacOSBinaryPath(cfg),
+		packagingconfig.DefaultMacOSAppBundlePath(cfg, projectConfig),
+		packagingconfig.MacOSAppBundlePath(cfg, projectConfig),
+	}
+	seen := map[string]bool{}
+	for _, path := range paths {
+		abs := fsx.Resolve(projectDir, path)
+		if abs == "" || !isManagedBinPath(projectDir, abs) || seen[abs] {
+			continue
+		}
+		seen[abs] = true
+		if err := os.RemoveAll(abs); err != nil {
+			return err
+		}
+	}
+	removeEmptyBinDir(projectDir)
+	return nil
+}
+
+func isManagedBinPath(projectDir, absPath string) bool {
+	rel, err := filepath.Rel(projectDir, absPath)
+	if err != nil || rel == "." || !filepath.IsLocal(rel) {
+		return false
+	}
+	return strings.HasPrefix(filepath.ToSlash(rel), "bin/")
+}
+
+func removeEmptyBinDir(projectDir string) {
+	binDir := filepath.Join(projectDir, "bin")
+	entries, err := os.ReadDir(binDir)
+	if err != nil || len(entries) != 0 {
+		return
+	}
+	_ = os.Remove(binDir)
 }
