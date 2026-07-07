@@ -5,7 +5,7 @@
 		<key>CFBundleDisplayName</key>
 		<string>Wails3 Manager (Dev)</string>
 		<key>CFBundleExecutable</key>
-		<string>wails_manager</string>
+		<string>wails3_manager</string>
 		<key>CFBundleGetInfoString</key>
 		<string>Create, configure, build, and package Wails 3 projects.</string>
 		<key>CFBundleIdentifier</key>
@@ -15,9 +15,9 @@
 		<key>CFBundlePackageType</key>
 		<string>APPL</string>
 		<key>CFBundleShortVersionString</key>
-		<string>v0.1.0-dev</string>
+		<string>1.0.0-dev</string>
 		<key>CFBundleVersion</key>
-		<string>v0.1.0</string>
+		<string>1.0.0</string>
 		<key>LSRequiresIPhoneOS</key>
 		<true/>
 		<key>MinimumOSVersion</key>
