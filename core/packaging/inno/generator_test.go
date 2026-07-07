@@ -127,6 +127,47 @@ func TestGenerateUsesFileAssociations(t *testing.T) {
 	assertNoInnoComments(t, script)
 }
 
+func TestGenerateUsesUnifiedInstallerOutputName(t *testing.T) {
+	projectDir := t.TempDir()
+	projectConfig := contracts.WailsProjectConfig{
+		Info: contracts.WailsAppInfo{
+			ProductName:       "Wails3.Manager",
+			ProductIdentifier: "com.example.app",
+			Version:           "1.0.0",
+		},
+	}
+	cfg := contracts.PackagingConfig{
+		SchemaVersion: 1,
+		Build: contracts.BuildSettings{
+			AppName: "custom-build-name",
+		},
+		Windows: contracts.WindowsConfig{
+			InnoScript:         "builder/windows/inno.iss",
+			DefaultDirName:     `{autopf}\${project.name}`,
+			PrivilegesRequired: "lowest",
+			SetupIcon:          "build/windows/icon.ico",
+			OutputBaseName:     "legacy-custom-name",
+		},
+		Artifacts: contracts.ArtifactConfig{OutputRoot: "builder/release"},
+	}
+
+	path, err := Generate(projectDir, cfg, projectConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	script := string(data)
+	if !strings.Contains(script, `OutputBaseFilename=Wails3.Manager-1.0.0-windows-setup`) {
+		t.Fatalf("generated script did not use unified installer name:\n%s", script)
+	}
+	if strings.Contains(script, "legacy-custom-name") {
+		t.Fatalf("generated script should ignore legacy outputBaseName:\n%s", script)
+	}
+}
+
 func TestGenerateIncludesBuildOutputAndCustomLaunchProgram(t *testing.T) {
 	projectDir := t.TempDir()
 	projectConfig := contracts.WailsProjectConfig{

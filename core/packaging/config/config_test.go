@@ -24,7 +24,7 @@ func TestSavePackagingConfigDoesNotWriteProjectMetadata(t *testing.T) {
 			DefaultDirName:        `{autopf}\${project.name}`,
 			PrivilegesRequired:    "lowest",
 			SetupIcon:             "build/windows/icon.ico",
-			OutputBaseName:        "${build.appName}-${project.version}-windows-setup",
+			OutputBaseName:        InstallerOutputNameTemplate,
 			CreateDesktopShortcut: true,
 		},
 		MacOS: contracts.MacOSConfig{
@@ -32,7 +32,7 @@ func TestSavePackagingConfigDoesNotWriteProjectMetadata(t *testing.T) {
 			AppBundle:     "bin/${build.appName}.app",
 			DMGScript:     "builder/macos/dmg.sh",
 			Background:    "assets/install-grid.png",
-			OutputName:    "${build.appName}-${project.version}",
+			OutputName:    InstallerOutputNameTemplate,
 			CreateDMGPath: "create-dmg",
 			WindowWidth:   640,
 			WindowHeight:  420,
@@ -72,7 +72,7 @@ func TestSavePackagingConfigRejectsMissingBuildTaskfile(t *testing.T) {
 			DefaultDirName:        `{autopf}\${project.name}`,
 			PrivilegesRequired:    "lowest",
 			SetupIcon:             "build/windows/icon.ico",
-			OutputBaseName:        "${build.appName}-${project.version}-windows-setup",
+			OutputBaseName:        InstallerOutputNameTemplate,
 			CreateDesktopShortcut: true,
 		},
 		MacOS: contracts.MacOSConfig{
@@ -80,7 +80,7 @@ func TestSavePackagingConfigRejectsMissingBuildTaskfile(t *testing.T) {
 			AppBundle:     "bin/${build.appName}.app",
 			DMGScript:     "builder/macos/dmg.sh",
 			Background:    "assets/install-grid.png",
-			OutputName:    "${build.appName}-${project.version}",
+			OutputName:    InstallerOutputNameTemplate,
 			CreateDMGPath: "create-dmg",
 			WindowWidth:   640,
 			WindowHeight:  420,
@@ -112,6 +112,40 @@ func TestResolveExecutablePathDefaultsByPlatform(t *testing.T) {
 	macos := ResolveExecutablePath(cfg, project, contracts.PlatformMacOS)
 	if !macos.UsingDefaultExecutable || macos.EffectiveExecutablePath != "bin/demo.app" {
 		t.Fatalf("macos runtime info = %#v", macos)
+	}
+}
+
+func TestInstallerOutputNameUsesOneRuleForAllPlatforms(t *testing.T) {
+	cfg := contracts.PackagingConfig{
+		Build: contracts.BuildSettings{AppName: "demo"},
+	}
+	project := contracts.WailsProjectConfig{
+		Info: contracts.WailsAppInfo{
+			ProductName: "Wails3.Manager",
+			Version:     "v1.0.0",
+		},
+	}
+
+	tests := []struct {
+		platform contracts.Platform
+		want     string
+	}{
+		{
+			platform: contracts.PlatformWindows,
+			want:     "Wails3.Manager-1.0.0-windows-setup",
+		},
+		{
+			platform: contracts.PlatformMacOS,
+			want:     "Wails3.Manager-1.0.0-macos-setup",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(string(tt.platform), func(t *testing.T) {
+			if got := InstallerOutputName(cfg, project, tt.platform); got != tt.want {
+				t.Fatalf("InstallerOutputName() = %q, want %q", got, tt.want)
+			}
+		})
 	}
 }
 

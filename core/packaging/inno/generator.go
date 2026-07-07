@@ -22,11 +22,7 @@ func Generate(projectDir string, cfg contracts.PackagingConfig, projectConfig co
 	if projectVersion == "" {
 		return "", fmt.Errorf("project version is required for Windows packaging")
 	}
-	outputTemplate := cfg.Windows.OutputBaseName
-	if outputTemplate == "" || outputTemplate == "${build.appName}-${project.version}-windows-setup" {
-		outputTemplate = "${project.name}-${project.version}-windows-setup"
-	}
-	outputBase := config.RenderPlaceholders(outputTemplate, cfg, projectConfig)
+	outputBase := config.InstallerOutputName(cfg, projectConfig, contracts.PlatformWindows)
 	appID := config.ProjectBundleID(projectConfig)
 	if strings.TrimSpace(appID) == "" {
 		return "", fmt.Errorf("project productIdentifier is required for Windows packaging")

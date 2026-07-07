@@ -114,9 +114,6 @@ func validateWindowsConfig(cfg contracts.WindowsConfig) error {
 	if strings.TrimSpace(cfg.SetupIcon) == "" {
 		return fmt.Errorf("packaging windows.setupIcon is required")
 	}
-	if strings.TrimSpace(cfg.OutputBaseName) == "" {
-		return fmt.Errorf("packaging windows.outputBaseName is required")
-	}
 	return nil
 }
 
@@ -126,9 +123,6 @@ func validateMacOSConfig(cfg contracts.MacOSConfig) error {
 	}
 	if strings.TrimSpace(cfg.DMGScript) == "" {
 		return fmt.Errorf("packaging macos.dmgScript is required")
-	}
-	if strings.TrimSpace(cfg.OutputName) == "" {
-		return fmt.Errorf("packaging macos.outputName is required")
 	}
 	if strings.TrimSpace(cfg.CreateDMGPath) == "" {
 		return fmt.Errorf("packaging macos.createDmgPath is required")
