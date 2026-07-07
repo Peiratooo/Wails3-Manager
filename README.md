@@ -1,12 +1,12 @@
 <div align="center">
 
-<img src="imgs/logo.png" alt="Wails3 Manager" width="96">
+<img src="imgs/logo.png" alt="Wails3 Manager" width="72">
 
 # Wails3 Manager
 
 Desktop UI for creating, configuring, building, and packaging Wails 3 apps.
 
-<img src="imgs/badge.png" alt="Wails3 Manager badges" width="620">
+<img src="imgs/badge.png" alt="Wails3 Manager badges" width="512">
 
 **English** · [简体中文](introduce/README.zh-CN.md) · [繁體中文](introduce/README.zh-TW.md) · [日本語](introduce/README.ja-JP.md) · [한국어](introduce/README.ko-KR.md) · [Français](introduce/README.fr-FR.md) · [Deutsch](introduce/README.de-DE.md)
 
@@ -18,7 +18,7 @@ Desktop UI for creating, configuring, building, and packaging Wails 3 apps.
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="imgs/english/dark/home.png">
   <source media="(prefers-color-scheme: light)" srcset="imgs/english/light/home.png">
-  <img alt="Wails3 Manager workspace" src="imgs/english/light/home.png">
+  <img alt="Wails3 Manager workspace" src="imgs/english/dark/home.png">
 </picture>
 
 ## What It Helps With
@@ -28,10 +28,6 @@ Wails3 Manager puts common Wails project work in one window. You can create or i
 The convenience is simple: less switching between terminals, config files, icon tools, and installer scripts. The manager writes the related project files, runs the needed commands, and keeps package outputs together.
 
 ## Download
-
-Use the release build for normal use:
-
-**[Download latest release](../../releases/latest)** · [All releases](../../releases)
 
 1. Download the build for your OS.
 2. Start Wails3 Manager and check the environment page.
@@ -117,7 +113,6 @@ builder/
 - Native packages must be created on the target OS.
 - Linux packaging is not implemented.
 - Code signing, notarization, automatic publishing, cancellation, and versioned build history are not implemented.
-- Restore uses one import-time snapshot, not a full backup history.
 
 ## License
 
