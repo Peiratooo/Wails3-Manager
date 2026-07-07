@@ -29,10 +29,6 @@ Le gain est direct : moins d'allers-retours entre terminal, fichiers de configur
 
 ## Télécharger
 
-Pour une utilisation normale, prenez une version publiée :
-
-**[Télécharger la dernière version](../../../releases/latest)** · [Toutes les versions](../../../releases)
-
 1. Téléchargez le build adapté à votre système.
 2. Lancez Wails3 Manager et vérifiez la page d'environnement.
 3. Créez un projet Wails 3 ou importez un projet existant.
@@ -117,7 +113,6 @@ builder/
 - Les paquets natifs doivent être créés sur l'OS cible.
 - Le packaging Linux n'est pas implémenté.
 - Signature, notarisation, publication automatique, annulation et historique versionné ne sont pas implémentés.
-- La restauration utilise un seul snapshot créé à l'import.
 
 ## Licence
 

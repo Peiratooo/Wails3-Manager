@@ -3,11 +3,11 @@ Version=1.0
 Name=Wails3 Manager
 Comment=Desktop manager for Wails 3 projects
 # The Exec line includes %u to pass the URL to the application
-Exec=/usr/local/bin/wails_manager %u
+Exec=/usr/local/bin/wails3_manager %u
 Terminal=false
 Type=Application
-Icon=wails_manager
+Icon=wails3_manager
 Categories=Utility;
-StartupWMClass=wails_manager
+StartupWMClass=wails3_manager
 
  

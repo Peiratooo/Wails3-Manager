@@ -29,9 +29,6 @@ Der Vorteil ist schlicht: weniger Wechsel zwischen Terminal, Konfigurationsdatei
 
 ## Download
 
-Für normale Nutzung genügt ein Release-Build:
-
-**[Neueste Version herunterladen](../../../releases/latest)** · [Alle Releases](../../../releases)
 
 1. Build für das eigene Betriebssystem herunterladen.
 2. Wails3 Manager starten und die Umgebungsseite prüfen.
@@ -117,7 +114,7 @@ builder/
 - Native Pakete müssen auf dem Ziel-OS erstellt werden.
 - Linux-Paketierung ist nicht implementiert.
 - Signierung, Notarisierung, automatische Veröffentlichung, Abbruch und versionierter Build-Verlauf sind nicht implementiert.
-- Wiederherstellung nutzt einen einzelnen Snapshot vom Import.
+
 
 ## Lizenz
 

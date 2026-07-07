@@ -33,3 +33,4 @@ go.work.sum
 /frontend/bindings
 /docs
 /.codex-ui-test
+/builder
