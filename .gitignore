@@ -34,3 +34,4 @@ go.work.sum
 /docs
 /.codex-ui-test
 /builder
+.DS_Store

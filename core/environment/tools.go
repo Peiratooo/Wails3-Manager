@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"wails3-manager/core/contracts"
+	"wails3-manager/core/execenv"
 	"wails3-manager/core/fsx"
 )
 
@@ -84,7 +85,7 @@ func DetectISCC(configured string) string {
 	}
 
 	for _, command := range []string{"ISCC.exe", "iscc"} {
-		if found, err := exec.LookPath(command); err == nil {
+		if found, err := execenv.LookPath(command); err == nil {
 			return found
 		}
 	}
@@ -101,7 +102,7 @@ func DetectCreateDMG(configured string) string {
 		}
 	}
 
-	if found, err := exec.LookPath("create-dmg"); err == nil {
+	if found, err := execenv.LookPath("create-dmg"); err == nil {
 		return found
 	}
 
@@ -171,7 +172,10 @@ func executableVersion(path string, args []string) string {
 		return ""
 	}
 
-	out, err := exec.Command(path, args...).CombinedOutput()
+	cmd := exec.Command(path, args...)
+	cmd.Env = execenv.Environ(nil)
+
+	out, err := cmd.CombinedOutput()
 	if err != nil && len(out) == 0 {
 		return ""
 	}
