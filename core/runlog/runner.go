@@ -5,10 +5,11 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os"
 	"os/exec"
 	"strings"
 	"sync"
+
+	"wails3-manager/core/execenv"
 )
 
 type Runner struct {
@@ -32,9 +33,14 @@ func (runner Runner) Run(ctx context.Context, workDir string, command []string) 
 		}
 		return nil
 	}
-	cmd := exec.CommandContext(ctx, command[0], command[1:]...)
+	executable := command[0]
+	if resolved, err := execenv.LookPath(command[0]); err == nil {
+		executable = resolved
+	}
+
+	cmd := exec.CommandContext(ctx, executable, command[1:]...)
 	cmd.Dir = workDir
-	cmd.Env = append(os.Environ(), envPairs(runner.Env)...)
+	cmd.Env = execenv.Environ(runner.Env)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return err
@@ -82,18 +88,4 @@ func (runner Runner) Run(ctx context.Context, workDir string, command []string) 
 		}
 	}
 	return nil
-}
-
-func envPairs(env map[string]string) []string {
-	if len(env) == 0 {
-		return nil
-	}
-	pairs := make([]string, 0, len(env))
-	for k, v := range env {
-		if strings.TrimSpace(k) == "" {
-			continue
-		}
-		pairs = append(pairs, k+"="+v)
-	}
-	return pairs
 }

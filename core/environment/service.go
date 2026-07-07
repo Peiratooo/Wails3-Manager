@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"wails3-manager/core/contracts"
+	"wails3-manager/core/execenv"
 )
 
 type CommandProbe interface {
@@ -117,7 +118,7 @@ func commandCheck(probe CommandProbe, id string, name string, command string, re
 type defaultProbe struct{}
 
 func (defaultProbe) LookPath(command string) (string, bool) {
-	path, err := exec.LookPath(command)
+	path, err := execenv.LookPath(command)
 	return path, err == nil
 }
 
@@ -188,7 +189,15 @@ func versionAttempts(command string) []versionAttempt {
 }
 
 func commandOutput(command string, args []string) (string, bool) {
-	out, err := exec.Command(command, args...).CombinedOutput()
+	executable := command
+	if resolved, err := execenv.LookPath(command); err == nil {
+		executable = resolved
+	}
+
+	cmd := exec.Command(executable, args...)
+	cmd.Env = execenv.Environ(nil)
+
+	out, err := cmd.CombinedOutput()
 	if err != nil && len(out) == 0 {
 		return "", false
 	}

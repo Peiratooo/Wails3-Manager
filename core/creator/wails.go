@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"wails3-manager/core/contracts"
+	"wails3-manager/core/execenv"
 	"wails3-manager/core/fsx"
 	"wails3-manager/core/project"
 )
@@ -247,14 +248,19 @@ func firstNonEmpty(value, fallback string) string {
 func ListWailsTemplates() ([]WailsTemplate, error) {
 
 	ctx := context.Background()
+	executable, err := execenv.LookPath(defaultWailsBinary)
+	if err != nil {
+		return nil, fmt.Errorf("find %q: %w", defaultWailsBinary, err)
+	}
 
 	command := exec.CommandContext(
 		ctx,
-		defaultWailsBinary,
+		executable,
 		"init",
 		"-l",
 		"-nocolour",
 	)
+	command.Env = execenv.Environ(nil)
 
 	output, err := command.CombinedOutput()
 	if err != nil {

@@ -402,7 +402,7 @@ func defaultPackagingConfig(projectDir string, projectConfig contracts.WailsProj
 			DefaultDirName:        `{autopf}\${project.name}`,
 			PrivilegesRequired:    "lowest",
 			SetupIcon:             "build/windows/icon.ico",
-			OutputBaseName:        "${project.name}-${project.version}-windows-setup",
+			OutputBaseName:        config.InstallerOutputNameTemplate,
 			CreateDesktopShortcut: true,
 		},
 		MacOS: contracts.MacOSConfig{
@@ -410,7 +410,7 @@ func defaultPackagingConfig(projectDir string, projectConfig contracts.WailsProj
 			AppBundle:     "bin/${project.name}.app",
 			DMGScript:     "builder/macos/dmg.sh",
 			Background:    "assets/install-grid.png",
-			OutputName:    "${build.appName}-${project.version}",
+			OutputName:    config.InstallerOutputNameTemplate,
 			CreateDMGPath: "create-dmg",
 			WindowWidth:   640,
 			WindowHeight:  420,

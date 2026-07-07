@@ -120,7 +120,7 @@ func TestRemoveProjectRestoreCleansManagedPackageOutputs(t *testing.T) {
 			Enabled:       true,
 			AppBundle:     "bin/${project.name}.app",
 			DMGScript:     "builder/macos/dmg.sh",
-			OutputName:    "${build.appName}-${project.version}",
+			OutputName:    packagingConfig.InstallerOutputNameTemplate,
 			CreateDMGPath: "create-dmg",
 			WindowWidth:   640,
 			WindowHeight:  420,

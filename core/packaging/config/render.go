@@ -8,6 +8,8 @@ import (
 	"wails3-manager/core/fsx"
 )
 
+const InstallerOutputNameTemplate = "${project.name}-${project.version}-${package.platform}-setup"
+
 // RenderPlaceholders resolves the small set of placeholders supported by
 // packaging.json. Keeping this helper central avoids each packager inventing its
 // own replacement rules.
@@ -25,6 +27,22 @@ func RenderPlaceholders(s string, cfg contracts.PackagingConfig, project contrac
 		s = strings.ReplaceAll(s, k, v)
 	}
 	return s
+}
+
+func InstallerOutputName(cfg contracts.PackagingConfig, project contracts.WailsProjectConfig, platform contracts.Platform) string {
+	template := strings.ReplaceAll(InstallerOutputNameTemplate, "${package.platform}", PackagePlatformName(platform))
+	return RenderPlaceholders(template, cfg, project)
+}
+
+func PackagePlatformName(platform contracts.Platform) string {
+	switch platform {
+	case contracts.PlatformWindows:
+		return "windows"
+	case contracts.PlatformMacOS:
+		return "macos"
+	default:
+		return strings.TrimSpace(string(platform))
+	}
 }
 
 func ProjectName(project contracts.WailsProjectConfig) string {

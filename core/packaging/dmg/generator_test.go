@@ -39,6 +39,7 @@ func TestGenerateScriptUsesBundledBackgroundPath(t *testing.T) {
 	for _, want := range []string{
 		`BACKGROUND="$TMP_DIR/$APP_NAME.app/Contents/Resources/dmg-background.png"`,
 		`CREATE_DMG_ARGS+=(--background "$BACKGROUND")`,
+		`DMG_NAME="Demo-1.0.0-macos-setup.dmg"`,
 	} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("generated script missing %q:\n%s", want, text)
@@ -94,6 +95,34 @@ func TestGenerateScriptUsesAppBundleOnly(t *testing.T) {
 		if strings.Contains(text, unwanted) {
 			t.Fatalf("generated script should not contain %q:\n%s", unwanted, text)
 		}
+	}
+}
+
+func TestGenerateScriptUsesUnifiedInstallerOutputName(t *testing.T) {
+	projectDir := t.TempDir()
+	cfg := testConfig()
+	cfg.MacOS.OutputName = "legacy-custom-name"
+	projectConfig := contracts.WailsProjectConfig{
+		Info: contracts.WailsAppInfo{
+			ProductName: "Wails3.Manager",
+			Version:     "1.0.0",
+		},
+	}
+
+	scriptPath, err := GenerateScript(projectDir, cfg, projectConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	script, err := os.ReadFile(scriptPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(script)
+	if !strings.Contains(text, `DMG_NAME="Wails3.Manager-1.0.0-macos-setup.dmg"`) {
+		t.Fatalf("generated script did not use unified installer name:\n%s", text)
+	}
+	if strings.Contains(text, "legacy-custom-name") {
+		t.Fatalf("generated script should ignore legacy outputName:\n%s", text)
 	}
 }
 

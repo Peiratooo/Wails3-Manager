@@ -38,7 +38,7 @@ func GenerateScript(projectDir string, cfg contracts.PackagingConfig, projectCon
 	}
 	appBundle := config.MacOSAppBundlePath(cfg, projectConfig)
 	outputDir := config.MacOSOutputDir(cfg, projectConfig)
-	outputName := config.RenderPlaceholders(cfg.MacOS.OutputName, cfg, projectConfig)
+	outputName := config.InstallerOutputName(cfg, projectConfig, contracts.PlatformMacOS)
 	content := strings.NewReplacer(
 		"{{appName}}", projectName,
 		"{{appBundle}}", filepath.ToSlash(appBundle),
