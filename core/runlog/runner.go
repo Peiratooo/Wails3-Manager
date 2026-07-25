@@ -39,6 +39,7 @@ func (runner Runner) Run(ctx context.Context, workDir string, command []string) 
 	}
 
 	cmd := exec.CommandContext(ctx, executable, command[1:]...)
+	execenv.HideWindow(cmd)
 	cmd.Dir = workDir
 	cmd.Env = execenv.Environ(runner.Env)
 	stdout, err := cmd.StdoutPipe()

@@ -260,6 +260,7 @@ func ListWailsTemplates() ([]WailsTemplate, error) {
 		"-l",
 		"-nocolour",
 	)
+	execenv.HideWindow(command)
 	command.Env = execenv.Environ(nil)
 
 	output, err := command.CombinedOutput()

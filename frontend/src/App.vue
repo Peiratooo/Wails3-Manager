@@ -22,7 +22,6 @@
 <script setup>
 import {useAppStore} from './store'
 import {Events, WML} from "@wailsio/runtime"
-import { Service as SettingsService } from '../bindings/wails3-manager/core/settings'
 import { Service as EnvironmentService } from "../bindings/wails3-manager/core/environment"
 import {
     dateDeDE,
@@ -50,7 +49,6 @@ import {computed, onBeforeUnmount, onMounted, provide, watch} from "vue";
 import {
     applyThemeToDocument,
     naiveThemeOverrides,
-    themeCssVariables,
     themeNameFromIsDark,
 } from './theme'
 
@@ -62,7 +60,6 @@ const themeName = computed(() => themeNameFromIsDark(store.settings.isDark))
 const isDarkTheme = computed(() => store.settings.isDark)
 const naiveTheme = computed(() => isDarkTheme.value ? darkTheme : null)
 const currentNaiveThemeOverrides = computed(() => naiveThemeOverrides[themeName.value])
-const currentThemeCssVariables = computed(() => themeCssVariables[themeName.value])
 const naiveLocaleMap = {
     'zh-CN': { locale: zhCN, dateLocale: dateZhCN },
     'zh-TW': { locale: zhTW, dateLocale: dateZhTW },
@@ -75,26 +72,6 @@ const naiveLocaleMap = {
 const activeNaive = computed(() => naiveLocaleMap[store.settings.language] || naiveLocaleMap['zh-CN'])
 const activeNaiveLocale = computed(() => activeNaive.value.locale)
 const activeNaiveDateLocale = computed(() => activeNaive.value.dateLocale)
-
-const setDarkMode = async (isDark) => {
-    const previousSettings = {...store.settings}
-    const nextSettings = {
-        ...store.settings,
-        isDark: Boolean(isDark),
-    }
-    store.setSettings(nextSettings)
-    try {
-        const savedSettings = await SettingsService.SaveSettings(nextSettings)
-        store.setSettings(savedSettings)
-    } catch (error) {
-        store.setSettings(previousSettings)
-        console.error(error)
-    }
-}
-
-const toggleTheme = () => {
-    return setDarkMode(!isDarkTheme.value)
-}
 
 watch(
     themeName,
@@ -150,21 +127,6 @@ onBeforeUnmount(() => {
 
 provide("formatTimestamp",formatTimestamp)
 provide("store",store)
-provide("theme", {
-    themeName,
-    isDarkTheme,
-    themeCssVariables: currentThemeCssVariables,
-    setDarkMode,
-    toggleTheme,
-})
-
-defineExpose({
-    themeName,
-    isDarkTheme,
-    themeCssVariables: currentThemeCssVariables,
-    setDarkMode,
-    toggleTheme,
-})
 </script>
 
 <style lang="scss" scoped>

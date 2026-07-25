@@ -47,24 +47,6 @@ func (l *Logger) Lines() []string {
 	return slices.Clone(l.lines)
 }
 
-func (l *Logger) Since(cursor int) (int, []string) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	if cursor < 0 {
-		cursor = 0
-	}
-	if cursor > len(l.lines) {
-		cursor = len(l.lines)
-	}
-	return len(l.lines), slices.Clone(l.lines[cursor:])
-}
-
-func (l *Logger) Cursor() int {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	return len(l.lines)
-}
-
 func (l *Logger) Clear() {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -77,11 +59,6 @@ func (l *Logger) SetRecordLogs(recordLogs bool) {
 	l.recordLogs = recordLogs
 }
 
-func (l *Logger) Println(args ...any) { l.write(Transaction{}, fmt.Sprintln(args...)) }
-func (l *Logger) Printf(format string, args ...any) {
-	l.write(Transaction{}, fmt.Sprintf(format, args...))
-}
-func (l *Logger) Section(title string) { l.write(Transaction{}, "\n== "+title+" ==\n") }
 func (l *Logger) PrintlnWithTransaction(tx Transaction, args ...any) {
 	l.write(tx, fmt.Sprintln(args...))
 }

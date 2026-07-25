@@ -16,16 +16,6 @@ body,
         color 0.18s ease;
 }
 
-.delete-icon {
-    cursor: pointer;
-    color: var(--wm-text-muted);
-    font-size: 16px;
-    transition: color 0.2s ease;
-}
-
-.delete-icon:hover {
-    color: var(--wm-color-danger);
-}
 .delete-trigger {
     width: 28px;
     height: 28px;

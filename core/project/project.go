@@ -14,13 +14,8 @@ import (
 	"wails3-manager/core/runlog"
 )
 
-var platformOverride contracts.Platform
 var runProjectCommand = func(log *runlog.Logger, projectDir string, command []string) error {
 	return (runlog.Runner{Log: log}).Run(context.Background(), projectDir, command)
-}
-
-func SetPlatformOverride(platform contracts.Platform) {
-	platformOverride = platform
 }
 
 func (s *Service) ScanProject(projectDir string) (contracts.ScanResult, error) {
@@ -194,9 +189,6 @@ func createManagedProjectLayout(projectDir string) error {
 }
 
 func currentPlatform() contracts.Platform {
-	if platformOverride != "" {
-		return platformOverride
-	}
 	switch runtime.GOOS {
 	case "windows":
 		return contracts.PlatformWindows

@@ -173,6 +173,7 @@ func executableVersion(path string, args []string) string {
 	}
 
 	cmd := exec.Command(path, args...)
+	execenv.HideWindow(cmd)
 	cmd.Env = execenv.Environ(nil)
 
 	out, err := cmd.CombinedOutput()

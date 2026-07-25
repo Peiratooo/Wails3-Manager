@@ -191,6 +191,7 @@ func loginShellPath() string {
 		defer cancel()
 
 		cmd := exec.CommandContext(ctx, shell, "-l", "-c", `printf '%s\n' "$PATH"`)
+		HideWindow(cmd)
 		cmd.Env = os.Environ()
 
 		out, err := cmd.Output()

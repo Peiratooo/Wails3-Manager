@@ -195,6 +195,7 @@ func commandOutput(command string, args []string) (string, bool) {
 	}
 
 	cmd := exec.Command(executable, args...)
+	execenv.HideWindow(cmd)
 	cmd.Env = execenv.Environ(nil)
 
 	out, err := cmd.CombinedOutput()

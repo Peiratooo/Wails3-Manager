@@ -6,6 +6,8 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
+
+	"wails3-manager/core/execenv"
 )
 
 type AppService struct{}
@@ -39,14 +41,17 @@ func (a *AppService) OpenPath(path string) error {
 	if _, err := os.Stat(path); err != nil {
 		return err
 	}
+	var cmd *exec.Cmd
 	switch runtime.GOOS {
 	case "windows":
-		return exec.Command("explorer", path).Start()
+		cmd = exec.Command("explorer", path)
 	case "darwin":
-		return exec.Command("open", path).Start()
+		cmd = exec.Command("open", path)
 	default:
-		return exec.Command("xdg-open", path).Start()
+		cmd = exec.Command("xdg-open", path)
 	}
+	execenv.HideWindow(cmd)
+	return cmd.Start()
 }
 
 func (a *AppService) ChooseIcon() (string, error) {
