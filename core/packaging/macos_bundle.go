@@ -11,7 +11,6 @@ import (
 	"wails3-manager/core/contracts"
 	"wails3-manager/core/fsx"
 	"wails3-manager/core/packaging/config"
-	"wails3-manager/core/packaging/dmg"
 )
 
 func prepareMacOSAppBundle(projectDir string, cfg contracts.PackagingConfig, projectConfig contracts.WailsProjectConfig) (string, error) {
@@ -40,13 +39,6 @@ func prepareMacOSAppBundle(projectDir string, cfg contracts.PackagingConfig, pro
 	if err := copyRequiredFile(iconSrc, iconDst, "macOS icon", 0644); err != nil {
 		return "", err
 	}
-	if strings.TrimSpace(cfg.MacOS.Background) != "" {
-		background := config.RenderPlaceholders(cfg.MacOS.Background, cfg, projectConfig)
-		if _, err := dmg.PrepareBackground(projectDir, background, cfg.MacOS.WindowWidth, cfg.MacOS.WindowHeight, filepath.Join(resourcesDir, "dmg-background.png")); err != nil {
-			return "", err
-		}
-	}
-
 	plist, err := renderMacOSInfoPlist(projectDir, cfg, projectConfig)
 	if err != nil {
 		return "", err

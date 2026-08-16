@@ -12,10 +12,7 @@ import (
 	"wails3-manager/core/fsx"
 )
 
-const (
-	InnoDownloadURL      = "https://jrsoftware.org/isdl.php/Inno-Setup-Downloads"
-	CreateDMGDownloadURL = "https://github.com/create-dmg/create-dmg"
-)
+const InnoDownloadURL = "https://jrsoftware.org/isdl.php/Inno-Setup-Downloads"
 
 func InnoRequirement(configured string) contracts.ToolRequirement {
 	path := DetectISCC(configured)
@@ -46,35 +43,6 @@ func InnoRequirement(configured string) contracts.ToolRequirement {
 	return req
 }
 
-func CreateDMGRequirement(configured string) contracts.ToolRequirement {
-	path := DetectCreateDMG(configured)
-
-	req := contracts.ToolRequirement{
-		ID:             "create-dmg",
-		Name:           "create-dmg",
-		Platform:       contracts.PlatformMacOS,
-		Command:        "create-dmg",
-		Required:       false,
-		ConfiguredPath: cleanConfiguredPath(configured),
-		Path:           path,
-		Found:          path != "",
-		DownloadURL:    CreateDMGDownloadURL,
-		InstallHint:    "macOS DMG packaging requires create-dmg. Install it with Homebrew: brew install create-dmg.",
-		InstallCommand: []string{"brew", "install", "create-dmg"},
-		CanAutoInstall: true,
-		CanChoosePath:  true,
-	}
-
-	if req.Found {
-		req.Message = "create-dmg was found."
-		req.Version = executableVersion(path, []string{"--version"})
-	} else {
-		req.Message = "create-dmg was not found. Choose the executable, or run brew install create-dmg."
-	}
-
-	return req
-}
-
 func DetectISCC(configured string) string {
 	configured = cleanConfiguredPath(configured)
 
@@ -88,22 +56,6 @@ func DetectISCC(configured string) string {
 		if found, err := execenv.LookPath(command); err == nil {
 			return found
 		}
-	}
-
-	return ""
-}
-
-func DetectCreateDMG(configured string) string {
-	configured = cleanConfiguredPath(configured)
-
-	for _, p := range createDMGCandidates(configured) {
-		if resolved := resolveExecutableCandidate(p, "create-dmg"); resolved != "" {
-			return resolved
-		}
-	}
-
-	if found, err := execenv.LookPath("create-dmg"); err == nil {
-		return found
 	}
 
 	return ""
@@ -125,20 +77,6 @@ func innoCandidates(configured string) []string {
 		`C:\Program Files (x86)\Inno Setup 7`,
 		`C:\Program Files\Inno Setup 6`,
 		`C:\Program Files (x86)\Inno Setup 6`,
-	)
-}
-
-func createDMGCandidates(configured string) []string {
-	out := make([]string, 0, 4)
-
-	if configured != "" {
-		out = append(out, configured)
-	}
-
-	return append(out,
-		"/opt/homebrew/bin/create-dmg",
-		"/usr/local/bin/create-dmg",
-		"/usr/bin/create-dmg",
 	)
 }
 

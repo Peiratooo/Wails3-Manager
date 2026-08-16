@@ -108,10 +108,7 @@ func includeWindowsConfig(cfg WindowsConfig) bool {
 func includeMacOSConfig(cfg MacOSConfig) bool {
 	return cfg.Enabled ||
 		cfg.AppBundle != "" ||
-		cfg.DMGScript != "" ||
 		cfg.Background != "" ||
-		cfg.OutputName != "" ||
-		cfg.CreateDMGPath != "" ||
 		cfg.WindowWidth != 0 ||
 		cfg.WindowHeight != 0 ||
 		cfg.IconSize != 0 ||
@@ -162,10 +159,7 @@ type WindowsConfig struct {
 type MacOSConfig struct {
 	Enabled       bool   `json:"enabled"`
 	AppBundle     string `json:"appBundle"`
-	DMGScript     string `json:"dmgScript"`
 	Background    string `json:"background"`
-	OutputName    string `json:"outputName"`
-	CreateDMGPath string `json:"createDmgPath"`
 	WindowWidth   int    `json:"windowWidth"`
 	WindowHeight  int    `json:"windowHeight"`
 	IconSize      int    `json:"iconSize"`

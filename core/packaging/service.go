@@ -40,6 +40,7 @@ var (
 	runISCCCommand        = func(ctx context.Context, projectDir string, command []string, runner runlog.Runner) error {
 		return runner.Run(ctx, projectDir, command)
 	}
+	buildDMG = dmg.Build
 )
 
 var platformOverride contracts.Platform
@@ -241,25 +242,32 @@ func (s *Service) Package(req contracts.PackageRequest) (result contracts.Packag
 	if platform == contracts.PlatformMacOS || platform == contracts.PlatformAll {
 		if !cfg.MacOS.Enabled {
 			result.Warnings = append(result.Warnings, "macOS DMG generation is disabled; skipped.")
-		} else if cfg.MacOS.DMGScript == "" {
-			return contracts.PackageResult{}, errors.New("macOS packaging has not been initialized")
 		} else {
 			if err := config.ValidateAssetTargets(cfg, contracts.PlatformMacOS); err != nil {
 				return contracts.PackageResult{}, err
 			}
-			if _, err := dmg.GenerateScript(projectDir, cfg, projectConfig); err != nil {
-				return contracts.PackageResult{}, err
-			}
-			if req.DryRun || runtime.GOOS != "darwin" {
-				result.Warnings = append(result.Warnings, "macOS packaging generated the DMG script only; create-dmg was not executed.")
+			if req.DryRun {
+				result.Warnings = append(result.Warnings, "macOS DMG generation was skipped in dry-run mode.")
 			} else {
-				if _, err := prepareMacOSAppBundle(projectDir, cfg, projectConfig); err != nil {
-					return contracts.PackageResult{}, err
-				}
 				if err := validateMacOSPackagingInputs(projectDir, cfg, projectConfig); err != nil {
 					return contracts.PackageResult{}, err
 				}
-				if err := s.runDMG(ctx, projectDir, cfg, tx); err != nil {
+				appBundle, err := prepareMacOSAppBundle(projectDir, cfg, projectConfig)
+				if err != nil {
+					return contracts.PackageResult{}, err
+				}
+				background := config.RenderPlaceholders(cfg.MacOS.Background, cfg, projectConfig)
+				backgroundPath, err := dmg.PrepareBackground(
+					projectDir,
+					background,
+					cfg.MacOS.WindowWidth,
+					cfg.MacOS.WindowHeight,
+					filepath.Join(projectDir, "builder", "macos", "dmg-background.png"),
+				)
+				if err != nil {
+					return contracts.PackageResult{}, err
+				}
+				if _, err := s.runDMG(projectDir, cfg, projectConfig, appBundle, backgroundPath, tx); err != nil {
 					return contracts.PackageResult{}, err
 				}
 			}
@@ -279,28 +287,15 @@ func (s *Service) Artifacts(projectDir string) []contracts.Artifact {
 }
 
 func (s *Service) writeTemplates(projectDir string, cfg contracts.PackagingConfig, projectConfig contracts.WailsProjectConfig) error {
-	switch runtimePlatform() {
-	case "windows":
-		if !cfg.Windows.Enabled || cfg.Windows.InnoScript == "" {
-			return nil
-		}
+	if runtimePlatform() == contracts.PlatformWindows && cfg.Windows.Enabled && cfg.Windows.InnoScript != "" {
 		if _, err := inno.Generate(projectDir, cfg, projectConfig); err != nil {
 			return err
 		}
-	case "darwin":
-		if !cfg.MacOS.Enabled {
-			return nil
-		}
-		if cfg.MacOS.Background != "" {
-			bg := fsx.Resolve(projectDir, cfg.MacOS.Background)
-			if _, err := fsx.WriteIfMissing(bg, s.defaultDMGBackgroundPNG(), 0644); err != nil {
-				return err
-			}
-		}
-		if cfg.MacOS.DMGScript == "" {
-			return nil
-		}
-		if _, err := dmg.GenerateScript(projectDir, cfg, projectConfig); err != nil {
+	}
+	if cfg.MacOS.Enabled && strings.TrimSpace(cfg.MacOS.Background) != "" {
+		background := config.RenderPlaceholders(cfg.MacOS.Background, cfg, projectConfig)
+		bg := fsx.Resolve(projectDir, background)
+		if _, err := fsx.WriteIfMissing(bg, s.defaultDMGBackgroundPNG(), 0644); err != nil {
 			return err
 		}
 	}
@@ -363,13 +358,18 @@ func waitForInnoRetry(ctx context.Context, delay time.Duration) error {
 	}
 }
 
-func (s *Service) runDMG(ctx context.Context, projectDir string, cfg contracts.PackagingConfig, tx runlog.Transaction) error {
-	req := environment.CreateDMGRequirement(cfg.MacOS.CreateDMGPath)
-	if !req.Found {
-		return errors.New(req.Message)
+func (s *Service) runDMG(projectDir string, cfg contracts.PackagingConfig, projectConfig contracts.WailsProjectConfig, appBundle, background string, tx runlog.Transaction) (string, error) {
+	if s.Log != nil {
+		s.Log.PrintlnWithTransaction(tx, "Building macOS DMG with github.com/leaanthony/dmg.")
 	}
-	script := fsx.Resolve(projectDir, cfg.MacOS.DMGScript)
-	return (runlog.Runner{Log: s.Log, Transaction: tx}).Run(ctx, projectDir, []string{"bash", script})
+	outputPath, err := buildDMG(projectDir, cfg, projectConfig, appBundle, background)
+	if err != nil {
+		return "", err
+	}
+	if s.Log != nil {
+		s.Log.PrintlnWithTransaction(tx, "DMG created:", outputPath)
+	}
+	return outputPath, nil
 }
 
 func defaultPackagingConfig(projectDir string, projectConfig contracts.WailsProjectConfig) contracts.PackagingConfig {
@@ -408,10 +408,7 @@ func defaultPackagingConfig(projectDir string, projectConfig contracts.WailsProj
 		MacOS: contracts.MacOSConfig{
 			Enabled:       true,
 			AppBundle:     "bin/${project.name}.app",
-			DMGScript:     "builder/macos/dmg.sh",
 			Background:    "assets/install-grid.png",
-			OutputName:    config.InstallerOutputNameTemplate,
-			CreateDMGPath: "create-dmg",
 			WindowWidth:   640,
 			WindowHeight:  420,
 			IconSize:      96,

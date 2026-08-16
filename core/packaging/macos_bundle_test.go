@@ -1,9 +1,6 @@
 package packaging
 
 import (
-	"image"
-	"image/color"
-	"image/png"
 	"os"
 	"path/filepath"
 	"strings"
@@ -20,7 +17,6 @@ func TestPrepareMacOSAppBundleCreatesBundleFromProjectConfig(t *testing.T) {
 	mustWriteFile(t, filepath.Join(projectDir, "assets", "license.txt"), "license")
 	mustWriteFile(t, filepath.Join(projectDir, "extras", "config.json"), "{}")
 	mustWriteFile(t, filepath.Join(projectDir, "launcher", "helper"), "helper")
-	writeTestPNG(t, filepath.Join(projectDir, "assets", "dmg-bg.png"))
 	mustWriteFile(t, filepath.Join(projectDir, "build", "darwin", "Info.plist"), `<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
     <dict>
@@ -79,7 +75,6 @@ func TestPrepareMacOSAppBundleCreatesBundleFromProjectConfig(t *testing.T) {
 		filepath.Join(wantBundle, "Contents", "MacOS", "runtime.dat"),
 		filepath.Join(wantBundle, "Contents", "MacOS", "helper"),
 		filepath.Join(wantBundle, "Contents", "Resources", "icons.icns"),
-		filepath.Join(wantBundle, "Contents", "Resources", "dmg-background.png"),
 		filepath.Join(wantBundle, "Contents", "Resources", "license.txt"),
 		filepath.Join(wantBundle, "Contents", "SharedSupport", "data", "extras", "config.json"),
 	} {
@@ -97,20 +92,8 @@ func TestPrepareMacOSAppBundleCreatesBundleFromProjectConfig(t *testing.T) {
 			t.Fatalf("unexpected file in Resources: %s", unwanted)
 		}
 	}
-	backgroundFile, err := os.Open(filepath.Join(wantBundle, "Contents", "Resources", "dmg-background.png"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	background, err := png.Decode(backgroundFile)
-	closeErr := backgroundFile.Close()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if closeErr != nil {
-		t.Fatal(closeErr)
-	}
-	if background.Bounds().Dx() != 320 || background.Bounds().Dy() != 180 {
-		t.Fatalf("background size = %dx%d, want 320x180", background.Bounds().Dx(), background.Bounds().Dy())
+	if _, err := os.Stat(filepath.Join(wantBundle, "Contents", "Resources", "dmg-background.png")); !os.IsNotExist(err) {
+		t.Fatalf("DMG background should not be embedded in the app bundle: %v", err)
 	}
 
 	plist, err := os.ReadFile(filepath.Join(wantBundle, "Contents", "Info.plist"))
@@ -251,26 +234,5 @@ func mustWriteFile(t *testing.T, path, content string) {
 	}
 	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
 		t.Fatal(err)
-	}
-}
-
-func writeTestPNG(t *testing.T, path string) {
-	t.Helper()
-	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
-		t.Fatal(err)
-	}
-	file, err := os.Create(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	img := image.NewNRGBA(image.Rect(0, 0, 2, 2))
-	img.Set(0, 0, color.NRGBA{R: 255, A: 255})
-	encodeErr := png.Encode(file, img)
-	closeErr := file.Close()
-	if encodeErr != nil {
-		t.Fatal(encodeErr)
-	}
-	if closeErr != nil {
-		t.Fatal(closeErr)
 	}
 }

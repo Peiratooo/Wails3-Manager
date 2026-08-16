@@ -14,9 +14,9 @@
 
                 <n-button
                     type="primary"
-                    :disabled="!isDirty || saving || hasAssetTargetErrors"
-                    :loading="saving"
-                    @click="savePackageCfg"
+                    :disabled="saving || props.savingAll || hasAssetTargetErrors"
+                    :loading="saving || props.savingAll"
+                    @click="requestSave"
                 >
                     {{ t("editor.save") }}
                 </n-button>
@@ -599,6 +599,14 @@ const props = defineProps({
     appIconVersion: {
         type: Number,
         default: 0
+    },
+    savingAll: {
+        type: Boolean,
+        default: false
+    },
+    onSaveRequest: {
+        type: Function,
+        default: null
     }
 })
 
@@ -776,8 +784,18 @@ function initConfig(data) {
     editingWindowsTarget.value = -1
 }
 
+function requestSave() {
+    return props.onSaveRequest?.()
+}
+
+function validatePackageCfg() {
+    return !hasAssetTargetErrors.value
+}
+
 async function savePackageCfg() {
-    if (!isDirty.value || saving.value || hasAssetTargetErrors.value) return
+    if (saving.value) return false
+    if (!validatePackageCfg()) return false
+    if (!isDirty.value) return true
 
     try {
         saving.value = true
@@ -790,9 +808,10 @@ async function savePackageCfg() {
         emit("saved", cloneData(savedCfg))
         await loadRuntimeInfo()
 
-        message.success(t("editor.saveSuccess"))
+        return true
     } catch (error) {
         message.error(error?.message || String(error))
+        return false
     } finally {
         saving.value = false
     }
@@ -834,7 +853,7 @@ function cancelSetupIcon() {
 async function setMacOSLayout(nextMacOS) {
     cfg.value.macos = cloneData(nextMacOS)
     await nextTick()
-    await savePackageCfg()
+    await requestSave()
 }
 
 function projectFilePath(path) {
@@ -1040,7 +1059,9 @@ function cloneData(data) {
 }
 
 defineExpose({
-    save: savePackageCfg
+    save: savePackageCfg,
+    validate: validatePackageCfg,
+    isDirty: () => isDirty.value
 })
 </script>
 

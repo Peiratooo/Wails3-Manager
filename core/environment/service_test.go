@@ -90,25 +90,21 @@ func TestVersionAttempts(t *testing.T) {
 	}
 }
 
-func TestPlatformInstallersAreOptional(t *testing.T) {
+func TestOnlyWindowsInstallerNeedsAnExternalTool(t *testing.T) {
 	service := &Service{
 		Inno: func(string) contracts.ToolRequirement {
 			return contracts.ToolRequirement{ID: "inno", Command: "ISCC.exe"}
 		},
-		CreateDMG: func(string) contracts.ToolRequirement {
-			return contracts.ToolRequirement{ID: "create-dmg", Command: "create-dmg"}
-		},
 	}
 
-	for _, goos := range []string{"windows", "darwin"} {
-		t.Run(goos, func(t *testing.T) {
-			checks := service.platformEnvironmentChecks(goos)
-			if len(checks) != 1 {
-				t.Fatalf("platformEnvironmentChecks(%q) returned %d checks, want 1", goos, len(checks))
-			}
-			if checks[0].Required {
-				t.Fatalf("%s installer check should be optional", goos)
-			}
-		})
+	windowsChecks := service.platformEnvironmentChecks("windows")
+	if len(windowsChecks) != 1 {
+		t.Fatalf("Windows checks = %d, want 1", len(windowsChecks))
+	}
+	if windowsChecks[0].Required {
+		t.Fatal("Windows installer check should be optional")
+	}
+	if darwinChecks := service.platformEnvironmentChecks("darwin"); len(darwinChecks) != 0 {
+		t.Fatalf("Darwin checks = %#v, want none", darwinChecks)
 	}
 }

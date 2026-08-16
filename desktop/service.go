@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
 
@@ -38,20 +39,32 @@ func (a *AppService) OpenPath(path string) error {
 	if path == "" {
 		return errors.New("path is required")
 	}
-	if _, err := os.Stat(path); err != nil {
+	absolutePath, err := filepath.Abs(filepath.Clean(path))
+	if err != nil {
 		return err
 	}
-	var cmd *exec.Cmd
-	switch runtime.GOOS {
-	case "windows":
-		cmd = exec.Command("explorer", path)
-	case "darwin":
-		cmd = exec.Command("open", path)
-	default:
-		cmd = exec.Command("xdg-open", path)
+	info, err := os.Stat(absolutePath)
+	if err != nil {
+		return err
 	}
+
+	cmd := openPathCommand(runtime.GOOS, absolutePath, info.IsDir())
 	execenv.HideWindow(cmd)
 	return cmd.Start()
+}
+
+func openPathCommand(goos string, path string, isDir bool) *exec.Cmd {
+	switch goos {
+	case "windows":
+		if isDir {
+			return exec.Command("explorer.exe", path)
+		}
+		return exec.Command("explorer.exe", "/select,"+path)
+	case "darwin":
+		return exec.Command("open", path)
+	default:
+		return exec.Command("xdg-open", path)
+	}
 }
 
 func (a *AppService) ChooseIcon() (string, error) {

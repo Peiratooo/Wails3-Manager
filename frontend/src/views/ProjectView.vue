@@ -54,6 +54,7 @@
             <div class="body">
                 <div class="editor">
                     <Editor
+                        ref="editorRef"
                         :wails3Cfg="wails3Cfg"
                         :packageCfg="packageCfg"
                         :app-icon-version="iconVersion"
@@ -160,6 +161,7 @@ const store = inject("store")
 const projectDir = computed(() => decodeURIComponent(route.query.projectDir || ""))
 const wails3Cfg = ref({})
 const packageCfg = ref({})
+const editorRef = ref(null)
 const loaded = ref(false)
 const iconLoadError = ref(false)
 const building = ref(false)
@@ -196,20 +198,17 @@ const packageDirectories = computed(() => {
     if (!packageResult.value) {
         return []
     }
-    const dirs = []
-    if (packageResult.value.buildOutputDir) {
-        dirs.push({
-            label: t("project.wailsOutputDir"),
-            path: packageResult.value.buildOutputDir
-        })
+    const path = packageResult.value.packageOutputDir || packageResult.value.buildOutputDir
+    if (!path) {
+        return []
     }
-    if (packageResult.value.packageOutputDir) {
-        dirs.push({
-            label: t("project.finalPackageDir"),
-            path: packageResult.value.packageOutputDir
-        })
-    }
-    return dirs
+
+    return [{
+        label: packageResult.value.packageOutputDir
+            ? t("project.finalPackageDir")
+            : t("project.wailsOutputDir"),
+        path
+    }]
 })
 
 async function openProjectFolder() {
@@ -219,14 +218,22 @@ async function openProjectFolder() {
 async function runBuild() {
     if (building.value) return
 
+    building.value = true
+    let packageStarted = false
+
     try {
+        const saved = await editorRef.value?.saveAll?.()
+        if (saved === false) {
+            return
+        }
+
+        packageStarted = true
         packageTransactionId.value = `package-${Date.now()}`
         packageModalVisible.value = true
         packageFinished.value = false
         packageProgress.value = 8
         packageError.value = ""
         packageResult.value = null
-        building.value = true
         packageProgress.value = 32
 
         const result = await PackagingService.Package({
@@ -240,11 +247,17 @@ async function runBuild() {
         packageResult.value = result
         packageProgress.value = 100
     } catch (error) {
+        if (!packageStarted) {
+            message.error(error?.message || String(error))
+            return
+        }
         packageError.value = error?.message || String(error)
         packageProgress.value = 100
     } finally {
         building.value = false
-        packageFinished.value = true
+        if (packageStarted) {
+            packageFinished.value = true
+        }
     }
 }
 

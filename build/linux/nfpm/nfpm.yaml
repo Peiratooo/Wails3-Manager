@@ -3,10 +3,10 @@
 #
 # The lines below are called `modelines`. See `:help modeline`
 
-name: "wails3_manager"
+name: "wails_manager"
 arch: ${GOARCH}
 platform: "linux"
-version: "1.0.0"
+version: "1.1.0"
 section: "default"
 priority: "extra"
 maintainer: ${GIT_COMMITTER_NAME} <${GIT_COMMITTER_EMAIL}>
@@ -17,12 +17,12 @@ license: "MIT"
 release: "1"
 
 contents:
-  - src: "./bin/wails3_manager"
-    dst: "/usr/local/bin/wails3_manager"
+  - src: "./bin/wails_manager"
+    dst: "/usr/local/bin/wails_manager"
   - src: "./build/appicon.png"
-    dst: "/usr/share/icons/hicolor/128x128/apps/wails3_manager.png"
-  - src: "./build/linux/wails3_manager.desktop"
-    dst: "/usr/share/applications/wails3_manager.desktop"
+    dst: "/usr/share/icons/hicolor/128x128/apps/wails_manager.png"
+  - src: "./build/linux/wails_manager.desktop"
+    dst: "/usr/share/applications/wails_manager.desktop"
 
 # Default dependencies for the GTK4 + WebKitGTK 6.0 stack (Ubuntu 24.04+ / Debian 13+)
 depends:

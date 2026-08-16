@@ -10,6 +10,7 @@
                 v-for="item in tabs"
                 :key="item.name"
                 :name="item.name"
+                display-directive="show"
             >
                 <template #tab>
                     <div class="tab-label">
@@ -34,7 +35,7 @@
 
 <script setup>
 import { computed, markRaw, onBeforeUnmount, onMounted, ref } from "vue"
-import { NTabs, NTabPane, NIcon } from "naive-ui"
+import { NTabs, NTabPane, NIcon, useMessage } from "naive-ui"
 import { useI18n } from "../../i18n"
 
 import InfoCfgEditor from "./InfoCfgEditor.vue"
@@ -57,9 +58,12 @@ const props = defineProps({
 const emit = defineEmits(["package-saved", "wails3-saved"])
 
 const { t } = useI18n()
+const message = useMessage()
 
 const activeTab = ref("wails3")
 const editorRefs = ref({})
+const savingAll = ref(false)
+const editorNames = ["wails3", "package"]
 
 const tabs = computed(() => [
     {
@@ -76,6 +80,8 @@ const tabs = computed(() => [
         component: markRaw(InfoCfgEditor),
         props: {
             wails3Cfg: props.wails3Cfg,
+            savingAll: savingAll.value,
+            onSaveRequest: saveAllConfigs,
             onSaved: (payload) => emit("wails3-saved", payload)
         }
     },
@@ -93,6 +99,8 @@ const tabs = computed(() => [
             projectDir: props.wails3Cfg.projectDir,
             currentPlatform: props.wails3Cfg.project?.currentPlatform,
             appIconVersion: props.appIconVersion,
+            savingAll: savingAll.value,
+            onSaveRequest: saveAllConfigs,
             onSaved: (cfg) => emit("package-saved", cfg)
         }
     }
@@ -108,8 +116,46 @@ function setEditorRef(name) {
     }
 }
 
-function saveActiveConfig() {
-    editorRefs.value[activeTab.value]?.save?.()
+async function saveAllConfigs() {
+    if (savingAll.value) {
+        return false
+    }
+
+    savingAll.value = true
+    try {
+        for (const name of editorNames) {
+            const editor = editorRefs.value[name]
+            if (editor?.validate?.() === false) {
+                activeTab.value = name
+                return false
+            }
+        }
+
+        const hasChanges = editorNames.some((name) => {
+            return editorRefs.value[name]?.isDirty?.() === true
+        })
+        if (!hasChanges) {
+            return true
+        }
+
+        for (const name of editorNames) {
+            const editor = editorRefs.value[name]
+            if (!editor?.save) {
+                continue
+            }
+
+            const saved = await editor.save()
+            if (saved === false) {
+                activeTab.value = name
+                return false
+            }
+        }
+
+        message.success(t("editor.saveSuccess"))
+        return true
+    } finally {
+        savingAll.value = false
+    }
 }
 
 function onKeydown(event) {
@@ -118,7 +164,7 @@ function onKeydown(event) {
         event.key.toLowerCase() === "s"
     ) {
         event.preventDefault()
-        saveActiveConfig()
+        void saveAllConfigs()
     }
 }
 
@@ -128,6 +174,10 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
     window.removeEventListener("keydown", onKeydown)
+})
+
+defineExpose({
+    saveAll: saveAllConfigs
 })
 </script>
 

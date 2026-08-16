@@ -2,7 +2,6 @@ package packaging
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -63,17 +62,45 @@ func TestDefaultPackagingConfigInitializesBothPlatforms(t *testing.T) {
 	if !cfg.Windows.Enabled || cfg.Windows.InnoScript == "" {
 		t.Fatalf("windows config was not initialized: %#v", cfg.Windows)
 	}
-	if !cfg.MacOS.Enabled || cfg.MacOS.DMGScript == "" || cfg.MacOS.Background == "" {
+	if !cfg.MacOS.Enabled || cfg.MacOS.AppBundle == "" || cfg.MacOS.Background == "" {
 		t.Fatalf("macos config was not initialized: %#v", cfg.MacOS)
 	}
+}
 
-	data, err := json.Marshal(cfg)
+func TestRunDMGUsesGoLibrary(t *testing.T) {
+	originalBuildDMG := buildDMG
+	defer func() { buildDMG = originalBuildDMG }()
+
+	projectDir := t.TempDir()
+	cfg := contracts.PackagingConfig{MacOS: contracts.MacOSConfig{Enabled: true}}
+	projectConfig := contracts.WailsProjectConfig{
+		Info: contracts.WailsAppInfo{ProductName: "Demo", Version: "1.0.0"},
+	}
+	appBundle := filepath.Join(projectDir, "bin", "Demo.app")
+	background := filepath.Join(projectDir, "builder", "macos", "dmg-background.png")
+	wantOutput := filepath.Join(projectDir, "builder", "release", "darwin", "Demo.dmg")
+
+	called := false
+	buildDMG = func(gotProjectDir string, gotCfg contracts.PackagingConfig, gotProjectConfig contracts.WailsProjectConfig, gotAppBundle, gotBackground string) (string, error) {
+		called = true
+		if gotProjectDir != projectDir || !reflect.DeepEqual(gotCfg, cfg) || !reflect.DeepEqual(gotProjectConfig, projectConfig) {
+			t.Fatalf("unexpected DMG inputs: %q %#v %#v", gotProjectDir, gotCfg, gotProjectConfig)
+		}
+		if gotAppBundle != appBundle || gotBackground != background {
+			t.Fatalf("DMG paths = %q, %q", gotAppBundle, gotBackground)
+		}
+		return wantOutput, nil
+	}
+
+	got, err := NewService(nil).runDMG(projectDir, cfg, projectConfig, appBundle, background, runlog.Transaction{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	text := string(data)
-	if !strings.Contains(text, `"windows"`) || !strings.Contains(text, `"macos"`) {
-		t.Fatalf("default config should write both platform sections: %s", text)
+	if !called {
+		t.Fatal("DMG builder was not called")
+	}
+	if got != wantOutput {
+		t.Fatalf("runDMG() = %q, want %q", got, wantOutput)
 	}
 }
 
@@ -310,10 +337,7 @@ func TestGetPackagingRuntimeInfoUsesDefaultExecutableWhenEntryIsEmpty(t *testing
 		MacOS: contracts.MacOSConfig{
 			Enabled:       true,
 			AppBundle:     "bin/${build.appName}.app",
-			DMGScript:     "builder/macos/dmg.sh",
 			Background:    "assets/install-grid.png",
-			OutputName:    packagingConfig.InstallerOutputNameTemplate,
-			CreateDMGPath: "create-dmg",
 			WindowWidth:   640,
 			WindowHeight:  420,
 			IconSize:      96,
@@ -385,10 +409,7 @@ func TestGetPackagingRuntimeInfoUsesConfiguredExecutableWithPlaceholders(t *test
 		MacOS: contracts.MacOSConfig{
 			Enabled:       true,
 			AppBundle:     "bin/${build.appName}.app",
-			DMGScript:     "builder/macos/dmg.sh",
 			Background:    "assets/install-grid.png",
-			OutputName:    packagingConfig.InstallerOutputNameTemplate,
-			CreateDMGPath: "create-dmg",
 			WindowWidth:   640,
 			WindowHeight:  420,
 			IconSize:      96,
@@ -482,10 +503,7 @@ func TestPackageRejectsUnsupportedPlatform(t *testing.T) {
 		MacOS: contracts.MacOSConfig{
 			Enabled:       true,
 			AppBundle:     "bin/${build.appName}.app",
-			DMGScript:     "builder/macos/dmg.sh",
 			Background:    "assets/install-grid.png",
-			OutputName:    packagingConfig.InstallerOutputNameTemplate,
-			CreateDMGPath: "create-dmg",
 			WindowWidth:   640,
 			WindowHeight:  420,
 			IconSize:      96,

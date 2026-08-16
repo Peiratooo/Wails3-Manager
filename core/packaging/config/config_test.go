@@ -30,10 +30,7 @@ func TestSavePackagingConfigDoesNotWriteProjectMetadata(t *testing.T) {
 		MacOS: contracts.MacOSConfig{
 			Enabled:       true,
 			AppBundle:     "bin/${build.appName}.app",
-			DMGScript:     "builder/macos/dmg.sh",
 			Background:    "assets/install-grid.png",
-			OutputName:    InstallerOutputNameTemplate,
-			CreateDMGPath: "create-dmg",
 			WindowWidth:   640,
 			WindowHeight:  420,
 			IconSize:      96,
@@ -78,10 +75,7 @@ func TestSavePackagingConfigRejectsMissingBuildTaskfile(t *testing.T) {
 		MacOS: contracts.MacOSConfig{
 			Enabled:       true,
 			AppBundle:     "bin/${build.appName}.app",
-			DMGScript:     "builder/macos/dmg.sh",
 			Background:    "assets/install-grid.png",
-			OutputName:    InstallerOutputNameTemplate,
-			CreateDMGPath: "create-dmg",
 			WindowWidth:   640,
 			WindowHeight:  420,
 			IconSize:      96,

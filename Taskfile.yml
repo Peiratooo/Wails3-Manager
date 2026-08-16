@@ -4,7 +4,7 @@ vars:
   APP_NAME: "wails_manager"
   BIN_DIR: "bin"
   CGO_ENABLED: "1"
-  PRODUCTION: "false"
+  PRODUCTION: "true"
   PACKAGE_MANAGER: '{{.PACKAGE_MANAGER | default "npm"}}'
   VITE_PORT: '{{.WAILS_VITE_PORT | default 9245}}'
 
@@ -33,7 +33,7 @@ tasks:
         vars:
           APP_NAME: "{{.APP_NAME}}"
           CGO_ENABLED: "{{.CGO_ENABLED}}"
-          PRODUCTION: "true"
+          PRODUCTION: "{{.PRODUCTION}}"
 
   package:
     summary: Packages a production build of the application

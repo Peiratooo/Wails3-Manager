@@ -1,107 +1,69 @@
 package dmg
 
 import (
+	"image"
+	"image/color"
+	"image/png"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"strings"
 	"testing"
+
+	upstreamdmg "github.com/leaanthony/dmg/dmg"
 
 	"wails3-manager/core/contracts"
 )
 
-func TestGenerateScriptUsesBundledBackgroundPath(t *testing.T) {
+func TestBuildOptionsUsesConfiguredLayout(t *testing.T) {
 	projectDir := t.TempDir()
 	cfg := testConfig()
-	projectConfig := contracts.WailsProjectConfig{
-		Info: contracts.WailsAppInfo{
-			ProductName: "Demo",
-			Version:     "1.0.0",
-		},
-	}
-
-	scriptPath, err := GenerateScript(projectDir, cfg, projectConfig)
-	if err != nil {
-		t.Fatal(err)
-	}
-	script, err := os.ReadFile(scriptPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if bash, err := exec.LookPath("bash"); err == nil {
-		cmd := exec.Command(bash, "-n", "-")
-		cmd.Stdin = strings.NewReader(string(script))
-		if output, err := cmd.CombinedOutput(); err != nil {
-			t.Fatalf("generated script is not valid bash: %v\n%s", err, output)
-		}
-	}
-	text := string(script)
-	for _, want := range []string{
-		`BACKGROUND="$TMP_DIR/$APP_NAME.app/Contents/Resources/dmg-background.png"`,
-		`CREATE_DMG_ARGS+=(--background "$BACKGROUND")`,
-		`DMG_NAME="Demo-1.0.0-macos-setup.dmg"`,
-	} {
-		if !strings.Contains(text, want) {
-			t.Fatalf("generated script missing %q:\n%s", want, text)
-		}
-	}
-	for _, unwanted := range []string{
-		`BACKGROUND="background.png"`,
-		filepath.ToSlash(filepath.Join(projectDir, "builder", "macos", "background.png")),
-	} {
-		if strings.Contains(text, unwanted) {
-			t.Fatalf("generated script should not contain %q:\n%s", unwanted, text)
-		}
-	}
-}
-
-func TestGenerateScriptUsesAppBundleOnly(t *testing.T) {
-	projectDir := t.TempDir()
-	cfg := testConfig()
-	cfg.Entry = contracts.ProgramEntry{ExecutablePath: "launcher/Helper.app"}
 	projectConfig := contracts.WailsProjectConfig{
 		Info: contracts.WailsAppInfo{
 			ProductName: "Demo Product",
 			Version:     "1.0.0",
 		},
 	}
+	appBundle := filepath.Join(projectDir, "bin", "Demo Product.app")
+	background := filepath.Join(projectDir, "builder", "macos", "dmg-background.png")
 
-	scriptPath, err := GenerateScript(projectDir, cfg, projectConfig)
+	opts, err := BuildOptions(projectDir, cfg, projectConfig, appBundle, background)
 	if err != nil {
 		t.Fatal(err)
 	}
-	script, err := os.ReadFile(scriptPath)
-	if err != nil {
-		t.Fatal(err)
+	if opts.VolumeName != "Demo Product" {
+		t.Fatalf("VolumeName = %q, want Demo Product", opts.VolumeName)
 	}
-	text := string(script)
-	for _, want := range []string{
-		`APP_BUNDLE="bin/Demo Product.app"`,
-		`cp -R "$APP_BUNDLE" "$TMP_DIR/$APP_NAME.app"`,
-		`--window-size 300 400`,
-		`--text-size 12`,
-		`--icon "$APP_NAME.app" 90 200`,
-		`--app-drop-link 210 200`,
-	} {
-		if !strings.Contains(text, want) {
-			t.Fatalf("generated script missing %q:\n%s", want, text)
-		}
+	if got := opts.Files["Demo Product.app"]; got != appBundle {
+		t.Fatalf("Files[Demo Product.app] = %q, want %q", got, appBundle)
 	}
-	for _, unwanted := range []string{
-		`if [ -e 'bin/demo.app' ]; then`,
-		`if [ -e 'launcher/Helper.app' ]; then`,
-		`{{extraFiles}}`,
-	} {
-		if strings.Contains(text, unwanted) {
-			t.Fatalf("generated script should not contain %q:\n%s", unwanted, text)
-		}
+	if !opts.AddApplicationsSymlink {
+		t.Fatal("AddApplicationsSymlink = false, want true")
+	}
+	if opts.Window.Width != 300 || opts.Window.Height != 400 {
+		t.Fatalf("Window = %#v, want 300x400", opts.Window)
+	}
+	if opts.Icon.Size != 96 || opts.Icon.TextSize != 12 || opts.Icon.GridSpace != 100 {
+		t.Fatalf("Icon = %#v", opts.Icon)
+	}
+	if got := opts.IconPositions["Demo Product.app"]; got != (upstreamdmg.IconPosition{X: 90, Y: 200}) {
+		t.Fatalf("app icon position = %#v", got)
+	}
+	if got := opts.IconPositions["Applications"]; got != (upstreamdmg.IconPosition{X: 210, Y: 200}) {
+		t.Fatalf("Applications icon position = %#v", got)
+	}
+	if opts.Background == nil || opts.Background.File != background {
+		t.Fatalf("Background = %#v, want %q", opts.Background, background)
+	}
+	if opts.Format != upstreamdmg.FormatUDZO || opts.Filesystem != upstreamdmg.FSHFSPlus || opts.Backend != upstreamdmg.BackendAuto {
+		t.Fatalf("image settings = format %q, filesystem %q, backend %v", opts.Format, opts.Filesystem, opts.Backend)
+	}
+	if got := filepath.Base(opts.OutputPath); got != "Demo Product-1.0.0-macos-setup.dmg" {
+		t.Fatalf("output filename = %q", got)
 	}
 }
 
-func TestGenerateScriptUsesUnifiedInstallerOutputName(t *testing.T) {
+func TestBuildOptionsUsesInstallerOutputName(t *testing.T) {
 	projectDir := t.TempDir()
 	cfg := testConfig()
-	cfg.MacOS.OutputName = "legacy-custom-name"
 	projectConfig := contracts.WailsProjectConfig{
 		Info: contracts.WailsAppInfo{
 			ProductName: "Wails3.Manager",
@@ -109,24 +71,19 @@ func TestGenerateScriptUsesUnifiedInstallerOutputName(t *testing.T) {
 		},
 	}
 
-	scriptPath, err := GenerateScript(projectDir, cfg, projectConfig)
+	opts, err := BuildOptions(projectDir, cfg, projectConfig, filepath.Join(projectDir, "bin", "Wails3.Manager.app"), "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	script, err := os.ReadFile(scriptPath)
-	if err != nil {
-		t.Fatal(err)
+	if got := filepath.Base(opts.OutputPath); got != "Wails3.Manager-1.0.0-macos-setup.dmg" {
+		t.Fatalf("output filename = %q", got)
 	}
-	text := string(script)
-	if !strings.Contains(text, `DMG_NAME="Wails3.Manager-1.0.0-macos-setup.dmg"`) {
-		t.Fatalf("generated script did not use unified installer name:\n%s", text)
-	}
-	if strings.Contains(text, "legacy-custom-name") {
-		t.Fatalf("generated script should ignore legacy outputName:\n%s", text)
+	if opts.Background != nil {
+		t.Fatalf("Background = %#v, want nil", opts.Background)
 	}
 }
 
-func TestGenerateScriptWrapsCreateDMGWithTimeoutCleanup(t *testing.T) {
+func TestBuildRemovesExistingOutputAndInvokesLibrary(t *testing.T) {
 	projectDir := t.TempDir()
 	cfg := testConfig()
 	projectConfig := contracts.WailsProjectConfig{
@@ -135,28 +92,76 @@ func TestGenerateScriptWrapsCreateDMGWithTimeoutCleanup(t *testing.T) {
 			Version:     "1.0.0",
 		},
 	}
+	appBundle := filepath.Join(projectDir, "bin", "Demo.app")
+	if err := os.MkdirAll(appBundle, 0755); err != nil {
+		t.Fatal(err)
+	}
 
-	scriptPath, err := GenerateScript(projectDir, cfg, projectConfig)
+	opts, err := BuildOptions(projectDir, cfg, projectConfig, appBundle, "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	script, err := os.ReadFile(scriptPath)
-	if err != nil {
+	if err := os.MkdirAll(filepath.Dir(opts.OutputPath), 0755); err != nil {
 		t.Fatal(err)
 	}
-	text := string(script)
-	for _, want := range []string{
-		`CREATE_DMG_TIMEOUT_SECONDS="${CREATE_DMG_TIMEOUT_SECONDS:-180}"`,
-		`sleep "$CREATE_DMG_TIMEOUT_SECONDS" >/dev/null 2>&1`,
-		`kill_tree "$create_dmg_pid" TERM`,
-		`kill_tree "$create_dmg_pid" KILL`,
-		`kill_tree "$watchdog_pid" TERM`,
-		`cleanup_partial_dmg`,
-		`return 124`,
-	} {
-		if !strings.Contains(text, want) {
-			t.Fatalf("generated script missing %q:\n%s", want, text)
+	if err := os.WriteFile(opts.OutputPath, []byte("old"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	originalBuildImage := buildImage
+	defer func() { buildImage = originalBuildImage }()
+	called := false
+	buildImage = func(got upstreamdmg.Options) error {
+		called = true
+		if _, err := os.Stat(got.OutputPath); !os.IsNotExist(err) {
+			t.Fatalf("existing output was not removed: %v", err)
 		}
+		return os.WriteFile(got.OutputPath, []byte("new dmg"), 0644)
+	}
+
+	outputPath, err := Build(projectDir, cfg, projectConfig, appBundle, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !called {
+		t.Fatal("upstream Build was not called")
+	}
+	data, err := os.ReadFile(outputPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != "new dmg" {
+		t.Fatalf("output content = %q", data)
+	}
+}
+
+func TestPrepareBackgroundCropsToWindowSize(t *testing.T) {
+	projectDir := t.TempDir()
+	sourcePath := filepath.Join(projectDir, "background.png")
+	outputPath := filepath.Join(projectDir, "builder", "macos", "dmg-background.png")
+	writePNG(t, sourcePath, 800, 400)
+
+	got, err := PrepareBackground(projectDir, "background.png", 320, 180, outputPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != outputPath {
+		t.Fatalf("output = %q, want %q", got, outputPath)
+	}
+	file, err := os.Open(outputPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	img, err := png.Decode(file)
+	closeErr := file.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if closeErr != nil {
+		t.Fatal(closeErr)
+	}
+	if img.Bounds().Dx() != 320 || img.Bounds().Dy() != 180 {
+		t.Fatalf("background size = %dx%d", img.Bounds().Dx(), img.Bounds().Dy())
 	}
 }
 
@@ -165,10 +170,7 @@ func testConfig() contracts.PackagingConfig {
 		Build: contracts.BuildSettings{AppName: "demo"},
 		MacOS: contracts.MacOSConfig{
 			AppBundle:     "bin/${build.appName}.app",
-			DMGScript:     "builder/macos/dmg.sh",
 			Background:    "background.png",
-			OutputName:    "${build.appName}-${project.version}",
-			CreateDMGPath: "create-dmg",
 			WindowWidth:   300,
 			WindowHeight:  400,
 			IconSize:      96,
@@ -177,5 +179,26 @@ func testConfig() contracts.PackagingConfig {
 			ApplicationsX: 210,
 			ApplicationsY: 200,
 		},
+	}
+}
+
+func writePNG(t *testing.T, path string, width, height int) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		t.Fatal(err)
+	}
+	file, err := os.Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	img := image.NewNRGBA(image.Rect(0, 0, width, height))
+	img.Set(0, 0, color.NRGBA{R: 255, A: 255})
+	encodeErr := png.Encode(file, img)
+	closeErr := file.Close()
+	if encodeErr != nil {
+		t.Fatal(encodeErr)
+	}
+	if closeErr != nil {
+		t.Fatal(closeErr)
 	}
 }

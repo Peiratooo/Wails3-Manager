@@ -16,9 +16,8 @@ type CommandProbe interface {
 }
 
 type Service struct {
-	Probe     CommandProbe
-	Inno      func(string) contracts.ToolRequirement
-	CreateDMG func(string) contracts.ToolRequirement
+	Probe CommandProbe
+	Inno  func(string) contracts.ToolRequirement
 }
 
 func NewService() *Service {
@@ -65,9 +64,6 @@ func (s *Service) platformEnvironmentChecks(goos string) []contracts.ToolCheck {
 	case "windows":
 		return []contracts.ToolCheck{toolRequirementCheck(s.innoRequirement(""))}
 
-	case "darwin":
-		return []contracts.ToolCheck{toolRequirementCheck(s.createDMGRequirement(""))}
-
 	default:
 		return nil
 	}
@@ -78,13 +74,6 @@ func (s *Service) innoRequirement(configured string) contracts.ToolRequirement {
 		return s.Inno(configured)
 	}
 	return InnoRequirement(configured)
-}
-
-func (s *Service) createDMGRequirement(configured string) contracts.ToolRequirement {
-	if s.CreateDMG != nil {
-		return s.CreateDMG(configured)
-	}
-	return CreateDMGRequirement(configured)
 }
 
 func environmentOK(checks []contracts.ToolCheck) bool {

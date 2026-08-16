@@ -14,9 +14,9 @@
 
                 <n-button
                     type="primary"
-                    :disabled="!isDirty || saving"
-                    :loading="saving"
-                    @click="saveWails3Cfg"
+                    :disabled="saving || props.savingAll"
+                    :loading="saving || props.savingAll"
+                    @click="requestSave"
                 >
                     {{ t("editor.save") }}
                 </n-button>
@@ -123,6 +123,14 @@ const props = defineProps({
         type: Object,
         required: true
     },
+    savingAll: {
+        type: Boolean,
+        default: false
+    },
+    onSaveRequest: {
+        type: Function,
+        default: null
+    }
 })
 const emit = defineEmits(["saved"])
 
@@ -253,14 +261,23 @@ function cancelIcon() {
     icon.value.newIcon = ""
 }
 
-async function saveWails3Cfg() {
-    if (saving.value) return
-    if (firstFieldError.value) {
-        touchAllFields()
-        message.error(firstFieldError.value)
-        return
+function requestSave() {
+    return props.onSaveRequest?.()
+}
+
+function validateWails3Cfg() {
+    if (!firstFieldError.value) {
+        return true
     }
-    if (!isDirty.value) return
+    touchAllFields()
+    message.error(firstFieldError.value)
+    return false
+}
+
+async function saveWails3Cfg() {
+    if (saving.value) return false
+    if (!validateWails3Cfg()) return false
+    if (!isDirty.value) return true
 
     try {
         saving.value = true
@@ -291,9 +308,10 @@ async function saveWails3Cfg() {
             iconChanged
         })
 
-        message.success(t("editor.saveSuccess"))
+        return true
     } catch (error) {
         message.error(error?.message || String(error))
+        return false
     } finally {
         saving.value = false
     }
@@ -380,7 +398,9 @@ function imageUrlToBase64(url) {
 }
 
 defineExpose({
-    save: saveWails3Cfg
+    save: saveWails3Cfg,
+    validate: validateWails3Cfg,
+    isDirty: () => isDirty.value
 })
 
 </script>

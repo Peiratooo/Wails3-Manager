@@ -11,12 +11,15 @@ import (
 	"path/filepath"
 	"strings"
 
+	upstreamdmg "github.com/leaanthony/dmg/dmg"
+	"golang.org/x/image/draw"
+
 	"wails3-manager/core/contracts"
 	"wails3-manager/core/fsx"
 	"wails3-manager/core/packaging/config"
-
-	xdraw "golang.org/x/image/draw"
 )
+
+var buildImage = upstreamdmg.Build
 
 func DefaultBackgroundPNG() []byte {
 	// 1x1 transparent PNG placeholder; users can replace it from GUI.
@@ -24,46 +27,90 @@ func DefaultBackgroundPNG() []byte {
 	return data
 }
 
-func GenerateScript(projectDir string, cfg contracts.PackagingConfig, projectConfig contracts.WailsProjectConfig) (string, error) {
-	path := fsx.Resolve(projectDir, cfg.MacOS.DMGScript)
-	if path == "" {
-		return "", fmt.Errorf("DMG script path is not configured")
-	}
-	projectName := config.ProjectName(projectConfig)
-	if projectName == "" {
-		return "", fmt.Errorf("project productName is required for macOS packaging")
-	}
-	if config.ProjectVersion(projectConfig) == "" {
-		return "", fmt.Errorf("project version is required for macOS packaging")
-	}
-	appBundle := config.MacOSAppBundlePath(cfg, projectConfig)
-	outputDir := config.MacOSOutputDir(cfg, projectConfig)
-	outputName := config.InstallerOutputName(cfg, projectConfig, contracts.PlatformMacOS)
-	content := strings.NewReplacer(
-		"{{appName}}", projectName,
-		"{{appBundle}}", filepath.ToSlash(appBundle),
-		"{{outputDir}}", filepath.ToSlash(outputDir),
-		"{{outputName}}", outputName,
-		"{{windowWidth}}", fmt.Sprint(cfg.MacOS.WindowWidth),
-		"{{windowHeight}}", fmt.Sprint(cfg.MacOS.WindowHeight),
-		"{{iconSize}}", fmt.Sprint(cfg.MacOS.IconSize),
-		"{{textSize}}", "12",
-		"{{appX}}", fmt.Sprint(cfg.MacOS.AppX),
-		"{{appY}}", fmt.Sprint(cfg.MacOS.AppY),
-		"{{applicationsX}}", fmt.Sprint(cfg.MacOS.ApplicationsX),
-		"{{applicationsY}}", fmt.Sprint(cfg.MacOS.ApplicationsY),
-		"{{createDmg}}", cfg.MacOS.CreateDMGPath,
-	).Replace(defaultTemplate)
-	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+// Build creates the configured DMG and returns its absolute output path.
+func Build(projectDir string, cfg contracts.PackagingConfig, projectConfig contracts.WailsProjectConfig, appBundle, background string) (string, error) {
+	opts, err := BuildOptions(projectDir, cfg, projectConfig, appBundle, background)
+	if err != nil {
 		return "", err
 	}
-	return path, os.WriteFile(path, []byte(content), 0755)
+	if err := os.MkdirAll(filepath.Dir(opts.OutputPath), 0755); err != nil {
+		return "", fmt.Errorf("failed to create DMG output directory: %w", err)
+	}
+	if err := os.Remove(opts.OutputPath); err != nil && !os.IsNotExist(err) {
+		return "", fmt.Errorf("failed to remove existing DMG: %w", err)
+	}
+	if err := buildImage(opts); err != nil {
+		return "", fmt.Errorf("failed to build DMG: %w", err)
+	}
+	return opts.OutputPath, nil
+}
+
+// BuildOptions maps Wails3 Manager packaging settings to leaanthony/dmg.
+func BuildOptions(projectDir string, cfg contracts.PackagingConfig, projectConfig contracts.WailsProjectConfig, appBundle, background string) (upstreamdmg.Options, error) {
+	projectName := strings.TrimSpace(config.ProjectName(projectConfig))
+	if projectName == "" {
+		return upstreamdmg.Options{}, fmt.Errorf("project productName is required for macOS packaging")
+	}
+	if strings.TrimSpace(config.ProjectVersion(projectConfig)) == "" {
+		return upstreamdmg.Options{}, fmt.Errorf("project version is required for macOS packaging")
+	}
+
+	appBundle = fsx.Resolve(projectDir, appBundle)
+	if appBundle == "" {
+		return upstreamdmg.Options{}, fmt.Errorf("macOS app bundle path is not configured")
+	}
+	outputDir := fsx.Resolve(projectDir, config.MacOSOutputDir(cfg, projectConfig))
+	if outputDir == "" {
+		return upstreamdmg.Options{}, fmt.Errorf("macOS output directory is not configured")
+	}
+	outputPath := filepath.Join(outputDir, config.InstallerOutputName(cfg, projectConfig, contracts.PlatformMacOS)+".dmg")
+	appName := strings.TrimSuffix(projectName, ".app") + ".app"
+
+	opts := upstreamdmg.Options{
+		VolumeName: projectName,
+		OutputPath: outputPath,
+		Files: map[string]string{
+			appName: appBundle,
+		},
+		AddApplicationsSymlink: true,
+		IconPositions: map[string]upstreamdmg.IconPosition{
+			appName: {
+				X: cfg.MacOS.AppX,
+				Y: cfg.MacOS.AppY,
+			},
+			"Applications": {
+				X: cfg.MacOS.ApplicationsX,
+				Y: cfg.MacOS.ApplicationsY,
+			},
+		},
+		Window: upstreamdmg.WindowConfig{
+			X:      100,
+			Y:      100,
+			Width:  cfg.MacOS.WindowWidth,
+			Height: cfg.MacOS.WindowHeight,
+		},
+		Icon: upstreamdmg.IconConfig{
+			Size:      cfg.MacOS.IconSize,
+			TextSize:  12,
+			GridSpace: 100,
+		},
+		Format:     upstreamdmg.FormatUDZO,
+		Filesystem: upstreamdmg.FSHFSPlus,
+		Backend:    upstreamdmg.BackendAuto,
+	}
+	if background = strings.TrimSpace(background); background != "" {
+		opts.Background = &upstreamdmg.BackgroundConfig{File: fsx.Resolve(projectDir, background)}
+	}
+	return opts, nil
 }
 
 func PrepareBackground(projectDir, background string, width, height int, output string) (string, error) {
 	background = strings.TrimSpace(background)
 	if background == "" {
 		return "", nil
+	}
+	if width <= 0 || height <= 0 {
+		return "", fmt.Errorf("DMG background dimensions must be greater than zero")
 	}
 	sourcePath := fsx.Resolve(projectDir, background)
 	file, err := os.Open(sourcePath)
@@ -76,7 +123,7 @@ func PrepareBackground(projectDir, background string, width, height int, output 
 		return "", fmt.Errorf("failed to decode DMG background: %w", err)
 	}
 	if strings.TrimSpace(output) == "" {
-		output = filepath.Join(projectDir, "builder", "macos", "background.png")
+		output = filepath.Join(projectDir, "builder", "macos", "dmg-background.png")
 	}
 	if err := os.MkdirAll(filepath.Dir(output), 0755); err != nil {
 		return "", err
@@ -111,134 +158,6 @@ func coverImage(source image.Image, width, height int) *image.NRGBA {
 		crop.Max.Y = crop.Min.Y + cropHeight
 	}
 	output := image.NewNRGBA(image.Rect(0, 0, width, height))
-	xdraw.BiLinear.Scale(output, output.Bounds(), source, crop, xdraw.Src, nil)
+	draw.BiLinear.Scale(output, output.Bounds(), source, crop, draw.Src, nil)
 	return output
 }
-
-const defaultTemplate = `#!/usr/bin/env bash
-set -euo pipefail
-
-APP_NAME="{{appName}}"
-APP_BUNDLE="{{appBundle}}"
-OUT_DIR="{{outputDir}}"
-DMG_NAME="{{outputName}}.dmg"
-CREATE_DMG="{{createDmg}}"
-FINAL_DMG="$OUT_DIR/$DMG_NAME"
-VOLUME_NAME="$APP_NAME"
-CREATE_DMG_TIMEOUT_SECONDS="${CREATE_DMG_TIMEOUT_SECONDS:-180}"
-
-mkdir -p "$OUT_DIR"
-rm -f "$FINAL_DMG"
-
-if [ ! -d "$APP_BUNDLE" ]; then
-  echo "App bundle not found: $APP_BUNDLE" >&2
-  exit 1
-fi
-
-if ! command -v "$CREATE_DMG" >/dev/null 2>&1; then
-  echo "create-dmg not found: $CREATE_DMG" >&2
-  echo "Install it with: brew install create-dmg" >&2
-  exit 1
-fi
-
-TMP_DIR="$(mktemp -d)"
-trap 'rm -rf "$TMP_DIR"' EXIT
-cp -R "$APP_BUNDLE" "$TMP_DIR/$APP_NAME.app"
-BACKGROUND="$TMP_DIR/$APP_NAME.app/Contents/Resources/dmg-background.png"
-
-CREATE_DMG_ARGS=(
-  --volname "$VOLUME_NAME"
-  --window-size {{windowWidth}} {{windowHeight}}
-  --icon-size {{iconSize}}
-  --text-size {{textSize}}
-  --icon "$APP_NAME.app" {{appX}} {{appY}}
-  --app-drop-link {{applicationsX}} {{applicationsY}}
-)
-
-if [ -f "$BACKGROUND" ]; then
-  CREATE_DMG_ARGS+=(--background "$BACKGROUND")
-fi
-
-kill_tree() {
-  local pid="$1"
-  local signal="${2:-TERM}"
-  local child
-  while read -r child; do
-    [ -n "$child" ] || continue
-    kill_tree "$child" "$signal"
-  done < <(pgrep -P "$pid" 2>/dev/null || true)
-  kill "-$signal" "$pid" 2>/dev/null || true
-}
-
-detach_mounted_image() {
-  local image_path="$1"
-  hdiutil info | awk -v image="$image_path" '
-    /^image-path[[:space:]]*:/ {
-      current = substr($0, index($0, ":") + 2)
-      active = (current == image)
-    }
-    active && /^\/dev\// {
-      print $1
-    }
-    active && /^mount-point[[:space:]]*:/ {
-      print substr($0, index($0, ":") + 2)
-    }
-  ' | while read -r target; do
-    [ -n "$target" ] || continue
-    hdiutil detach "$target" -force >/dev/null 2>&1 || true
-  done
-}
-
-cleanup_partial_dmg() {
-  local temp_dmg
-  for temp_dmg in "$OUT_DIR/rw."*".$DMG_NAME"; do
-    [ -e "$temp_dmg" ] || continue
-    detach_mounted_image "$(cd "$(dirname "$temp_dmg")" && pwd -P)/$(basename "$temp_dmg")"
-    rm -f "$temp_dmg"
-  done
-  if [ -d "/Volumes/$VOLUME_NAME" ]; then
-    hdiutil detach "/Volumes/$VOLUME_NAME" -force >/dev/null 2>&1 || true
-  fi
-}
-
-run_create_dmg() {
-  "$CREATE_DMG" "${CREATE_DMG_ARGS[@]}" "$FINAL_DMG" "$TMP_DIR" &
-  local create_dmg_pid="$!"
-  local watchdog_pid=""
-  local timeout_marker="$TMP_DIR/create-dmg.timeout"
-
-  if [ "$CREATE_DMG_TIMEOUT_SECONDS" -gt 0 ] 2>/dev/null; then
-    (
-      sleep "$CREATE_DMG_TIMEOUT_SECONDS" >/dev/null 2>&1
-      if kill -0 "$create_dmg_pid" 2>/dev/null; then
-        echo "create-dmg timed out after ${CREATE_DMG_TIMEOUT_SECONDS}s; terminating it." >&2
-        : > "$timeout_marker"
-        kill_tree "$create_dmg_pid" TERM
-        sleep 5
-        kill_tree "$create_dmg_pid" KILL
-      fi
-    ) &
-    watchdog_pid="$!"
-  fi
-
-  local status=0
-  wait "$create_dmg_pid" || status="$?"
-  if [ -n "$watchdog_pid" ]; then
-    kill_tree "$watchdog_pid" TERM
-    wait "$watchdog_pid" 2>/dev/null || true
-  fi
-
-  if [ "$status" -ne 0 ]; then
-    cleanup_partial_dmg
-    if [ -f "$timeout_marker" ]; then
-      return 124
-    fi
-    return "$status"
-  fi
-  return 0
-}
-
-run_create_dmg
-
-echo "DMG created: $FINAL_DMG"
-`

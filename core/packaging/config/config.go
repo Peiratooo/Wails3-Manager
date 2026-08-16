@@ -121,12 +121,6 @@ func validateMacOSConfig(cfg contracts.MacOSConfig) error {
 	if strings.TrimSpace(cfg.AppBundle) == "" {
 		return fmt.Errorf("packaging macos.appBundle is required")
 	}
-	if strings.TrimSpace(cfg.DMGScript) == "" {
-		return fmt.Errorf("packaging macos.dmgScript is required")
-	}
-	if strings.TrimSpace(cfg.CreateDMGPath) == "" {
-		return fmt.Errorf("packaging macos.createDmgPath is required")
-	}
 	if cfg.WindowWidth <= 0 || cfg.WindowHeight <= 0 || cfg.IconSize <= 0 {
 		return fmt.Errorf("packaging macos window size and icon size must be greater than zero")
 	}
