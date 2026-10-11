@@ -8,7 +8,7 @@ Wails 3 앱을 생성, 설정, 빌드, 패키징하는 데스크톱 UI입니다.
 
 <img src="../imgs/badge.png" alt="Wails3 Manager badges" width="620">
 
-[English](../README.md) · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · [日本語](README.ja-JP.md) · **한국어** · [Français](README.fr-FR.md) · [Deutsch](README.de-DE.md)
+[English](../README.md) · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · [日本語](README.ja-JP.md) · **한국어** · [Français](README.fr-FR.md) · [Deutsch](README.de-DE.md)· [Русский](README.ru-RU.md)
 
 </div>
 

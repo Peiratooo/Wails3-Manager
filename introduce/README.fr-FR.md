@@ -8,7 +8,7 @@ Interface desktop pour créer, configurer, compiler et empaqueter des applicatio
 
 <img src="../imgs/badge.png" alt="Wails3 Manager badges" width="620">
 
-[English](../README.md) · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · [日本語](README.ja-JP.md) · [한국어](README.ko-KR.md) · **Français** · [Deutsch](README.de-DE.md)
+[English](../README.md) · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · [日本語](README.ja-JP.md) · [한국어](README.ko-KR.md) · **Français** · [Deutsch](README.de-DE.md)· [Русский](README.ru-RU.md)
 
 </div>
 
