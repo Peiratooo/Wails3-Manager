@@ -96,8 +96,12 @@ func (s *Service) LoadPackagingConfig(projectDir string) (contracts.PackagingCon
 	return config.LoadPackagingConfig(projectDir)
 }
 
-func (s *Service) SavePackagingConfig(projectDir string, cfg contracts.PackagingConfig) (contracts.PackagingConfig, error) {
-	projectDir, err := fsx.NormalizePath(projectDir)
+func (s *Service) SavePackagingConfig(projectDir string, cfg contracts.PackagingConfig) (saved contracts.PackagingConfig, err error) {
+	if !s.beginPackage() {
+		return saved, errors.New("cannot save packaging settings while another operation is running")
+	}
+	defer s.endPackage()
+	projectDir, err = fsx.NormalizePath(projectDir)
 	if err != nil {
 		return contracts.PackagingConfig{}, err
 	}
@@ -110,13 +114,22 @@ func (s *Service) SavePackagingConfig(projectDir string, cfg contracts.Packaging
 			return contracts.PackagingConfig{}, err
 		}
 	}
-	if err := config.SavePackagingConfig(projectDir, cfg); err != nil {
-		return contracts.PackagingConfig{}, err
+	snapshots, err := snapshotPackagingFiles(projectDir, cfg, projectConfig)
+	if err != nil {
+		return saved, err
 	}
+	defer func() {
+		if err != nil {
+			err = errors.Join(err, restorePackagingFiles(snapshots))
+		}
+	}()
 	if err := syncPackagingTaskfile(projectDir, cfg); err != nil {
 		return contracts.PackagingConfig{}, err
 	}
 	if err := s.writeTemplates(projectDir, cfg, projectConfig); err != nil {
+		return contracts.PackagingConfig{}, err
+	}
+	if err := config.SavePackagingConfig(projectDir, cfg); err != nil {
 		return contracts.PackagingConfig{}, err
 	}
 	return config.LoadPackagingConfig(projectDir)
@@ -138,6 +151,9 @@ func (s *Service) GetPackagingRuntimeInfo(projectDir string) (contracts.Packagin
 	if runtimePlatform() == contracts.PlatformMacOS {
 		defaultPath := config.DefaultMacOSBinaryPath(cfg)
 		effectivePath := macOSLaunchExecutablePath(cfg, projectConfig)
+		if entry := config.RenderPlaceholders(cfg.Entry.ExecutablePath, cfg, projectConfig); isMacOSAppBundlePath(entry) {
+			effectivePath = entry
+		}
 		return contracts.PackagingRuntimeInfo{
 			DefaultExecutablePath:   defaultPath,
 			EffectiveExecutablePath: effectivePath,
@@ -177,6 +193,9 @@ func (s *Service) Package(req contracts.PackageRequest) (result contracts.Packag
 	default:
 		return contracts.PackageResult{}, fmt.Errorf("unsupported packaging platform: %s", platform)
 	}
+	if !req.DryRun && cfg.MacOS.Enabled && (platform == contracts.PlatformMacOS || platform == contracts.PlatformAll) && runtime.GOOS != "darwin" {
+		return contracts.PackageResult{}, fmt.Errorf("DMG creation must run on macOS; use dry-run to preview its configuration")
+	}
 	if err := syncPackagingTaskfile(projectDir, cfg); err != nil {
 		return contracts.PackageResult{}, err
 	}
@@ -200,16 +219,18 @@ func (s *Service) Package(req contracts.PackageRequest) (result contracts.Packag
 	}()
 	runID := fsx.Timestamp()
 	result = contracts.PackageResult{
-		OK:               true,
-		RunID:            runID,
-		Warnings:         []string{},
-		BuildOutputDir:   fsx.Resolve(projectDir, "bin"),
-		PackageOutputDir: packageOutputDir(projectDir, cfg, projectConfig, platform),
+		OK:        true,
+		RunID:     runID,
+		Warnings:  []string{},
+		Artifacts: []contracts.Artifact{},
 	}
 	ctx := context.Background()
 	if req.RunBuild {
 		if err := s.runBuild(ctx, projectDir, cfg, req.DryRun, tx); err != nil {
 			return contracts.PackageResult{}, err
+		}
+		if !req.DryRun && fsx.DirExists(fsx.Resolve(projectDir, "bin")) {
+			result.BuildOutputDir = fsx.Resolve(projectDir, "bin")
 		}
 	}
 	// Packaging intentionally has no before/after script stages. The only custom
@@ -233,7 +254,12 @@ func (s *Service) Package(req contracts.PackageRequest) (result contracts.Packag
 				if err := validateWindowsPackagingInputs(projectDir, cfg, projectConfig); err != nil {
 					return contracts.PackageResult{}, err
 				}
+				outputPath := filepath.Join(packageOutputDir(projectDir, cfg, projectConfig, contracts.PlatformWindows), config.InstallerOutputName(cfg, projectConfig, contracts.PlatformWindows)+".exe")
+				previous, _ := os.Stat(outputPath)
 				if err := s.runISCC(ctx, projectDir, cfg, tx); err != nil {
+					return contracts.PackageResult{}, err
+				}
+				if err := appendPackageArtifact(&result, outputPath, previous); err != nil {
 					return contracts.PackageResult{}, err
 				}
 			}
@@ -249,13 +275,15 @@ func (s *Service) Package(req contracts.PackageRequest) (result contracts.Packag
 			if req.DryRun {
 				result.Warnings = append(result.Warnings, "macOS DMG generation was skipped in dry-run mode.")
 			} else {
-				if err := validateMacOSPackagingInputs(projectDir, cfg, projectConfig); err != nil {
-					return contracts.PackageResult{}, err
+				if runtime.GOOS != "darwin" {
+					return contracts.PackageResult{}, fmt.Errorf("DMG creation must run on macOS")
 				}
-				appBundle, err := prepareMacOSAppBundle(projectDir, cfg, projectConfig)
+				appBundle, cleanup, err := s.stageMacOSBundle(ctx, projectDir, cfg, projectConfig, tx, req.RunBuild)
 				if err != nil {
 					return contracts.PackageResult{}, err
 				}
+				defer cleanup()
+				result.Warnings = append(result.Warnings, "Manager does not perform Developer ID signing or notarization. New or modified application bundles are ad-hoc signed; unchanged prebuilt bundles retain their signatures.")
 				background := config.RenderPlaceholders(cfg.MacOS.Background, cfg, projectConfig)
 				backgroundPath, err := dmg.PrepareBackground(
 					projectDir,
@@ -267,14 +295,28 @@ func (s *Service) Package(req contracts.PackageRequest) (result contracts.Packag
 				if err != nil {
 					return contracts.PackageResult{}, err
 				}
-				if _, err := s.runDMG(projectDir, cfg, projectConfig, appBundle, backgroundPath, tx); err != nil {
+				outputPath := filepath.Join(packageOutputDir(projectDir, cfg, projectConfig, contracts.PlatformMacOS), config.InstallerOutputName(cfg, projectConfig, contracts.PlatformMacOS)+".dmg")
+				previous, _ := os.Stat(outputPath)
+				if cfg.MacOS.DMGMode == "official" {
+					outputPath, err = s.runOfficialDMG(ctx, projectDir, cfg, projectConfig, appBundle, backgroundPath, tx)
+				} else {
+					outputPath, err = s.runDMG(projectDir, cfg, projectConfig, appBundle, backgroundPath, tx)
+				}
+				if err != nil {
+					return contracts.PackageResult{}, err
+				}
+				if err := appendPackageArtifact(&result, outputPath, previous); err != nil {
 					return contracts.PackageResult{}, err
 				}
 			}
 		}
 	}
-	result.Artifacts = release.ReleaseArtifacts(projectDir)
 	result.Message = "Packaging completed."
+	if len(result.Artifacts) > 0 {
+		result.PackageOutputDir = packageOutputDir(projectDir, cfg, projectConfig, platform)
+	} else {
+		result.Message = "Task completed; no installer was generated."
+	}
 	return result, nil
 }
 
@@ -283,7 +325,15 @@ func (s *Service) Artifacts(projectDir string) []contracts.Artifact {
 	if err != nil {
 		return []contracts.Artifact{}
 	}
-	return release.ReleaseArtifacts(projectDir)
+	cfg, err := config.LoadPackagingConfig(projectDir)
+	if err != nil {
+		return []contracts.Artifact{}
+	}
+	projectConfig, err := loadProjectConfig(projectDir)
+	if err != nil {
+		return []contracts.Artifact{}
+	}
+	return release.ArtifactsAt(fsx.Resolve(projectDir, config.ExportRoot(cfg, projectConfig)))
 }
 
 func (s *Service) writeTemplates(projectDir string, cfg contracts.PackagingConfig, projectConfig contracts.WailsProjectConfig) error {
@@ -295,6 +345,12 @@ func (s *Service) writeTemplates(projectDir string, cfg contracts.PackagingConfi
 	if cfg.MacOS.Enabled && strings.TrimSpace(cfg.MacOS.Background) != "" {
 		background := config.RenderPlaceholders(cfg.MacOS.Background, cfg, projectConfig)
 		bg := fsx.Resolve(projectDir, background)
+		if fsx.FileExists(bg) {
+			return nil
+		}
+		if fsx.ResolveProjectFile(projectDir, background) == "" {
+			return fmt.Errorf("DMG background outside the project must already exist: %s", bg)
+		}
 		if _, err := fsx.WriteIfMissing(bg, s.defaultDMGBackgroundPNG(), 0644); err != nil {
 			return err
 		}
@@ -308,6 +364,10 @@ func (s *Service) runBuild(ctx context.Context, projectDir string, cfg contracts
 		return err
 	}
 	env := buildEnv(cfg)
+	env["DEV"] = boolString(!cfg.Build.Production)
+	if len(cfg.Build.Command) == 0 {
+		cmd = append(cmd, "DEV="+boolString(!cfg.Build.Production))
+	}
 	return (runlog.Runner{Log: s.Log, DryRun: dryRun, Env: env, Transaction: tx}).Run(ctx, projectDir, cmd)
 }
 
@@ -327,6 +387,9 @@ func (s *Service) runISCC(ctx context.Context, projectDir string, cfg contracts.
 		}
 		if err := runISCCCommand(ctx, projectDir, command, runner); err != nil {
 			lastErr = err
+			if !isInnoFileLock(err) {
+				return fmt.Errorf("Inno Setup compile failed: %w", err)
+			}
 			if retry == innoCompileMaxRetries {
 				return fmt.Errorf("Inno Setup compile failed after %d retries: %w", innoCompileMaxRetries, lastErr)
 			}
@@ -391,7 +454,7 @@ func defaultPackagingConfig(projectDir string, projectConfig contracts.WailsProj
 			Taskfile:   taskfile,
 			Task:       "release",
 			Production: taskVars.Production,
-			CGOEnabled: project.ResolveBoolean(taskVars.CGOEnabled),
+			CGOEnabled: runtimePlatform() == contracts.PlatformMacOS || project.ResolveBoolean(taskVars.CGOEnabled),
 			AppName:    appName,
 		},
 		Assets:    []contracts.PackagingAsset{},
@@ -406,6 +469,7 @@ func defaultPackagingConfig(projectDir string, projectConfig contracts.WailsProj
 			CreateDesktopShortcut: true,
 		},
 		MacOS: contracts.MacOSConfig{
+			DMGMode:       "official",
 			Enabled:       true,
 			AppBundle:     "bin/${project.name}.app",
 			Background:    "assets/install-grid.png",
@@ -578,4 +642,30 @@ func runtimePlatform() contracts.Platform {
 	default:
 		return contracts.Platform(runtime.GOOS)
 	}
+}
+
+func appendPackageArtifact(result *contracts.PackageResult, path string, previous os.FileInfo) error {
+	artifact, err := release.ArtifactAt(path)
+	if err != nil {
+		return err
+	}
+	current, err := os.Stat(path)
+	if err != nil {
+		return err
+	}
+	if previous != nil && os.SameFile(previous, current) && previous.ModTime().Equal(current.ModTime()) && previous.Size() == current.Size() {
+		return fmt.Errorf("compiler did not update the package output: %s", path)
+	}
+	result.Artifacts = append(result.Artifacts, artifact)
+	return nil
+}
+
+func isInnoFileLock(err error) bool {
+	message := strings.ToLower(err.Error())
+	for _, marker := range []string{"file is locked", "being used by another process", "sharing violation", "另一个程序正在使用", "另一个进程正在使用"} {
+		if strings.Contains(message, marker) {
+			return true
+		}
+	}
+	return false
 }

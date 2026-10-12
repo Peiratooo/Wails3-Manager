@@ -22,49 +22,73 @@ func prepareMacOSAppBundle(projectDir string, cfg contracts.PackagingConfig, pro
 		return "", fmt.Errorf("macOS app bundle path must end with .app: %s", appBundle)
 	}
 
+	// A prebuilt bundle is an input. Never reconstruct it in place.
+	if fsx.DirExists(appBundle) {
+		if !fsx.FileExists(filepath.Join(appBundle, "Contents", "Info.plist")) {
+			return "", fmt.Errorf("existing app bundle is incomplete: %s", appBundle)
+		}
+		return appBundle, nil
+	}
+	if err := ensureProjectBundleDestination(projectDir, appBundle); err != nil {
+		return "", err
+	}
+	if err := populateMacOSAppBundle(projectDir, cfg, projectConfig, appBundle); err != nil {
+		return "", err
+	}
+	return appBundle, nil
+}
+
+func populateMacOSAppBundle(projectDir string, cfg contracts.PackagingConfig, projectConfig contracts.WailsProjectConfig, appBundle string) error {
+	if err := config.ValidateAssetTargets(cfg, contracts.PlatformMacOS); err != nil {
+		return err
+	}
+	if !fsx.FileExists(fsx.Resolve(projectDir, config.DefaultMacOSBinaryPath(cfg))) {
+		return fmt.Errorf("macOS executable not found: %s", config.DefaultMacOSBinaryPath(cfg))
+	}
 	contentsDir := filepath.Join(appBundle, "Contents")
 	macOSDir := filepath.Join(contentsDir, "MacOS")
 	resourcesDir := filepath.Join(contentsDir, "Resources")
-	if err := os.RemoveAll(contentsDir); err != nil {
-		return "", err
-	}
 	for _, dir := range []string{macOSDir, resourcesDir} {
 		if err := os.MkdirAll(dir, 0755); err != nil {
-			return "", err
+			return err
 		}
 	}
 
 	iconSrc := filepath.Join(projectDir, "build", "darwin", "icons.icns")
 	iconDst := filepath.Join(resourcesDir, "icons.icns")
 	if err := copyRequiredFile(iconSrc, iconDst, "macOS icon", 0644); err != nil {
-		return "", err
+		return err
 	}
 	plist, err := renderMacOSInfoPlist(projectDir, cfg, projectConfig)
 	if err != nil {
-		return "", err
+		return err
 	}
 	if err := os.WriteFile(filepath.Join(contentsDir, "Info.plist"), []byte(plist), 0644); err != nil {
-		return "", err
+		return err
 	}
 
 	if err := copyMacOSPayloads(projectDir, contentsDir, cfg, projectConfig); err != nil {
-		return "", err
+		return err
 	}
 
 	binarySrc := fsx.Resolve(projectDir, config.DefaultMacOSBinaryPath(cfg))
 	binaryDst := filepath.Join(macOSDir, config.AppName(cfg))
 	if err := copyRequiredFile(binarySrc, binaryDst, "macOS executable", 0755); err != nil {
-		return "", err
+		return err
 	}
 
 	launchSrc := macOSLaunchExecutablePath(cfg, projectConfig)
 	if !config.SameAssetPath(launchSrc, config.DefaultMacOSBinaryPath(cfg), contracts.PlatformMacOS) {
 		if err := copyMacOSLaunchExecutable(projectDir, macOSDir, launchSrc); err != nil {
-			return "", err
+			return err
 		}
 	}
 
-	return appBundle, nil
+	assetsCar := filepath.Join(projectDir, "build", "darwin", "Assets.car")
+	if fsx.FileExists(assetsCar) {
+		return copyRequiredFile(assetsCar, filepath.Join(resourcesDir, "Assets.car"), "macOS icon catalog", 0644)
+	}
+	return nil
 }
 
 func renderMacOSInfoPlist(projectDir string, cfg contracts.PackagingConfig, projectConfig contracts.WailsProjectConfig) (string, error) {
@@ -140,6 +164,13 @@ func copyMacOSPayloads(projectDir, contentsDir string, cfg contracts.PackagingCo
 			return fmt.Errorf("macOS asset %d: %w", i, err)
 		}
 		targetDir := filepath.Join(contentsDir, filepath.FromSlash(target))
+		if err := ensureBundleWritePath(contentsDir, targetDir); err != nil {
+			return err
+		}
+		source := fsx.Resolve(projectDir, src)
+		if err := ensureBundleWritePath(contentsDir, filepath.Join(targetDir, filepath.Base(strings.TrimRight(source, "/\\")))); err != nil {
+			return err
+		}
 		if err := copyMacOSPayload(projectDir, targetDir, src, asset.Type, asset.Required); err != nil {
 			return fmt.Errorf("macOS asset %d: %w", i, err)
 		}
@@ -159,7 +190,11 @@ func copyMacOSLaunchExecutable(projectDir, macOSDir, src string) error {
 	if name == "" || name == "." || name == string(filepath.Separator) {
 		return fmt.Errorf("macOS launch program has no filename: %s", from)
 	}
-	return copyRequiredFile(from, filepath.Join(macOSDir, name), "macOS launch program", 0755)
+	to := filepath.Join(macOSDir, name)
+	if err := ensureBundleWritePath(macOSDir, to); err != nil {
+		return err
+	}
+	return copyRequiredFile(from, to, "macOS launch program", 0755)
 }
 
 func copyMacOSPayload(projectDir, macOSDir, src, assetType string, required bool) error {

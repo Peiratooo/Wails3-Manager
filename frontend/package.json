@@ -20,7 +20,7 @@
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^6.0.7",
-    "@wailsio/runtime": "3.0.0-alpha.79",
+    "@wailsio/runtime": "3.0.0-beta.28",
     "sass-embedded": "^1.100.0",
     "vite": "8.0.14"
   }

@@ -13,7 +13,7 @@ Desktop UI for creating, configuring, building, and packaging Wails 3 apps.
 </div>
 
 > [!IMPORTANT]
-> Wails3 Manager is under active development and follows Wails 3 alpha releases. Windows installers are compiled on Windows, and macOS DMGs are created on macOS.
+> Wails3 Manager targets Wails 3 beta.28. Windows installers are compiled on Windows, and macOS DMGs are created on macOS.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="imgs/english/dark/home.png">
@@ -34,7 +34,11 @@ The convenience is simple: less switching between terminals, config files, icon 
 3. Create a new Wails 3 project or import an existing one.
 4. Configure, build, and package from the workspace.
 
-Native packaging still needs the platform tool: **Inno Setup** for Windows installers, **create-dmg** for macOS DMGs.
+Native packaging needs **Inno Setup** on Windows and the Wails CLI plus macOS disk-image and signing tools on macOS.
+
+DMG packaging offers two modes: the official Wails standard layout and a custom layout with draggable icons. Existing configurations keep their custom layout; newly initialized configurations default to official mode. Optional volume and DMG file icons are configured separately.
+
+Application bundles are copied into a temporary staging directory before packaging. New or modified bundles receive an ad-hoc signature; unchanged prebuilt bundles retain their signatures. Developer ID signing and notarization remain separate distribution steps. A previous DMG is replaced only after a non-empty new output has been produced.
 
 ## Features
 
@@ -67,8 +71,8 @@ Stack: Wails 3, Go, Vue 3, Vite, Naive UI, Pinia, Vue Router, Vue I18n, vue3-mov
 
 Requirements:
 
-- Go **1.25.0**
-- Wails3 CLI compatible with `github.com/wailsapp/wails/v3 v3.0.0-alpha.96`
+- Go **1.26.5** (as pinned in go.mod)
+- Wails3 CLI **v3.0.0-beta.28**, matching the Go module and frontend runtime
 - Node.js and npm
 - Wails platform toolchain for your OS
 

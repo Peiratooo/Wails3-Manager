@@ -2,13 +2,12 @@ package desktop
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
-
-	"wails3-manager/core/execenv"
 )
 
 type AppService struct{}
@@ -45,12 +44,22 @@ func (a *AppService) OpenPath(path string) error {
 	}
 	info, err := os.Stat(absolutePath)
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot open path %q: %w", absolutePath, err)
+	}
+
+	if App != nil {
+		if err := App.Env.OpenFileManager(absolutePath, !info.IsDir()); err != nil {
+			return fmt.Errorf("cannot reveal path %q: %w", absolutePath, err)
+		}
+		return nil
 	}
 
 	cmd := openPathCommand(runtime.GOOS, absolutePath, info.IsDir())
-	execenv.HideWindow(cmd)
-	return cmd.Start()
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("cannot start file manager for %q: %w", absolutePath, err)
+	}
+	go func() { _ = cmd.Wait() }()
+	return nil
 }
 
 func openPathCommand(goos string, path string, isDir bool) *exec.Cmd {
@@ -61,8 +70,14 @@ func openPathCommand(goos string, path string, isDir bool) *exec.Cmd {
 		}
 		return exec.Command("explorer.exe", "/select,"+path)
 	case "darwin":
+		if !isDir {
+			return exec.Command("open", "-R", path)
+		}
 		return exec.Command("open", path)
 	default:
+		if !isDir {
+			path = filepath.Dir(path)
+		}
 		return exec.Command("xdg-open", path)
 	}
 }

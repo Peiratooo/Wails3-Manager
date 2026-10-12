@@ -1,6 +1,7 @@
 package release
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -10,6 +11,23 @@ import (
 
 func ReleaseArtifacts(projectDir string) []contracts.Artifact {
 	return listArtifacts(filepath.Join(fsx.BuilderDir(projectDir), "release"))
+}
+
+// ArtifactsAt lists historical outputs from the configured release root.
+func ArtifactsAt(root string) []contracts.Artifact {
+	return listArtifacts(root)
+}
+
+// ArtifactAt verifies an output before exposing it as a completed artifact.
+func ArtifactAt(path string) (contracts.Artifact, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return contracts.Artifact{}, fmt.Errorf("verify package output %s: %w", path, err)
+	}
+	if !info.Mode().IsRegular() || info.Size() == 0 {
+		return contracts.Artifact{}, fmt.Errorf("package output is not a non-empty regular file: %s", path)
+	}
+	return contracts.Artifact{Kind: classify(path), Name: info.Name(), Path: path, Size: info.Size(), CreatedAt: contracts.UnixTimeFrom(info.ModTime())}, nil
 }
 
 func listArtifacts(root string) []contracts.Artifact {

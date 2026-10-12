@@ -128,7 +128,6 @@
             v-model:show="packageModalVisible"
             :finished="packageFinished"
             :building="building"
-            :progress="packageProgress"
             :error="packageError"
             :transaction-id="packageTransactionId"
             :log-entries="packageLogEntries"
@@ -167,7 +166,6 @@ const iconLoadError = ref(false)
 const building = ref(false)
 const packageModalVisible = ref(false)
 const packageFinished = ref(false)
-const packageProgress = ref(0)
 const packageError = ref("")
 const packageResult = ref(null)
 const packageTransactionId = ref("")
@@ -215,6 +213,21 @@ async function openProjectFolder() {
     await openPath(projectDir.value)
 }
 
+function errorMessage(error) {
+    let value = error?.message ?? error
+    // Older runtime versions may wrap the backend error as a JSON string.
+    for (let depth = 0; depth < 3 && typeof value === "string"; depth++) {
+        try {
+            const parsed = JSON.parse(value)
+            if (typeof parsed?.message !== "string") break
+            value = parsed.message
+        } catch {
+            break
+        }
+    }
+    return String(value ?? "")
+}
+
 async function runBuild() {
     if (building.value) return
 
@@ -231,10 +244,8 @@ async function runBuild() {
         packageTransactionId.value = `package-${Date.now()}`
         packageModalVisible.value = true
         packageFinished.value = false
-        packageProgress.value = 8
         packageError.value = ""
         packageResult.value = null
-        packageProgress.value = 32
 
         const result = await PackagingService.Package({
             projectDir: projectDir.value,
@@ -245,14 +256,15 @@ async function runBuild() {
         })
 
         packageResult.value = result
-        packageProgress.value = 100
+        if (!result?.ok) {
+            packageError.value = result?.message || t("project.packageFailed")
+        }
     } catch (error) {
         if (!packageStarted) {
-            message.error(error?.message || String(error))
+            message.error(errorMessage(error))
             return
         }
-        packageError.value = error?.message || String(error)
-        packageProgress.value = 100
+        packageError.value = errorMessage(error)
     } finally {
         building.value = false
         if (packageStarted) {
@@ -265,7 +277,7 @@ async function openPath(path) {
     try {
         await AppService.OpenPath(path)
     } catch (error) {
-        message.error(error?.message || String(error))
+        message.error(errorMessage(error))
     }
 }
 
@@ -329,7 +341,7 @@ async function loadProject() {
         if (seq !== loadProjectSeq) {
             return
         }
-        message.error(error?.message || String(error))
+        message.error(errorMessage(error))
         backToHome()
     }
 }
@@ -533,7 +545,7 @@ function backToHome() {
     color: var(--wm-color-danger);
 }
 
-:deep(.n-button) {
+:deep(.n-button.n-button--default-type) {
     --n-border-radius: 4px !important;
     --n-text-color: var(--wm-text-secondary) !important;
     --n-text-color-hover: var(--wm-color-primary-hover) !important;

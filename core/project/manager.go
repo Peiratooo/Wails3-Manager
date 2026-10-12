@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 
 	"wails3-manager/core/contracts"
 	"wails3-manager/core/fsx"
@@ -73,52 +74,48 @@ func LoadTaskVars(projectDir string) contracts.WailsTaskVars {
 	if err != nil {
 		return contracts.WailsTaskVars{}
 	}
-	text := string(data)
+	doc, err := parseYAMLDocument(data)
+	if err != nil {
+		return contracts.WailsTaskVars{}
+	}
+	var fields struct {
+		Vars map[string]any `yaml:"vars"`
+	}
+	if err := doc.Content[0].Decode(&fields); err != nil {
+		return contracts.WailsTaskVars{}
+	}
+	production := true // Wails beta templates build production unless DEV is true.
+	if value, exists := fields.Vars["PRODUCTION"]; exists {
+		production = ResolveBoolean(taskScalarValue(value))
+	} else if value, exists := fields.Vars["DEV"]; exists {
+		production = !ResolveBoolean(taskScalarValue(value))
+	}
 	return contracts.WailsTaskVars{
-		AppName:    cleanYAMLScalar(getVarValue(text, "APP_NAME")),
-		Production: ResolveBoolean(cleanYAMLScalar(getVarValue(text, "PRODUCTION"))),
-		CGOEnabled: cleanYAMLScalar(getVarValue(text, "CGO_ENABLED")),
+		AppName:    taskScalarValue(fields.Vars["APP_NAME"]),
+		Production: production,
+		CGOEnabled: taskScalarValue(fields.Vars["CGO_ENABLED"]),
+	}
+}
+
+func taskScalarValue(value any) string {
+	switch value := value.(type) {
+	case string:
+		return strings.TrimSpace(value)
+	case bool, int, int64, uint64, float64:
+		return fmt.Sprint(value)
+	default:
+		return ""
 	}
 }
 
 func ResolveBoolean(value string) bool {
 	value = strings.TrimSpace(strings.ToLower(value))
-
 	switch value {
 	case "true", "1", "yes", "y", "on", "enable", "enabled":
 		return true
 	default:
 		return false
 	}
-}
-
-func parseFileAssociations(text string) []contracts.WailsFileAssociation {
-	block := sectionBlock(text, "fileAssociations", 0)
-	if strings.TrimSpace(block) == "" {
-		return nil
-	}
-	items := regexp.MustCompile(`(?m)^\s*-\s+ext\s*:`).FindAllStringIndex(block, -1)
-	if len(items) == 0 {
-		return nil
-	}
-	var out []contracts.WailsFileAssociation
-	for i, idx := range items {
-		start := idx[0]
-		end := len(block)
-		if i+1 < len(items) {
-			end = items[i+1][0]
-		}
-		item := block[start:end]
-		out = append(out, contracts.WailsFileAssociation{
-			Ext:         getInlineYAMLValue(item, "ext"),
-			Name:        getInlineYAMLValue(item, "name"),
-			Description: getInlineYAMLValue(item, "description"),
-			IconName:    getInlineYAMLValue(item, "iconName"),
-			Role:        getInlineYAMLValue(item, "role"),
-			MimeType:    getInlineYAMLValue(item, "mimeType"),
-		})
-	}
-	return out
 }
 
 func SaveWailsConfig(projectDir string, cfg contracts.WailsProjectConfig) (contracts.WailsProjectConfig, error) {
@@ -131,60 +128,63 @@ func SaveWailsConfig(projectDir string, cfg contracts.WailsProjectConfig) (contr
 	if err != nil {
 		return contracts.WailsProjectConfig{}, fmt.Errorf("failed to read build/config.yml: %w", err)
 	}
-	text := string(data)
-	text = ensureInfoSection(text)
-	updates := map[string]string{
-		"companyName":       cfg.Info.CompanyName,
-		"productName":       cfg.Info.ProductName,
-		"productIdentifier": cfg.Info.ProductIdentifier,
-		"description":       cfg.Info.Description,
-		"copyright":         cfg.Info.Copyright,
-		"comments":          cfg.Info.Comments,
-		"version":           normalizedVersion(cfg.Info.Version),
+	doc, err := parseYAMLDocument(data)
+	if err != nil {
+		return contracts.WailsProjectConfig{}, fmt.Errorf("invalid build/config.yml: %w", err)
 	}
-	for key, value := range updates {
-		text = setInfoValue(text, key, value)
+	root := doc.Content[0]
+	if _, err := wailsConfigFromYAML(root); err != nil {
+		return contracts.WailsProjectConfig{}, err
 	}
-	if err := os.WriteFile(path, []byte(text), 0644); err != nil {
+	info := yamlMappingValue(root, "info")
+	if info == nil {
+		var inherited struct {
+			Info *yaml.Node `yaml:"info"`
+		}
+		if err := root.Decode(&inherited); err != nil {
+			return contracts.WailsProjectConfig{}, fmt.Errorf("invalid build/config.yml info: %w", err)
+		}
+		if inherited.Info != nil {
+			return contracts.WailsProjectConfig{}, fmt.Errorf("build/config.yml info is inherited and cannot be edited safely")
+		}
+		info = &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
+		appendYAMLValue(root, "info", info)
+	} else if info.Kind == yaml.ScalarNode && info.Tag == "!!null" && info.Anchor == "" {
+		info.Kind, info.Tag, info.Value, info.Style = yaml.MappingNode, "!!map", "", 0
+	}
+	// An anchored or aliased info mapping may also be used by another section.
+	// Refuse that write rather than changing another section through the alias.
+	if info.Kind != yaml.MappingNode || info.Anchor != "" {
+		return contracts.WailsProjectConfig{}, fmt.Errorf("build/config.yml info must be an unanchored mapping to edit safely")
+	}
+	values := []string{
+		cfg.Info.CompanyName, cfg.Info.ProductName, cfg.Info.ProductIdentifier,
+		cfg.Info.Description, cfg.Info.Copyright, cfg.Info.Comments,
+		normalizedVersion(cfg.Info.Version),
+	}
+	for i, key := range infoKeys {
+		value := yamlMappingValue(info, key)
+		if value == nil {
+			appendYAMLValue(info, key, yamlString(values[i]))
+			continue
+		}
+		if value.Anchor != "" {
+			return contracts.WailsProjectConfig{}, fmt.Errorf("build/config.yml info.%s is anchored and cannot be edited safely", key)
+		}
+		head, line, foot := value.HeadComment, value.LineComment, value.FootComment
+		*value = *yamlString(values[i])
+		value.HeadComment, value.LineComment, value.FootComment = head, line, foot
+	}
+	// Validate the complete result before replacing the original file.
+	if _, err := wailsConfigFromYAML(root); err != nil {
+		return contracts.WailsProjectConfig{}, err
+	}
+	next, err := encodeYAMLDocument(doc, data)
+	if err != nil {
+		return contracts.WailsProjectConfig{}, fmt.Errorf("failed to encode build/config.yml: %w", err)
+	}
+	if err := writeConfigAtomically(path, next); err != nil {
 		return contracts.WailsProjectConfig{}, fmt.Errorf("failed to write build/config.yml: %w", err)
 	}
 	return LoadWailsConfig(projectDir)
-}
-
-func getVarValue(text, key string) string {
-	re := regexp.MustCompile(`(?m)^\s{2}` + regexp.QuoteMeta(key) + `\s*:\s*(.+)$`)
-	m := re.FindStringSubmatch(text)
-	if len(m) < 2 {
-		return ""
-	}
-	return strings.TrimSpace(m[1])
-}
-
-func sectionBlock(text, key string, indent int) string {
-	prefix := strings.Repeat(" ", indent)
-	startRe := regexp.MustCompile(`(?m)^` + regexp.QuoteMeta(prefix+key) + `\s*:\s*(?:#.*)?$`)
-	loc := startRe.FindStringIndex(text)
-	if loc == nil {
-		return ""
-	}
-	start := loc[0]
-	lines := strings.SplitAfter(text[start:], "\n")
-	var b strings.Builder
-	for i, line := range lines {
-		trim := strings.TrimSpace(line)
-		if i > 0 && trim != "" && !strings.HasPrefix(line, prefix+" ") && !strings.HasPrefix(trim, "#") {
-			break
-		}
-		b.WriteString(line)
-	}
-	return b.String()
-}
-
-func getInlineYAMLValue(text, key string) string {
-	re := regexp.MustCompile(`(?m)` + regexp.QuoteMeta(key) + `\s*:\s*([^#\n]+)`)
-	m := re.FindStringSubmatch(text)
-	if len(m) < 2 {
-		return ""
-	}
-	return cleanYAMLScalar(m[1])
 }

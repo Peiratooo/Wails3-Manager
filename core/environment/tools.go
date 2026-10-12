@@ -3,9 +3,11 @@
 package environment
 
 import (
+	"context"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"wails3-manager/core/contracts"
 	"wails3-manager/core/execenv"
@@ -110,11 +112,17 @@ func executableVersion(path string, args []string) string {
 		return ""
 	}
 
-	cmd := exec.Command(path, args...)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, path, args...)
+	cmd.WaitDelay = time.Second
 	execenv.HideWindow(cmd)
 	cmd.Env = execenv.Environ(nil)
 
 	out, err := cmd.CombinedOutput()
+	if ctx.Err() != nil {
+		return ""
+	}
 	if err != nil && len(out) == 0 {
 		return ""
 	}

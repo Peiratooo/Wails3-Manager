@@ -107,6 +107,7 @@ func includeWindowsConfig(cfg WindowsConfig) bool {
 
 func includeMacOSConfig(cfg MacOSConfig) bool {
 	return cfg.Enabled ||
+		cfg.DMGMode != "" || cfg.VolumeIcon != "" || cfg.FileIcon != "" ||
 		cfg.AppBundle != "" ||
 		cfg.Background != "" ||
 		cfg.WindowWidth != 0 ||
@@ -157,6 +158,9 @@ type WindowsConfig struct {
 }
 
 type MacOSConfig struct {
+	DMGMode       string `json:"dmgMode,omitempty"`
+	VolumeIcon    string `json:"volumeIcon,omitempty"`
+	FileIcon      string `json:"fileIcon,omitempty"`
 	Enabled       bool   `json:"enabled"`
 	AppBundle     string `json:"appBundle"`
 	Background    string `json:"background"`

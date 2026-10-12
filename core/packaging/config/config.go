@@ -61,7 +61,7 @@ func SavePackagingConfigFile(path string, cfg contracts.PackagingConfig) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, append(data, '\n'), 0644)
+	return fsx.WriteFileAtomic(path, append(data, '\n'), 0644)
 }
 
 func validatePackagingConfig(cfg contracts.PackagingConfig) error {
@@ -76,6 +76,9 @@ func validatePackagingConfig(cfg contracts.PackagingConfig) error {
 	}
 	if strings.TrimSpace(cfg.Build.AppName) == "" {
 		return fmt.Errorf("packaging build.appName is required")
+	}
+	if cfg.Build.AppName == "." || cfg.Build.AppName == ".." || strings.ContainsAny(cfg.Build.AppName, "/\\:*?\"<>|\r\n") {
+		return fmt.Errorf("packaging build.appName must be a filename without path separators")
 	}
 	if strings.TrimSpace(cfg.Artifacts.OutputRoot) == "" {
 		return fmt.Errorf("packaging artifacts.outputRoot is required")
@@ -118,6 +121,9 @@ func validateWindowsConfig(cfg contracts.WindowsConfig) error {
 }
 
 func validateMacOSConfig(cfg contracts.MacOSConfig) error {
+	if cfg.DMGMode != "" && cfg.DMGMode != "custom" && cfg.DMGMode != "official" {
+		return fmt.Errorf("macos.dmgMode must be custom or official")
+	}
 	if strings.TrimSpace(cfg.AppBundle) == "" {
 		return fmt.Errorf("packaging macos.appBundle is required")
 	}

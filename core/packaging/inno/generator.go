@@ -65,7 +65,7 @@ func Generate(projectDir string, cfg contracts.PackagingConfig, projectConfig co
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		return "", err
 	}
-	return path, os.WriteFile(path, []byte(content), 0644)
+	return path, fsx.WriteFileAtomic(path, []byte(content), 0644)
 }
 
 func buildFiles(cfg contracts.PackagingConfig, projectConfig contracts.WailsProjectConfig) (string, error) {

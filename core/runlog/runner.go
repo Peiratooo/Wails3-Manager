@@ -54,6 +54,8 @@ func (runner Runner) Run(ctx context.Context, workDir string, command []string) 
 		return err
 	}
 	var wg sync.WaitGroup
+	var outputMu sync.Mutex
+	var outputTail string
 	readErrs := make(chan error, 2)
 	pump := func(prefix string, source io.Reader) {
 		defer wg.Done()
@@ -62,6 +64,12 @@ func (runner Runner) Run(ctx context.Context, workDir string, command []string) 
 			line, err := reader.ReadString('\n')
 			if line != "" {
 				line = strings.TrimRight(line, "\r\n")
+				outputMu.Lock()
+				outputTail += line + "\n"
+				if len(outputTail) > 8192 {
+					outputTail = outputTail[len(outputTail)-8192:]
+				}
+				outputMu.Unlock()
 				if runner.Log != nil {
 					runner.Log.PrintlnWithTransaction(runner.Transaction, prefix+line)
 				}
@@ -81,7 +89,7 @@ func (runner Runner) Run(ctx context.Context, workDir string, command []string) 
 	wg.Wait()
 	close(readErrs)
 	if err := cmd.Wait(); err != nil {
-		return fmt.Errorf("command failed: %s: %w", strings.Join(command, " "), err)
+		return fmt.Errorf("command failed: %s: %w\n%s", strings.Join(command, " "), err, strings.TrimSpace(outputTail))
 	}
 	for readErr := range readErrs {
 		if readErr != nil {

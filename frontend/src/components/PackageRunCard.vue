@@ -21,12 +21,18 @@
             </div>
 
             <div class="package-run-body">
-                <n-progress
-                    type="line"
-                    :percentage="progress"
-                    :processing="building"
-                    :status="error ? 'error' : 'success'"
-                />
+                <div
+                    class="package-status"
+                    :class="{ 'is-error': error, 'is-success': finished && !error && artifacts.length, 'is-warning': finished && !error && !artifacts.length }"
+                    role="status"
+                >
+                    <n-spin v-if="building" :size="16" />
+                    <span>{{ statusText }}</span>
+                </div>
+
+                <div v-if="building && currentCommand" class="package-stage">
+                    <n-ellipsis>{{ currentCommand }}</n-ellipsis>
+                </div>
 
                 <div
                     v-if="error"
@@ -35,8 +41,19 @@
                     {{ error }}
                 </div>
 
-                <div class="package-log-box">
-                    <n-scrollbar ref="logScrollbarRef">
+                <n-button
+                    class="logs-toggle"
+                    size="small"
+                    quaternary
+                    :aria-expanded="logsExpanded"
+                    aria-controls="package-run-logs"
+                    @click="toggleLogs"
+                >
+                    {{ logsExpanded ? t("project.hidePackageLogs") : t("project.showPackageLogs") }}
+                </n-button>
+
+                <div v-show="logsExpanded" id="package-run-logs" class="package-log-box">
+                    <n-scrollbar ref="logScrollbarRef" @scroll="handleLogScroll">
                         <div
                             v-if="logEntries.length"
                             class="package-log-lines"
@@ -60,21 +77,62 @@
                     </n-scrollbar>
                 </div>
 
+                <n-button v-if="logsExpanded && !followLogs" class="latest-logs-button" size="small" @click="resumeLogFollowing">
+                    {{ t("project.latestLogs") }}
+                </n-button>
+
                 <div
                     v-if="finished && result"
                     class="package-result"
                 >
+                    <div v-if="warnings.length" class="package-warnings">
+                        <div class="result-title">{{ t("project.packageWarnings") }}</div>
+                        <ul>
+                            <li v-for="(warning, index) in warnings" :key="index">{{ warning }}</li>
+                        </ul>
+                    </div>
+
                     <div class="result-section">
+                        <div class="result-title">{{ t("project.packageArtifacts") }}</div>
+
+                        <div v-if="artifacts.length" class="artifact-list">
+                            <div v-for="artifact in artifacts" :key="artifact.path" class="artifact-item">
+                                <div class="artifact-heading">
+                                    <strong>{{ artifact.name }}</strong>
+                                    <span>{{ formatSize(artifact.size) }}</span>
+                                </div>
+                                <div class="artifact-path">{{ artifact.path }}</div>
+                                <div class="result-actions">
+                                    <n-button size="small" @click="$emit('open-path', artifact.path)">
+                                        {{ t("project.revealArtifact") }}
+                                    </n-button>
+                                    <n-button size="small" @click="copyPath(artifact.path)">
+                                        {{ t("project.copyPath") }}
+                                    </n-button>
+                                </div>
+                            </div>
+                        </div>
+                        <div v-else class="artifact-empty">{{ t("project.packageNoArtifactsHint") }}</div>
+                    </div>
+
+                    <div v-if="directories.length" class="result-section">
                         <div class="result-title">{{ t("project.outputDirectories") }}</div>
 
                         <div
                             v-for="item in directories"
                             :key="item.path"
                             class="result-path"
-                            @click="$emit('open-path', item.path)"
                         >
                             <span>{{ item.label }}</span>
-                            <n-ellipsis>{{ item.path }}</n-ellipsis>
+                            <div class="artifact-path">{{ item.path }}</div>
+                            <div class="result-actions">
+                                <n-button size="small" @click="$emit('open-path', item.path)">
+                                    {{ t("project.openInFinder") }}
+                                </n-button>
+                                <n-button size="small" @click="copyPath(item.path)">
+                                    {{ t("project.copyPath") }}
+                                </n-button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -85,7 +143,8 @@
 
 <script setup>
 import { computed, nextTick, ref, watch } from "vue"
-import { NButton, NEllipsis, NModal, NProgress, NScrollbar } from "naive-ui"
+import { Clipboard } from "@wailsio/runtime"
+import { NButton, NEllipsis, NModal, NScrollbar, NSpin, useMessage } from "naive-ui"
 import { useI18n } from "../i18n"
 import { logEntryLevel } from "../utils/logs"
 
@@ -101,10 +160,6 @@ const props = defineProps({
     building: {
         type: Boolean,
         default: false
-    },
-    progress: {
-        type: Number,
-        default: 0
     },
     error: {
         type: String,
@@ -130,7 +185,24 @@ const props = defineProps({
 
 const emit = defineEmits(["update:show", "open-path"])
 const { t } = useI18n()
+const message = useMessage()
 const logScrollbarRef = ref(null)
+const followLogs = ref(true)
+const logsExpanded = ref(true)
+const artifacts = computed(() => Array.isArray(props.result?.artifacts) ? props.result.artifacts : [])
+const warnings = computed(() => Array.isArray(props.result?.warnings) ? props.result.warnings : [])
+const statusText = computed(() => {
+    if (props.error) return t("project.packageFailed")
+    if (!props.finished) return t("project.packageRunning")
+    return artifacts.value.length ? t("project.packageSucceeded") : t("project.packageNoArtifacts")
+})
+const currentCommand = computed(() => {
+    for (let index = props.logEntries.length - 1; index >= 0; index--) {
+        const line = String(props.logEntries[index]?.line || "")
+        if (line.includes("Running command:")) return line
+    }
+    return ""
+})
 
 const visible = computed({
     get() {
@@ -146,12 +218,45 @@ const visible = computed({
 
 function scrollLogsToBottom() {
     nextTick(() => {
+        if (!followLogs.value || !props.show) return
         logScrollbarRef.value?.scrollTo?.({ top: Number.MAX_SAFE_INTEGER })
     })
 }
 
+function handleLogScroll(event) {
+    const target = event.target
+    followLogs.value = target.scrollHeight - target.scrollTop - target.clientHeight <= 24
+}
+
+function resumeLogFollowing() {
+    followLogs.value = true
+    scrollLogsToBottom()
+}
+
+function toggleLogs() {
+    logsExpanded.value = !logsExpanded.value
+    if (logsExpanded.value) scrollLogsToBottom()
+}
+
+function formatSize(value) {
+    const size = Number(value)
+    if (!Number.isFinite(size) || size < 0) return t("project.sizeUnknown")
+    const units = ["B", "KiB", "MiB", "GiB", "TiB"]
+    const unit = Math.min(Math.floor(Math.log(Math.max(size, 1)) / Math.log(1024)), units.length - 1)
+    return `${(size / (1024 ** unit)).toFixed(unit ? 1 : 0)} ${units[unit]}`
+}
+
+async function copyPath(path) {
+    try {
+        await Clipboard.SetText(path)
+        message.success(t("project.pathCopied"))
+    } catch {
+        message.error(t("project.pathCopyFailed"))
+    }
+}
+
 watch(
-    () => props.logEntries.length,
+    () => props.logEntries.at(-1),
     () => {
         scrollLogsToBottom()
     },
@@ -167,6 +272,16 @@ watch(
     },
     { flush: "post" }
 )
+
+watch(() => props.transactionId, () => {
+    followLogs.value = true
+    logsExpanded.value = true
+    scrollLogsToBottom()
+}, { flush: "post" })
+
+watch(() => props.finished, (finished) => {
+    if (finished && !props.error && props.result && followLogs.value) logsExpanded.value = false
+}, { flush: "post" })
 </script>
 
 <style lang="scss" scoped>
@@ -212,9 +327,65 @@ watch(
     min-height: 0;
     padding: 16px 18px 18px;
     box-sizing: border-box;
+    overflow-y: auto;
+}
+
+.package-status {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: var(--wm-text-secondary);
+}
+
+.package-status.is-success {
+    color: var(--wm-color-success);
+}
+
+.package-status.is-warning {
+    color: var(--wm-color-warning);
+}
+
+.package-status.is-error {
+    color: var(--wm-color-danger);
+}
+
+.package-stage {
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--wm-text-muted);
+}
+
+.latest-logs-button {
+    margin-top: 8px;
+}
+
+.logs-toggle {
+    margin-top: 12px;
+}
+
+.package-warnings {
+    padding: 10px 12px;
+    border-radius: 6px;
+    border: 1px solid color-mix(in srgb, var(--wm-color-warning) 40%, transparent);
+    background: color-mix(in srgb, var(--wm-color-warning) 12%, transparent);
+    font-size: 12px;
+    color: var(--wm-color-warning);
+
+    ul {
+        margin: 0;
+        padding-left: 18px;
+        overflow-wrap: anywhere;
+    }
+
+    li + li {
+        margin-top: 5px;
+    }
 }
 
 .package-error {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
     margin-top: 12px;
     padding: 10px 12px;
     border-radius: 6px;
@@ -253,17 +424,17 @@ watch(
 }
 
 .package-log-line.level-command {
-    color: #7dd3fc;
+    color: var(--wm-text-primary);
     background: color-mix(in srgb, #0284c7 14%, transparent);
 }
 
 .package-log-line.level-success {
-    color: #86efac;
+    color: var(--wm-color-success);
     background: color-mix(in srgb, #16a34a 14%, transparent);
 }
 
 .package-log-line.level-warning {
-    color: #facc15;
+    color: var(--wm-color-warning);
     background: color-mix(in srgb, #ca8a04 16%, transparent);
 }
 
@@ -323,18 +494,9 @@ watch(
     color: var(--wm-text-secondary);
 }
 
-.result-path {
-    cursor: pointer;
-}
-
 .result-path + .result-path,
 .artifact-item + .artifact-item {
     margin-top: 8px;
-}
-
-.result-path:hover {
-    border-color: var(--wm-color-primary-border);
-    color: var(--wm-color-primary-hover);
 }
 
 .result-path span,
@@ -344,8 +506,37 @@ watch(
 }
 
 .artifact-list {
-    max-height: 108px;
+    max-height: 220px;
     overflow-y: auto;
+}
+
+.artifact-heading {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+
+    strong {
+        overflow-wrap: anywhere;
+        font-weight: 500;
+        color: var(--wm-text-primary);
+    }
+
+    span {
+        flex-shrink: 0;
+    }
+}
+
+.artifact-path {
+    overflow-wrap: anywhere;
+    user-select: text;
+}
+
+.result-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 3px;
 }
 
 .artifact-empty {

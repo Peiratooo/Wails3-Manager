@@ -5,6 +5,7 @@ vars:
   BIN_DIR: "bin"
   CGO_ENABLED: "1"
   PRODUCTION: "true"
+  DEV: '{{if eq .PRODUCTION "true"}}false{{else}}true{{end}}'
   PACKAGE_MANAGER: '{{.PACKAGE_MANAGER | default "npm"}}'
   VITE_PORT: '{{.WAILS_VITE_PORT | default 9245}}'
 

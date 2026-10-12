@@ -221,6 +221,38 @@
                     class="form-grid"
                     :class="{ disabled: !cfg.macos.enabled }"
                 >
+                    <div class="input-area full">
+                        <div class="label">{{ t("packageEditor.dmgMode") }}</div>
+                        <n-select
+                            :value="cfg.macos.dmgMode || 'custom'"
+                            @update:value="cfg.macos.dmgMode = $event"
+                            :options="[
+                                { label: t('packageEditor.dmgOfficial'), value: 'official' },
+                                { label: t('packageEditor.dmgCustom'), value: 'custom' }
+                            ]"
+                        />
+                        <div class="path-hint">{{ t("packageEditor.dmgModeHint") }}</div>
+                    </div>
+                    <div class="input-area">
+                        <div class="label">{{ t("packageEditor.dmgVolumeIcon") }}</div>
+                        <n-input v-model:value="cfg.macos.volumeIcon" placeholder="build/darwin/icons.icns" />
+                    </div>
+                    <div class="input-area">
+                        <div class="label">{{ t("packageEditor.dmgFileIcon") }}</div>
+                        <n-input v-model:value="cfg.macos.fileIcon" placeholder="build/darwin/dmg-file-icon.icns" />
+                    </div>
+                    <div v-if="cfg.macos.dmgMode === 'official'" class="input-area full">
+                        <div class="label">{{ t("packageEditor.background") }}</div>
+                        <n-input v-model:value="cfg.macos.background" />
+                    </div>
+                    <div v-if="cfg.macos.dmgMode === 'official'" class="input-area">
+                        <div class="label">{{ t("packageEditor.windowWidth") }}</div>
+                        <n-input-number v-model:value="cfg.macos.windowWidth" :min="200" :max="2000" />
+                    </div>
+                    <div v-if="cfg.macos.dmgMode === 'official'" class="input-area">
+                        <div class="label">{{ t("packageEditor.windowHeight") }}</div>
+                        <n-input-number v-model:value="cfg.macos.windowHeight" :min="200" :max="2000" />
+                    </div>
                     <div class="path-picker full">
                         <div class="path-icon">
                             <n-icon size="20">
@@ -234,15 +266,15 @@
                         <div class="path-main">
                             <div class="label">{{ t("packageEditor.dmgLayoutTitle") }}</div>
                             <n-ellipsis class="path-value">
-                                {{ cfg.macos.windowWidth }} x {{ cfg.macos.windowHeight }} · {{ t("packageEditor.iconSize") }} {{ cfg.macos.iconSize }}
+                                {{ cfg.macos.windowWidth }} x {{ cfg.macos.windowHeight }} · {{ t("packageEditor.iconSize") }} {{ cfg.macos.dmgMode === 'official' ? 96 : cfg.macos.iconSize }}
                             </n-ellipsis>
-                            <div class="path-hint">
+                            <div v-if="cfg.macos.dmgMode !== 'official'" class="path-hint">
                                 App {{ cfg.macos.appX }}, {{ cfg.macos.appY }} · Applications {{ cfg.macos.applicationsX }}, {{ cfg.macos.applicationsY }}
                             </div>
                         </div>
 
                         <n-button
-                            :disabled="saving"
+                            :disabled="saving || cfg.macos.dmgMode === 'official'"
                             @click="dmgEditorVisible = true"
                         >
                             {{ t("packageEditor.editDmgLayout") }}
@@ -572,6 +604,7 @@ import {
     NIcon,
     NImage,
     NInput,
+    NInputNumber,
     NPopover,
     NSelect,
     NSwitch,

@@ -36,13 +36,20 @@ func Build(projectDir string, cfg contracts.PackagingConfig, projectConfig contr
 	if err := os.MkdirAll(filepath.Dir(opts.OutputPath), 0755); err != nil {
 		return "", fmt.Errorf("failed to create DMG output directory: %w", err)
 	}
-	if err := os.Remove(opts.OutputPath); err != nil && !os.IsNotExist(err) {
-		return "", fmt.Errorf("failed to remove existing DMG: %w", err)
+	outputPath := opts.OutputPath
+	stage, err := os.MkdirTemp(filepath.Dir(outputPath), ".dmg-stage-")
+	if err != nil {
+		return "", err
 	}
+	defer os.RemoveAll(stage)
+	opts.OutputPath = filepath.Join(stage, filepath.Base(outputPath))
 	if err := buildImage(opts); err != nil {
 		return "", fmt.Errorf("failed to build DMG: %w", err)
 	}
-	return opts.OutputPath, nil
+	if err := fsx.PublishFile(opts.OutputPath, outputPath); err != nil {
+		return "", err
+	}
+	return outputPath, nil
 }
 
 // BuildOptions maps Wails3 Manager packaging settings to leaanthony/dmg.
@@ -100,6 +107,12 @@ func BuildOptions(projectDir string, cfg contracts.PackagingConfig, projectConfi
 	}
 	if background = strings.TrimSpace(background); background != "" {
 		opts.Background = &upstreamdmg.BackgroundConfig{File: fsx.Resolve(projectDir, background)}
+	}
+	if cfg.MacOS.VolumeIcon != "" {
+		opts.VolumeIcon = fsx.Resolve(projectDir, config.RenderPlaceholders(cfg.MacOS.VolumeIcon, cfg, projectConfig))
+	}
+	if cfg.MacOS.FileIcon != "" {
+		opts.FileIcon = fsx.Resolve(projectDir, config.RenderPlaceholders(cfg.MacOS.FileIcon, cfg, projectConfig))
 	}
 	return opts, nil
 }

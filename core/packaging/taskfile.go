@@ -1,12 +1,14 @@
 package packaging
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
-	"regexp"
-	"strconv"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 
 	"wails3-manager/core/contracts"
 	"wails3-manager/core/fsx"
@@ -26,295 +28,198 @@ func syncPackagingTaskfile(projectDir string, cfg contracts.PackagingConfig) err
 	if err != nil {
 		return fmt.Errorf("failed to read packaging taskfile %s: %w", taskfile, err)
 	}
-	next := syncPackagingTaskfileText(string(data), cfg)
+	next, err := syncPackagingTaskfileText(string(data), cfg)
+	if err != nil {
+		return fmt.Errorf("failed to sync packaging taskfile %s: %w", taskfile, err)
+	}
 	if next == string(data) {
 		return nil
 	}
-	mode := os.FileMode(0644)
-	if info, statErr := os.Stat(path); statErr == nil {
-		mode = info.Mode()
-	}
-	if err := os.WriteFile(path, []byte(next), mode); err != nil {
+	if err := writeTaskfileAtomically(path, []byte(next)); err != nil {
 		return fmt.Errorf("failed to write packaging taskfile %s: %w", taskfile, err)
 	}
 	return nil
 }
 
-func syncPackagingTaskfileText(text string, cfg contracts.PackagingConfig) string {
-	newline := "\n"
-	if strings.Contains(text, "\r\n") {
-		newline = "\r\n"
+func syncPackagingTaskfileText(text string, cfg contracts.PackagingConfig) (string, error) {
+	decoder := yaml.NewDecoder(strings.NewReader(text))
+	var doc yaml.Node
+	if err := decoder.Decode(&doc); err != nil {
+		return "", err
 	}
-	normalized := strings.ReplaceAll(text, "\r\n", "\n")
-	lines := strings.Split(normalized, "\n")
-	hasFinalNewline := strings.HasSuffix(normalized, "\n")
-	if hasFinalNewline && len(lines) > 0 {
-		lines = lines[:len(lines)-1]
+	if len(doc.Content) != 1 || doc.Content[0].Kind != yaml.MappingNode {
+		return "", fmt.Errorf("expected a YAML mapping")
 	}
-
-	lines = ensurePackagingTaskfileVars(lines, cfg)
-	lines = ensurePackagingTaskfileTasks(lines)
-
-	out := strings.Join(lines, "\n")
-	if hasFinalNewline {
-		out += "\n"
-	}
-	if newline != "\n" {
-		out = strings.ReplaceAll(out, "\n", newline)
-	}
-	return out
-}
-
-func ensurePackagingTaskfileVars(lines []string, cfg contracts.PackagingConfig) []string {
-	values := map[string]string{
-		"APP_NAME":    config.AppName(cfg),
-		"CGO_ENABLED": cgoString(cfg.Build.CGOEnabled),
-		"PRODUCTION":  boolString(cfg.Build.Production),
-	}
-	order := []string{"APP_NAME", "CGO_ENABLED", "PRODUCTION"}
-
-	start, end, ok := findTopLevelBlock(lines, "vars")
-	if !ok {
-		insertAt := insertionAfterTopLevelKey(lines, "version")
-		block := []string{
-			"vars:",
-			"  APP_NAME: " + quoteTaskfileString(values["APP_NAME"]),
-			"  CGO_ENABLED: " + quoteTaskfileString(values["CGO_ENABLED"]),
-			"  PRODUCTION: " + quoteTaskfileString(values["PRODUCTION"]),
-			"",
+	var extra yaml.Node
+	if err := decoder.Decode(&extra); err != io.EOF {
+		if err != nil {
+			return "", err
 		}
-		return insertLines(lines, insertAt, block)
+		return "", fmt.Errorf("expected a single YAML document")
 	}
-
-	present := map[string]bool{}
-	for i := start + 1; i < end; i++ {
-		for _, key := range order {
-			next, changed := setTaskfileVarLine(lines[i], key, values[key])
-			if !changed {
+	root := doc.Content[0]
+	// Resolve merged keys for presence checks and reject duplicate keys before editing.
+	var effective map[string]any
+	if err := root.Decode(&effective); err != nil {
+		return "", err
+	}
+	changed := false
+	vars := taskfileMappingValue(root, "vars")
+	if vars == nil && effective["vars"] == nil {
+		vars = &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
+		appendTaskfileValue(root, "vars", vars)
+		changed = true
+	} else if vars != nil && vars.Kind == yaml.ScalarNode && vars.Tag == "!!null" && vars.Anchor == "" {
+		vars.Kind, vars.Tag, vars.Value, vars.Style = yaml.MappingNode, "!!map", "", 0
+		changed = true
+	}
+	// Keep dynamic variables, aliases and anchored mappings intact. Build settings
+	// are also passed to Task on its command line, so these need no destructive rewrite.
+	if vars != nil && vars.Kind == yaml.MappingNode && vars.Anchor == "" {
+		var inherited map[string]any
+		if err := vars.Decode(&inherited); err != nil {
+			return "", err
+		}
+		values := []struct{ key, value string }{
+			{"APP_NAME", config.AppName(cfg)},
+			{"CGO_ENABLED", cgoString(cfg.Build.CGOEnabled)},
+			{"PRODUCTION", boolString(cfg.Build.Production)},
+		}
+		for _, update := range values {
+			node := taskfileMappingValue(vars, update.key)
+			if node == nil {
+				if _, exists := inherited[update.key]; !exists {
+					appendTaskfileValue(vars, update.key, taskfileString(update.value))
+					changed = true
+				}
 				continue
 			}
-			lines[i] = next
-			present[key] = true
-			break
+			if !isLiteralTaskfileVar(node) || (node.Tag == "!!str" && node.Value == update.value) {
+				continue
+			}
+			node.Tag, node.Value, node.Style = "!!str", update.value, yaml.DoubleQuotedStyle
+			changed = true
 		}
 	}
 
-	var missing []string
-	for _, key := range order {
-		if !present[key] {
-			missing = append(missing, "  "+key+": "+quoteTaskfileString(values[key]))
+	tasks := taskfileMappingValue(root, "tasks")
+	if tasks == nil && effective["tasks"] == nil {
+		tasks = &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
+		appendTaskfileValue(root, "tasks", tasks)
+		changed = true
+	} else if tasks != nil && tasks.Kind == yaml.ScalarNode && tasks.Tag == "!!null" && tasks.Anchor == "" {
+		tasks.Kind, tasks.Tag, tasks.Value, tasks.Style = yaml.MappingNode, "!!map", "", 0
+		changed = true
+	}
+	if tasks != nil && tasks.Kind == yaml.MappingNode && tasks.Anchor == "" {
+		var existing map[string]any
+		if err := tasks.Decode(&existing); err != nil {
+			return "", err
+		}
+		for _, name := range []string{"build", "release"} {
+			if _, exists := existing[name]; exists {
+				continue
+			}
+			appendTaskfileValue(tasks, name, defaultPackagingTask(name))
+			changed = true
 		}
 	}
-	if len(missing) == 0 {
-		return lines
+	if !changed {
+		return text, nil
 	}
-	insertAt := end
-	for insertAt > start+1 && strings.TrimSpace(lines[insertAt-1]) == "" {
-		insertAt--
+	var out bytes.Buffer
+	encoder := yaml.NewEncoder(&out)
+	encoder.SetIndent(2)
+	if err := encoder.Encode(&doc); err != nil {
+		return "", err
 	}
-	return insertLines(lines, insertAt, missing)
+	if err := encoder.Close(); err != nil {
+		return "", err
+	}
+	next := out.String()
+	if !strings.HasSuffix(text, "\n") {
+		next = strings.TrimSuffix(next, "\n")
+	}
+	if strings.Contains(text, "\r\n") {
+		next = strings.ReplaceAll(next, "\n", "\r\n")
+	}
+	return next, nil
 }
 
-func ensurePackagingTaskfileTasks(lines []string) []string {
-	start, end, ok := findTopLevelBlock(lines, "tasks")
-	if !ok {
-		block := append([]string{"tasks:"}, releaseTaskBlock()...)
-		return appendWithGap(lines, block)
-	}
-
-	buildStart, buildEnd, hasBuild := findTaskBlock(lines, start, end, "build")
-	if hasBuild && isManagedBuildTask(lines[buildStart:buildEnd]) {
-		lines = replaceLines(lines, buildStart, buildEnd, buildTaskBlock())
-		start, end, _ = findTopLevelBlock(lines, "tasks")
-	}
-
-	releaseStart, releaseEnd, hasRelease := findTaskBlock(lines, start, end, "release")
-	if hasRelease {
-		if isManagedReleaseTask(lines[releaseStart:releaseEnd]) {
-			lines = replaceLines(lines, releaseStart, releaseEnd, releaseTaskBlock())
-		}
-	} else {
-		insertAt := preferredTaskInsertionPoint(lines, start, end, "build")
-		lines = insertLines(lines, insertAt, releaseTaskBlock())
-	}
-
-	return lines
-}
-
-func buildTaskBlock() []string {
-	return []string{
-		"  build:",
-		"    summary: Builds the application",
-		"    cmds:",
-		"      - task: \"{{OS}}:build\"",
-		"        vars:",
-		"          APP_NAME: \"{{.APP_NAME}}\"",
-		"          CGO_ENABLED: \"{{.CGO_ENABLED}}\"",
-		"          PRODUCTION: \"{{.PRODUCTION}}\"",
-		"",
-	}
-}
-
-func releaseTaskBlock() []string {
-	return []string{
-		"  release:",
-		"    summary: Builds the release application",
-		"    cmds:",
-		"      - task: \"{{OS}}:build\"",
-		"        vars:",
-		"          APP_NAME: \"{{.APP_NAME}}\"",
-		"          CGO_ENABLED: \"{{.CGO_ENABLED}}\"",
-		"          PRODUCTION: \"{{.PRODUCTION}}\"",
-		"",
-	}
-}
-
-func isManagedBuildTask(lines []string) bool {
-	return hasSummary(lines, "Builds the application")
-}
-
-func isManagedReleaseTask(lines []string) bool {
-	return hasSummary(lines, "Builds the release application")
-}
-
-func hasSummary(lines []string, summary string) bool {
-	want := "summary: " + summary
-	for _, line := range lines {
-		if strings.TrimSpace(line) == want {
-			return true
-		}
-	}
-	return false
-}
-
-func findTopLevelBlock(lines []string, key string) (int, int, bool) {
-	start := -1
-	re := regexp.MustCompile(`^` + regexp.QuoteMeta(key) + `\s*:`)
-	for i, line := range lines {
-		if re.MatchString(line) {
-			start = i
-			break
-		}
-	}
-	if start < 0 {
-		return 0, 0, false
-	}
-	end := len(lines)
-	for i := start + 1; i < len(lines); i++ {
-		if isTopLevelKeyLine(lines[i]) {
-			end = i
-			break
-		}
-	}
-	return start, end, true
-}
-
-func insertionAfterTopLevelKey(lines []string, key string) int {
-	re := regexp.MustCompile(`^` + regexp.QuoteMeta(key) + `\s*:`)
-	for i, line := range lines {
-		if !re.MatchString(line) {
-			continue
-		}
-		insertAt := i + 1
-		for insertAt < len(lines) && strings.TrimSpace(lines[insertAt]) == "" {
-			insertAt++
-		}
-		return insertAt
-	}
-	return 0
-}
-
-func findTaskBlock(lines []string, tasksStart, tasksEnd int, taskName string) (int, int, bool) {
-	re := regexp.MustCompile(`^\s{2}` + regexp.QuoteMeta(taskName) + `\s*:`)
-	start := -1
-	for i := tasksStart + 1; i < tasksEnd; i++ {
-		if re.MatchString(lines[i]) {
-			start = i
-			break
-		}
-	}
-	if start < 0 {
-		return 0, 0, false
-	}
-	end := tasksEnd
-	for i := start + 1; i < tasksEnd; i++ {
-		if isTopLevelKeyLine(lines[i]) || isTaskKeyLine(lines[i]) {
-			end = i
-			break
-		}
-	}
-	return start, end, true
-}
-
-func preferredTaskInsertionPoint(lines []string, tasksStart, tasksEnd int, afterTask string) int {
-	if _, afterEnd, ok := findTaskBlock(lines, tasksStart, tasksEnd, afterTask); ok {
-		return afterEnd
-	}
-	insertAt := tasksEnd
-	for insertAt > tasksStart+1 && strings.TrimSpace(lines[insertAt-1]) == "" {
-		insertAt--
-	}
-	return insertAt
-}
-
-func setTaskfileVarLine(line, key, value string) (string, bool) {
-	re := regexp.MustCompile(`^(\s{2}` + regexp.QuoteMeta(key) + `\s*:\s*)([^#]*)(.*)$`)
-	parts := re.FindStringSubmatch(line)
-	if len(parts) < 4 {
-		return line, false
-	}
-	suffix := strings.TrimRight(parts[3], " \t")
-	if strings.TrimSpace(suffix) != "" && !strings.HasPrefix(suffix, " ") {
-		suffix = " " + suffix
-	}
-	return parts[1] + quoteTaskfileString(value) + suffix, true
-}
-
-func isTopLevelKeyLine(line string) bool {
-	if line == "" || line[0] == ' ' || line[0] == '\t' {
+func isLiteralTaskfileVar(node *yaml.Node) bool {
+	if node.Kind != yaml.ScalarNode || node.Anchor != "" || strings.Contains(node.Value, "{{") {
 		return false
 	}
-	trim := strings.TrimSpace(line)
-	return trim != "" && !strings.HasPrefix(trim, "#") && strings.Contains(trim, ":")
-}
-
-func isTaskKeyLine(line string) bool {
-	if !strings.HasPrefix(line, "  ") || strings.HasPrefix(line, "    ") {
+	switch node.Tag {
+	case "!!str", "!!bool", "!!int", "!!null":
+		return node.Style&(yaml.LiteralStyle|yaml.FoldedStyle) == 0
+	default:
 		return false
 	}
-	trim := strings.TrimSpace(line)
-	return trim != "" && !strings.HasPrefix(trim, "#") && !strings.HasPrefix(trim, "-") && strings.HasSuffix(trim, ":")
 }
 
-func quoteTaskfileString(value string) string {
-	return strconv.Quote(strings.TrimSpace(value))
-}
-
-func insertLines(lines []string, at int, block []string) []string {
-	if at < 0 {
-		at = 0
+func taskfileMappingValue(mapping *yaml.Node, key string) *yaml.Node {
+	if mapping.Kind != yaml.MappingNode {
+		return nil
 	}
-	if at > len(lines) {
-		at = len(lines)
+	for i := 0; i+1 < len(mapping.Content); i += 2 {
+		if mapping.Content[i].Value == key {
+			return mapping.Content[i+1]
+		}
 	}
-	out := make([]string, 0, len(lines)+len(block))
-	out = append(out, lines[:at]...)
-	out = append(out, block...)
-	out = append(out, lines[at:]...)
-	return out
+	return nil
 }
 
-func replaceLines(lines []string, start, end int, block []string) []string {
-	out := make([]string, 0, len(lines)-(end-start)+len(block))
-	out = append(out, lines[:start]...)
-	out = append(out, block...)
-	out = append(out, lines[end:]...)
-	return out
+func appendTaskfileValue(mapping *yaml.Node, key string, value *yaml.Node) {
+	mapping.Content = append(mapping.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: key}, value)
 }
 
-func appendWithGap(lines []string, block []string) []string {
-	if len(lines) > 0 && strings.TrimSpace(lines[len(lines)-1]) != "" {
-		lines = append(lines, "")
+func taskfileString(value string) *yaml.Node {
+	return &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: value, Style: yaml.DoubleQuotedStyle}
+}
+
+func defaultPackagingTask(name string) *yaml.Node {
+	summary := "Builds the application"
+	if name == "release" {
+		summary = "Builds the release application"
 	}
-	return append(lines, block...)
+	task := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
+	appendTaskfileValue(task, "summary", &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: summary})
+	command := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
+	appendTaskfileValue(command, "task", taskfileString("{{OS}}:build"))
+	vars := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
+	for _, key := range []string{"APP_NAME", "CGO_ENABLED", "PRODUCTION"} {
+		appendTaskfileValue(vars, key, taskfileString("{{."+key+"}}"))
+	}
+	appendTaskfileValue(command, "vars", vars)
+	appendTaskfileValue(task, "cmds", &yaml.Node{Kind: yaml.SequenceNode, Tag: "!!seq", Content: []*yaml.Node{command}})
+	return task
+}
+
+func writeTaskfileAtomically(path string, data []byte) error {
+	info, err := os.Stat(path)
+	if err != nil {
+		return err
+	}
+	file, err := os.CreateTemp(filepath.Dir(path), ".taskfile-*.tmp")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(file.Name())
+	if err := file.Chmod(info.Mode().Perm()); err != nil {
+		file.Close()
+		return err
+	}
+	if _, err := file.Write(data); err != nil {
+		file.Close()
+		return err
+	}
+	if err := file.Sync(); err != nil {
+		file.Close()
+		return err
+	}
+	if err := file.Close(); err != nil {
+		return err
+	}
+	return os.Rename(file.Name(), path)
 }
