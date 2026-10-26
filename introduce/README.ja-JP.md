@@ -8,7 +8,7 @@ Wails 3 アプリを作成、設定、ビルド、パッケージ化するデス
 
 <img src="../imgs/badge.png" alt="Wails3 Manager badges" width="620">
 
-[English](../README.md) · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · **日本語** · [한국어](README.ko-KR.md) · [Français](README.fr-FR.md) · [Deutsch](README.de-DE.md)
+[English](../README.md) · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · **日本語** · [한국어](README.ko-KR.md) · [Français](README.fr-FR.md) · [Deutsch](README.de-DE.md)· [Русский](README.ru-RU.md)
 
 </div>
 

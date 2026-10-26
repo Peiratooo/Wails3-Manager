@@ -29,6 +29,7 @@ import {
     dateFrFR,
     dateJaJP,
     dateKoKR,
+    dateRuRU,
     dateZhCN,
     dateZhTW,
     darkTheme,
@@ -37,6 +38,7 @@ import {
     frFR,
     jaJP,
     koKR,
+    ruRU,
     NConfigProvider,
     NLoadingBarProvider,
     NMessageProvider,
@@ -69,6 +71,7 @@ const naiveLocaleMap = {
     'ko-KR': { locale: koKR, dateLocale: dateKoKR },
     'fr-FR': { locale: frFR, dateLocale: dateFrFR },
     'de-DE': { locale: deDE, dateLocale: dateDeDE },
+    'ru-RU': { locale: ruRU, dateLocale: dateRuRU },
 }
 const activeNaive = computed(() => naiveLocaleMap[store.settings.language] || naiveLocaleMap['zh-CN'])
 const activeNaiveLocale = computed(() => activeNaive.value.locale)

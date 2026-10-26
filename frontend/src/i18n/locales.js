@@ -5,6 +5,7 @@ import jaJP from './messages/ja-JP.js'
 import koKR from './messages/ko-KR.js'
 import frFR from './messages/fr-FR.js'
 import deDE from './messages/de-DE.js'
+import ruRU from './messages/ru-RU.js'
 
 export const fallbackLocale = 'zh-CN'
 
@@ -16,6 +17,7 @@ export const localeDefinitions = [
 	{ label: '한국어', value: 'ko-KR', message: koKR },
 	{ label: 'Français', value: 'fr-FR', message: frFR },
 	{ label: 'Deutsch', value: 'de-DE', message: deDE },
+	{ label: 'Русский', value: 'ru-RU', message: ruRU },
 ]
 
 export const localeOptions = localeDefinitions.map(({ label, value }) => ({ label, value }))
@@ -43,6 +45,8 @@ const localeAliases = {
 	'fr-fr': 'fr-FR',
 	de: 'de-DE',
 	'de-de': 'de-DE',
+	ru: 'ru-RU',
+	'ru-ru': 'ru-RU',
 }
 
 export function resolveLocale(locale) {
