@@ -8,8 +8,6 @@
 		<string>Create, configure, build, and package Wails 3 projects.</string>
 		<key>CFBundleIconFile</key>
 		<string>icons</string>
-		<key>CFBundleIconName</key>
-		<string>appicon</string>
 		<key>CFBundleIdentifier</key>
 		<string>com.peirato.wails3manager</string>
 		<key>CFBundleName</key>

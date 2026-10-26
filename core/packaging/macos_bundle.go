@@ -99,6 +99,9 @@ func renderMacOSInfoPlist(projectDir string, cfg contracts.PackagingConfig, proj
 		}
 		text = setPlistString(text, key, value)
 	}
+	// PNG-based projects generate icons.icns, not the Icon Composer catalog.
+	// A stale catalog selector otherwise overrides the newly generated icon.
+	text = regexp.MustCompile(`(?s)<key>CFBundleIconName</key>\s*<string>.*?</string>\s*`).ReplaceAllString(text, "")
 	return text, nil
 }
 
