@@ -9,7 +9,7 @@
             <n-loading-bar-provider>
                 <n-message-provider>
                     <n-notification-provider :max="3" placement="top-right">
-                        <div class="app-view">
+                        <div class="app-view" :class="{ 'mac-titlebar': isMac }">
                             <router-view />
                         </div>
                     </n-notification-provider>
@@ -21,7 +21,7 @@
 
 <script setup>
 import {useAppStore} from './store'
-import {Events, WML} from "@wailsio/runtime"
+import {Events, System, WML} from "@wailsio/runtime"
 import { Service as EnvironmentService } from "../bindings/wails3-manager/core/environment"
 import {
     dateDeDE,
@@ -53,6 +53,7 @@ import {
 } from './theme'
 
 const store = useAppStore()
+const isMac = System.IsMac()
 
 let offLogLine = null
 
@@ -133,6 +134,13 @@ provide("store",store)
 .app-view {
     width: 100vw;
     height: 100vh;
+    box-sizing: border-box;
     overflow: hidden;
+}
+
+.app-view.mac-titlebar {
+    // Match desktop/run.go's InvisibleTitleBarHeight so page content starts
+    // below the native traffic lights and draggable title bar.
+    padding-top: 44px;
 }
 </style>

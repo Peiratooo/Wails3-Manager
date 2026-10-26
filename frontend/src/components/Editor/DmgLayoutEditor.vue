@@ -27,76 +27,96 @@
 
             <div class="dmg-layout-body">
                 <div class="dmg-stage-pane">
-                    <div class="pane-title">{{ t("packageEditor.dmgCanvas") }}</div>
+                    <div class="pane-title">{{ t(isOfficial ? "packageEditor.dmgPreviewCanvas" : "packageEditor.dmgCanvas") }}</div>
 
-                    <n-scrollbar class="stage-scroll">
-                        <div class="stage-wrap" @pointerdown="onBlankPointerDown">
-                            <div
-                                ref="stageRef"
-                                class="dmg-stage"
-                                :style="stageStyle"
-                            >
-                                <div
-                                    ref="appRef"
-                                    class="dmg-item app-item"
-                                    :class="{ active: selectedElement === 'app' }"
-                                    :style="appStyle"
-                                    @pointerdown.stop="selectElement('app')"
-                                >
-                                    <img
-                                        class="app-preview"
-                                        :src="appIconURL"
-                                        alt=""
+                    <div v-if="isOfficial" class="preview-hint">
+                        {{ t("packageEditor.dmgOfficialPreviewHint") }}
+                    </div>
+                    <div v-if="backgroundFailed" class="preview-error" role="alert">
+                        {{ t("packageEditor.dmgBackgroundError") }}
+                    </div>
+                    <img
+                        v-if="backgroundURL"
+                        :key="backgroundURL"
+                        :src="backgroundURL"
+                        class="background-probe"
+                        alt=""
+                        @error="backgroundFailed = true"
+                    >
+
+                    <div ref="stageViewportRef" class="stage-viewport">
+                        <n-scrollbar class="stage-scroll">
+                            <div class="stage-wrap" @pointerdown="onBlankPointerDown">
+                                <div class="stage-frame" :style="frameStyle">
+                                    <div
+                                        ref="stageRef"
+                                        class="dmg-stage"
+                                        :class="{ 'official-preview': isOfficial }"
+                                        :style="stageStyle"
                                     >
-                                    <div class="item-label">{{ t("packageEditor.appIcon") }}</div>
-                                </div>
+                                        <div
+                                            ref="appRef"
+                                            class="dmg-item app-item"
+                                            :class="{ active: selectedElement === 'app' }"
+                                            :style="appStyle"
+                                            @pointerdown.stop="selectElement('app')"
+                                        >
+                                            <img
+                                                class="app-preview"
+                                                :src="appIconURL"
+                                                alt=""
+                                            >
+                                            <div class="item-label">{{ appFileName }}</div>
+                                        </div>
 
-                                <div
-                                    ref="applicationsRef"
-                                    class="dmg-item folder-item"
-                                    :class="{ active: selectedElement === 'applications' }"
-                                    :style="applicationsStyle"
-                                    @pointerdown.stop="selectElement('applications')"
-                                >
-                                    <img
-                                        class="applications-preview"
-                                        :src="applicationsIcon"
-                                        alt=""
-                                    >
-                                    <div class="item-label">{{ t("packageEditor.applicationsFolder") }}</div>
-                                </div>
+                                        <div
+                                            ref="applicationsRef"
+                                            class="dmg-item folder-item"
+                                            :class="{ active: selectedElement === 'applications' }"
+                                            :style="applicationsStyle"
+                                            @pointerdown.stop="selectElement('applications')"
+                                        >
+                                            <img
+                                                class="applications-preview"
+                                                :src="applicationsIcon"
+                                                alt=""
+                                            >
+                                            <div class="item-label">Applications</div>
+                                        </div>
 
-                                <Moveable
-                                    ref="moveableRef"
-                                    v-if="moveableTarget"
-                                    :key="selectedElement"
-                                    :target="moveableTarget"
-                                    :container="stageRef"
-                                    :draggable="true"
-                                    :resizable="true"
-                                    :snappable="true"
-                                    :keep-ratio="true"
-                                    :origin="false"
-                                    :use-accurate-position="true"
-                                    :vertical-guidelines="verticalGuidelines"
-                                    :horizontal-guidelines="horizontalGuidelines"
-                                    :snap-directions="snapDirections"
-                                    :snap-gap="false"
-                                    :element-guidelines="[]"
-                                    :element-snap-directions="false"
-                                    :throttle-drag="0"
-                                    :throttle-resize="1"
-                                    :snap-threshold="8"
-                                    @dragStart="onDragStart"
-                                    @drag="onDrag"
-                                    @dragEnd="onDragEnd"
-                                    @resizeStart="onResizeStart"
-                                    @resize="onResize"
-                                    @resizeEnd="onResizeEnd"
-                                />
+                                        <Moveable
+                                            ref="moveableRef"
+                                            v-if="!isOfficial && moveableTarget"
+                                            :key="selectedElement"
+                                            :target="moveableTarget"
+                                            :container="stageRef"
+                                            :draggable="true"
+                                            :resizable="true"
+                                            :snappable="true"
+                                            :keep-ratio="true"
+                                            :origin="false"
+                                            :use-accurate-position="true"
+                                            :vertical-guidelines="verticalGuidelines"
+                                            :horizontal-guidelines="horizontalGuidelines"
+                                            :snap-directions="snapDirections"
+                                            :snap-gap="false"
+                                            :element-guidelines="[]"
+                                            :element-snap-directions="false"
+                                            :throttle-drag="0"
+                                            :throttle-resize="1"
+                                            :snap-threshold="8"
+                                            @dragStart="onDragStart"
+                                            @drag="onDrag"
+                                            @dragEnd="onDragEnd"
+                                            @resizeStart="onResizeStart"
+                                            @resize="onResize"
+                                            @resizeEnd="onResizeEnd"
+                                        />
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                    </n-scrollbar>
+                        </n-scrollbar>
+                    </div>
                 </div>
 
                 <div class="dmg-params-pane">
@@ -105,37 +125,22 @@
                     <n-scrollbar class="params-scroll">
                         <div class="param-list">
                             <div class="param-group">
-                                <div class="param-title">{{ t("packageEditor.dmgBackgroundSection") }}</div>
-
-                                <div class="path-row">
-                                    <label class="param-field">
-                                        <span class="label">{{ t("packageEditor.background") }}</span>
-                                        <n-input v-model:value="local.background" />
-                                    </label>
-
-                                    <n-button @click="chooseBackground">
-                                        {{ t("packageEditor.selectBackground") }}
-                                    </n-button>
-                                </div>
-                            </div>
-
-                            <div class="param-group">
                                 <div class="param-title">{{ t("packageEditor.dmgWindowSection") }}</div>
 
                                 <div class="param-row">
                                     <label class="param-field">
                                         <span class="label">{{ t("packageEditor.windowWidth") }}</span>
-                                        <n-input-number v-model:value="local.windowWidth" :min="1" />
+                                        <n-input-number v-model:value="local.windowWidth" :min="isOfficial ? 200 : 1" :max="isOfficial ? 2000 : undefined" />
                                     </label>
 
                                     <label class="param-field">
                                         <span class="label">{{ t("packageEditor.windowHeight") }}</span>
-                                        <n-input-number v-model:value="local.windowHeight" :min="1" />
+                                        <n-input-number v-model:value="local.windowHeight" :min="isOfficial ? 200 : 1" :max="isOfficial ? 2000 : undefined" />
                                     </label>
                                 </div>
                             </div>
 
-                            <div class="param-group">
+                            <div v-if="!isOfficial" class="param-group">
                                 <div class="param-title">{{ t("packageEditor.dmgIconSection") }}</div>
 
                                 <div class="param-row">
@@ -178,12 +183,12 @@
 </template>
 
 <script setup>
-import { computed, nextTick, ref, watch } from "vue"
+import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue"
 import Moveable from "vue3-moveable"
-import { NButton, NInput, NInputNumber, NModal, NScrollbar, useMessage } from "naive-ui"
-import { AppService } from "../../../bindings/wails3-manager/desktop"
+import { NButton, NInputNumber, NModal, NScrollbar } from "naive-ui"
 import { useI18n } from "../../i18n"
 import applicationsIcon from "../../../../assets/applications.png"
+import defaultBackground from "../../../../assets/install-grid.png"
 import { localFileUrl } from "../../utils/files"
 
 const props = defineProps({
@@ -198,21 +203,63 @@ const props = defineProps({
     projectDir: {
         type: String,
         required: true
+    },
+    appIconVersion: {
+        type: Number,
+        default: 0
+    },
+    productName: {
+        type: String,
+        default: ""
     }
 })
 
 const emit = defineEmits(["update:show", "save"])
 
 const { t } = useI18n()
-const message = useMessage()
 
 const local = ref(cloneData(props.macos))
 const selectedElement = ref(null)
+const stageViewportRef = ref(null)
+const viewportSize = ref({ width: 0, height: 0 })
+let viewportObserver
+watch(stageViewportRef, (element) => {
+    viewportObserver?.disconnect()
+    if (!element) return
+    viewportObserver = new ResizeObserver(([entry]) => {
+        viewportSize.value = { width: entry.contentRect.width, height: entry.contentRect.height }
+    })
+    viewportObserver.observe(element)
+})
+onBeforeUnmount(() => viewportObserver?.disconnect())
 const stageRef = ref(null)
 const appRef = ref(null)
 const applicationsRef = ref(null)
 const moveableRef = ref(null)
 const backgroundVersion = ref(0)
+const backgroundFailed = ref(false)
+const isOfficial = computed(() => local.value.dmgMode === "official")
+const appFileName = computed(() => props.productName
+    ? props.productName.replace(/\.app$/, "") + ".app"
+    : t("packageEditor.appIcon"))
+// Keep the preview in sync with Wails beta.28 buildDMGOptions. Derive these
+// values without overwriting the saved custom icon positions or size.
+const previewLayout = computed(() => {
+    if (!isOfficial.value) return local.value
+
+    const width = local.value.windowWidth || 540
+    // The CLI positions icons using the outer window height. Packaging adds
+    // the 32px Finder title bar to preserve the configured content height.
+    const height = (local.value.windowHeight || 380) + 32
+    const centerY = Math.trunc(height / 2)
+    return {
+        iconSize: 96,
+        appX: Math.trunc(width * 28 / 100),
+        appY: centerY >= 26 ? centerY - 26 : centerY,
+        applicationsX: Math.trunc(width * 72 / 100),
+        applicationsY: centerY >= 26 ? centerY - 26 : centerY,
+    }
+})
 const interactionBase = ref(null)
 const snapDirections = {
     center: true,
@@ -264,10 +311,26 @@ const moveableTarget = computed(() => {
     return selectedElement.value === "app" ? appRef.value : applicationsRef.value
 })
 
+const previewScale = computed(() => {
+    if (!isOfficial.value || !viewportSize.value.width || !viewportSize.value.height) return 1
+    return Math.max(0.01, Math.min(
+        1,
+        (viewportSize.value.width - 48) / (local.value.windowWidth || 540),
+        (viewportSize.value.height - 48) / (local.value.windowHeight || 380),
+    ))
+})
+
+const frameStyle = computed(() => isOfficial.value ? {
+    width: `${local.value.windowWidth * previewScale.value}px`,
+    height: `${local.value.windowHeight * previewScale.value}px`,
+} : {})
+
 const stageStyle = computed(() => ({
     width: `${local.value.windowWidth}px`,
     height: `${local.value.windowHeight}px`,
-    backgroundImage: backgroundURL.value ? `url("${backgroundURL.value}")` : "none",
+    transform: isOfficial.value ? `scale(${previewScale.value})` : undefined,
+    transformOrigin: "top left",
+    backgroundImage: backgroundURL.value && !backgroundFailed.value ? `url("${backgroundURL.value}")` : "none",
 }))
 
 const verticalGuidelines = computed(() => {
@@ -287,22 +350,24 @@ const horizontalGuidelines = computed(() => {
 })
 
 const backgroundURL = computed(() => {
-    if (!local.value.background) {
-        return ""
+    if (!local.value.background?.trim()) {
+        return defaultBackground
     }
     return localFileURL(local.value.background, backgroundVersion.value)
 })
 
 const appIconURL = computed(() => {
-    return localFileURL("build/appicon.png", 0)
+    return localFileURL("build/appicon.png", props.appIconVersion)
 })
 
-const appStyle = computed(() => itemStyle("app", local.value.appX, local.value.appY))
-const applicationsStyle = computed(() => itemStyle("applications", local.value.applicationsX, local.value.applicationsY))
+watch(backgroundURL, () => { backgroundFailed.value = false })
+
+const appStyle = computed(() => itemStyle("app", previewLayout.value.appX, previewLayout.value.appY))
+const applicationsStyle = computed(() => itemStyle("applications", previewLayout.value.applicationsX, previewLayout.value.applicationsY))
 
 function itemStyle(element, x, y) {
     const base = interactionBase.value?.element === element ? interactionBase.value : null
-    const size = base ? base.size : local.value.iconSize
+    const size = base ? base.size : previewLayout.value.iconSize
     const centerX = base ? base.x : x
     const centerY = base ? base.y : y
     return {
@@ -330,19 +395,8 @@ function localFileURL(path, version) {
     return localFileUrl(projectFilePath(path), version)
 }
 
-async function chooseBackground() {
-    try {
-        const path = await AppService.ChooseFile()
-        if (!path) return
-
-        local.value.background = path
-        backgroundVersion.value += 1
-    } catch (error) {
-        message.error(error?.message || String(error))
-    }
-}
-
 function selectElement(element) {
+    if (isOfficial.value) return
     selectedElement.value = element
     nextTick(() => moveableRef.value?.updateRect())
 }
@@ -615,6 +669,17 @@ function cloneData(data) {
     min-height: 0;
 }
 
+.stage-viewport {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+}
+
+.stage-frame {
+    flex: 0 0 auto;
+}
+
 .stage-wrap {
     min-width: 100%;
     min-height: 100%;
@@ -632,7 +697,8 @@ function cloneData(data) {
     overflow: hidden;
     border-radius: 8px;
     border: 1px solid var(--wm-border-soft);
-    background-color: var(--wm-control-bg);
+    box-sizing: border-box;
+    background-color: #fff;
     background-position: center;
     background-size: cover;
     background-repeat: no-repeat;
@@ -652,6 +718,26 @@ function cloneData(data) {
     box-shadow: inset 0 0 0 1px color-mix(in srgb, #60a5fa 36%, rgba(148, 163, 184, 0.28));
 }
 
+.official-preview .dmg-item {
+    cursor: default;
+}
+
+.preview-hint,
+.preview-error {
+    padding: 10px 14px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--wm-text-muted);
+}
+
+.preview-error {
+    color: var(--wm-color-danger, #d03050);
+}
+
+.background-probe {
+    display: none;
+}
+
 .app-preview,
 .applications-preview {
     position: absolute;
@@ -668,13 +754,17 @@ function cloneData(data) {
 .item-label {
     position: absolute;
     left: 50%;
-    top: calc(100% + 6px);
+    top: calc(100% + 8px);
     width: max(112px, 120%);
     overflow: hidden;
     text-overflow: ellipsis;
-    white-space: nowrap;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
     text-align: center;
-    font-size: 11px;
+    font-size: 12px;
     line-height: 1.25;
     color: rgba(0, 0, 0, 0.88);
     text-shadow: 0 1px 2px rgba(255, 255, 255, 0.72);
@@ -718,16 +808,6 @@ function cloneData(data) {
     margin-bottom: 7px;
     font-size: 12px;
     color: var(--wm-text-muted);
-}
-
-.path-row {
-    display: flex;
-    align-items: flex-end;
-    gap: 8px;
-}
-
-.path-row .n-button {
-    flex: 0 0 auto;
 }
 
 :deep(.n-input),

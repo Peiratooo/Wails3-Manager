@@ -1,8 +1,10 @@
 package packaging
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"image/png"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -62,8 +64,47 @@ func TestDefaultPackagingConfigInitializesBothPlatforms(t *testing.T) {
 	if !cfg.Windows.Enabled || cfg.Windows.InnoScript == "" {
 		t.Fatalf("windows config was not initialized: %#v", cfg.Windows)
 	}
-	if !cfg.MacOS.Enabled || cfg.MacOS.AppBundle == "" || cfg.MacOS.Background == "" {
+	if !cfg.MacOS.Enabled || cfg.MacOS.AppBundle == "" {
 		t.Fatalf("macos config was not initialized: %#v", cfg.MacOS)
+	}
+	if cfg.MacOS.Background != "assets/install-grid.png" {
+		t.Fatalf("new projects must use the portable default grid background: %q", cfg.MacOS.Background)
+	}
+}
+
+func TestPrepareDMGBackgroundUsesEmbeddedGridWhenEmpty(t *testing.T) {
+	projectDir := t.TempDir()
+	// An empty selection must use the built-in image, even if this project has
+	// an unrelated file at the legacy default asset path.
+	projectAsset := filepath.Join(projectDir, "assets", "install-grid.png")
+	mustWriteFile(t, projectAsset, "existing project asset")
+	cfg := contracts.PackagingConfig{
+		MacOS: contracts.MacOSConfig{WindowWidth: 640, WindowHeight: 420},
+	}
+	s := NewService(nil)
+	output, err := s.prepareDMGBackground(projectDir, cfg, contracts.WailsProjectConfig{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(output)
+	if err != nil {
+		t.Fatal(err)
+	}
+	imageConfig, err := png.DecodeConfig(bytes.NewReader(data))
+	if err != nil || imageConfig.Width != 640 || imageConfig.Height != 420 {
+		t.Fatalf("prepared grid dimensions = %#v, error = %v", imageConfig, err)
+	}
+	defaultData, err := os.ReadFile(filepath.Join(projectDir, "builder", "macos", "default-background.png"))
+	if err != nil || !bytes.Equal(defaultData, s.defaultDMGBackgroundPNG()) {
+		t.Fatalf("empty selection did not use the embedded default: %v", err)
+	}
+	gridConfig, err := png.DecodeConfig(bytes.NewReader(defaultData))
+	if err != nil || gridConfig.Width <= 1 || gridConfig.Height <= 1 {
+		t.Fatalf("default image must be the grid, not a transparent placeholder: %#v, %v", gridConfig, err)
+	}
+	unchanged, err := os.ReadFile(projectAsset)
+	if err != nil || string(unchanged) != "existing project asset" {
+		t.Fatalf("project asset was overwritten: %v", err)
 	}
 }
 
@@ -101,6 +142,55 @@ func TestRunDMGUsesGoLibrary(t *testing.T) {
 	}
 	if got != wantOutput {
 		t.Fatalf("runDMG() = %q, want %q", got, wantOutput)
+	}
+}
+
+func TestOfficialDMGPreservesConfiguredContentHeight(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("test CLI uses a shell script")
+	}
+	projectDir := t.TempDir()
+	binDir := filepath.Join(projectDir, "tools")
+	if err := os.MkdirAll(binDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	argsPath := filepath.Join(projectDir, "dmg-args.txt")
+	t.Setenv("DMG_LAYOUT_TEST_ARGS", argsPath)
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	script := `#!/bin/sh
+printf '%s\n' "$@" > "$DMG_LAYOUT_TEST_ARGS"
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --out) out="$2"; shift ;;
+    --name) name="$2"; shift ;;
+  esac
+  shift
+done
+printf 'test image' > "$out/$name.dmg"
+`
+	if err := os.WriteFile(filepath.Join(binDir, "wails3"), []byte(script), 0755); err != nil {
+		t.Fatal(err)
+	}
+	cfg := contracts.PackagingConfig{
+		MacOS:     contracts.MacOSConfig{WindowWidth: 640, WindowHeight: 420},
+		Artifacts: contracts.ArtifactConfig{OutputRoot: "release"},
+	}
+	projectConfig := contracts.WailsProjectConfig{
+		Info: contracts.WailsAppInfo{ProductName: "Layout Check", Version: "1.0.0"},
+	}
+	_, err := NewService(nil).runOfficialDMG(context.Background(), projectDir, cfg, projectConfig,
+		filepath.Join(projectDir, "Layout Check.app"), "background.png", runlog.Transaction{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	args, err := os.ReadFile(argsPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"--window-width\n640\n", "--window-height\n452\n", "--background\nbackground.png\n"} {
+		if !strings.Contains(string(args), want) {
+			t.Fatalf("CLI arguments missing %q:\n%s", want, args)
+		}
 	}
 }
 

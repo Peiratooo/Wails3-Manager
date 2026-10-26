@@ -286,7 +286,7 @@ onMounted(()=>{
 .selector {
     position: relative;
     width: 100%;
-    min-height: 100vh;
+    min-height: 100%;
     box-sizing: border-box;
     padding: 48px 38px 44px;
     overflow: hidden;
@@ -471,7 +471,7 @@ onMounted(()=>{
 
 @media (max-width: 700px) {
     .selector {
-        min-height: 100vh;
+        min-height: 100%;
         padding: 24px 20px 34px;
         overflow-y: auto;
     }

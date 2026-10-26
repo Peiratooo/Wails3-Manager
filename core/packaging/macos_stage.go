@@ -14,6 +14,7 @@ import (
 	"wails3-manager/core/contracts"
 	"wails3-manager/core/fsx"
 	"wails3-manager/core/packaging/config"
+	"wails3-manager/core/packaging/dmg"
 	"wails3-manager/core/runlog"
 )
 
@@ -236,7 +237,7 @@ func (s *Service) runOfficialDMG(ctx context.Context, projectDir string, cfg con
 	stage := filepath.Dir(bundle)
 	name := strings.TrimSuffix(filepath.Base(bundle), ".app")
 	command := []string{"wails3", "tool", "package", "--format", "dmg", "--name", name, "--out", stage,
-		"--window-width", fmt.Sprint(cfg.MacOS.WindowWidth), "--window-height", fmt.Sprint(cfg.MacOS.WindowHeight)}
+		"--window-width", fmt.Sprint(cfg.MacOS.WindowWidth), "--window-height", fmt.Sprint(dmg.FinderWindowHeight(cfg.MacOS.WindowHeight))}
 	if background != "" {
 		command = append(command, "--background", background)
 	}

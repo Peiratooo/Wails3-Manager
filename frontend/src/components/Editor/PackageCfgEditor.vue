@@ -235,15 +235,34 @@
                     </div>
                     <div class="input-area">
                         <div class="label">{{ t("packageEditor.dmgVolumeIcon") }}</div>
-                        <n-input v-model:value="cfg.macos.volumeIcon" placeholder="build/darwin/icons.icns" />
+                        <div class="file-picker-row">
+                            <n-input v-model:value="cfg.macos.volumeIcon" :aria-label="t('packageEditor.dmgVolumeIcon')" placeholder="build/darwin/icons.icns" />
+                            <n-button :disabled="saving" @click="chooseDmgIcon('volumeIcon')">
+                                {{ t("packageEditor.selectExecutable") }}
+                            </n-button>
+                        </div>
                     </div>
                     <div class="input-area">
                         <div class="label">{{ t("packageEditor.dmgFileIcon") }}</div>
-                        <n-input v-model:value="cfg.macos.fileIcon" placeholder="build/darwin/dmg-file-icon.icns" />
+                        <div class="file-picker-row">
+                            <n-input v-model:value="cfg.macos.fileIcon" :aria-label="t('packageEditor.dmgFileIcon')" placeholder="build/darwin/dmg-file-icon.icns" />
+                            <n-button :disabled="saving" @click="chooseDmgIcon('fileIcon')">
+                                {{ t("packageEditor.selectExecutable") }}
+                            </n-button>
+                        </div>
                     </div>
-                    <div v-if="cfg.macos.dmgMode === 'official'" class="input-area full">
+                    <div class="input-area full">
                         <div class="label">{{ t("packageEditor.background") }}</div>
-                        <n-input v-model:value="cfg.macos.background" />
+                        <div class="file-picker-row">
+                            <n-input
+                                v-model:value="cfg.macos.background"
+                                clearable
+                                :placeholder="t('packageEditor.noDmgBackground')"
+                            />
+                            <n-button :disabled="saving" @click="chooseDmgBackground">
+                                {{ t("packageEditor.selectBackground") }}
+                            </n-button>
+                        </div>
                     </div>
                     <div v-if="cfg.macos.dmgMode === 'official'" class="input-area">
                         <div class="label">{{ t("packageEditor.windowWidth") }}</div>
@@ -274,10 +293,10 @@
                         </div>
 
                         <n-button
-                            :disabled="saving || cfg.macos.dmgMode === 'official'"
+                            :disabled="saving"
                             @click="dmgEditorVisible = true"
                         >
-                            {{ t("packageEditor.editDmgLayout") }}
+                            {{ t(cfg.macos.dmgMode === 'official' ? "packageEditor.previewDmgLayout" : "packageEditor.editDmgLayout") }}
                         </n-button>
                     </div>
                 </div>
@@ -591,6 +610,8 @@
             v-model:show="dmgEditorVisible"
             :macos="cfg.macos"
             :project-dir="projectDir"
+            :app-icon-version="appIconVersion"
+            :product-name="productName"
             @save="setMacOSLayout"
         />
     </div>
@@ -632,6 +653,10 @@ const props = defineProps({
     appIconVersion: {
         type: Number,
         default: 0
+    },
+    productName: {
+        type: String,
+        default: ""
     },
     savingAll: {
         type: Boolean,
@@ -887,6 +912,24 @@ async function setMacOSLayout(nextMacOS) {
     cfg.value.macos = cloneData(nextMacOS)
     await nextTick()
     await requestSave()
+}
+
+async function chooseDmgBackground() {
+    try {
+        const path = await AppService.ChooseFile()
+        if (path) cfg.value.macos.background = path
+    } catch (error) {
+        message.error(error?.message || String(error))
+    }
+}
+
+async function chooseDmgIcon(field) {
+    try {
+        const path = await AppService.ChooseSetupIcon()
+        if (path) cfg.value.macos[field] = path
+    } catch (error) {
+        message.error(error?.message || String(error))
+    }
 }
 
 function projectFilePath(path) {
@@ -1490,6 +1533,21 @@ defineExpose({
     display: flex;
     align-items: center;
     gap: 12px;
+}
+
+.file-picker-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.file-picker-row .n-input {
+    flex: 1;
+    min-width: 0;
+}
+
+.file-picker-row .n-button {
+    flex: 0 0 auto;
 }
 
 .path-picker.full {
