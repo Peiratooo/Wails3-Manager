@@ -1,7 +1,6 @@
 package dmg
 
 import (
-	"encoding/base64"
 	"fmt"
 	"image"
 	_ "image/gif"
@@ -14,6 +13,7 @@ import (
 	upstreamdmg "github.com/leaanthony/dmg/dmg"
 	"golang.org/x/image/draw"
 
+	appassets "wails3-manager/assets"
 	"wails3-manager/core/contracts"
 	"wails3-manager/core/fsx"
 	"wails3-manager/core/packaging/config"
@@ -22,9 +22,7 @@ import (
 var buildImage = upstreamdmg.Build
 
 func DefaultBackgroundPNG() []byte {
-	// 1x1 transparent PNG placeholder; users can replace it from GUI.
-	data, _ := base64.StdEncoding.DecodeString("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAEUlEQVR4nGJiYGBgAAQAAP//AA8AA/6P688AAAAASUVORK5CYII=")
-	return data
+	return appassets.InstallGridPNG
 }
 
 // Build creates the configured DMG and returns its absolute output path.
@@ -94,7 +92,7 @@ func BuildOptions(projectDir string, cfg contracts.PackagingConfig, projectConfi
 			X:      100,
 			Y:      100,
 			Width:  cfg.MacOS.WindowWidth,
-			Height: cfg.MacOS.WindowHeight,
+			Height: FinderWindowHeight(cfg.MacOS.WindowHeight),
 		},
 		Icon: upstreamdmg.IconConfig{
 			Size:      cfg.MacOS.IconSize,

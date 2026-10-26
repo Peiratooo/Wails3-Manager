@@ -38,8 +38,10 @@ func TestBuildOptionsUsesConfiguredLayout(t *testing.T) {
 	if !opts.AddApplicationsSymlink {
 		t.Fatal("AddApplicationsSymlink = false, want true")
 	}
-	if opts.Window.Width != 300 || opts.Window.Height != 400 {
-		t.Fatalf("Window = %#v, want 300x400", opts.Window)
+	// A 400px background needs a 432px outer Finder window; otherwise its
+	// bottom 32px are hidden behind the difference between frame and content.
+	if opts.Window.Width != 300 || opts.Window.Height != 432 {
+		t.Fatalf("Window = %#v, want 300x432 (300x400 content)", opts.Window)
 	}
 	if opts.Icon.Size != 96 || opts.Icon.TextSize != 12 || opts.Icon.GridSpace != 100 {
 		t.Fatalf("Icon = %#v", opts.Icon)

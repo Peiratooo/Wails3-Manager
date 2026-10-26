@@ -98,6 +98,7 @@ const tabs = computed(() => [
             packageCfg: props.packageCfg,
             projectDir: props.wails3Cfg.projectDir,
             currentPlatform: props.wails3Cfg.project?.currentPlatform,
+            productName: props.wails3Cfg.project?.wailsConfig?.info?.productName || "",
             appIconVersion: props.appIconVersion,
             savingAll: savingAll.value,
             onSaveRequest: saveAllConfigs,

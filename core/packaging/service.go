@@ -284,14 +284,7 @@ func (s *Service) Package(req contracts.PackageRequest) (result contracts.Packag
 				}
 				defer cleanup()
 				result.Warnings = append(result.Warnings, "Manager does not perform Developer ID signing or notarization. New or modified application bundles are ad-hoc signed; unchanged prebuilt bundles retain their signatures.")
-				background := config.RenderPlaceholders(cfg.MacOS.Background, cfg, projectConfig)
-				backgroundPath, err := dmg.PrepareBackground(
-					projectDir,
-					background,
-					cfg.MacOS.WindowWidth,
-					cfg.MacOS.WindowHeight,
-					filepath.Join(projectDir, "builder", "macos", "dmg-background.png"),
-				)
+				backgroundPath, err := s.prepareDMGBackground(projectDir, cfg, projectConfig)
 				if err != nil {
 					return contracts.PackageResult{}, err
 				}
@@ -590,6 +583,23 @@ func packageOutputDir(projectDir string, cfg contracts.PackagingConfig, projectC
 		return fsx.Resolve(projectDir, config.ExportRoot(cfg, projectConfig))
 	}
 	return ""
+}
+
+func (s *Service) prepareDMGBackground(projectDir string, cfg contracts.PackagingConfig, projectConfig contracts.WailsProjectConfig) (string, error) {
+	background := strings.TrimSpace(config.RenderPlaceholders(cfg.MacOS.Background, cfg, projectConfig))
+	if background == "" {
+		// Use the embedded grid even when the user clears the selected path.
+		// Keep it in the managed directory, without replacing project assets.
+		background = filepath.Join(projectDir, "builder", "macos", "default-background.png")
+		if err := os.MkdirAll(filepath.Dir(background), 0755); err != nil {
+			return "", err
+		}
+		if err := fsx.WriteFileAtomic(background, s.defaultDMGBackgroundPNG(), 0644); err != nil {
+			return "", err
+		}
+	}
+	return dmg.PrepareBackground(projectDir, background, cfg.MacOS.WindowWidth, cfg.MacOS.WindowHeight,
+		filepath.Join(projectDir, "builder", "macos", "dmg-background.png"))
 }
 
 func (s *Service) defaultDMGBackgroundPNG() []byte {

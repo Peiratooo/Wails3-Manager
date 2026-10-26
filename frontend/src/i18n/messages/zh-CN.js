@@ -117,6 +117,10 @@ export default {
         dmgOfficial: '官方标准布局',
         dmgCustom: '自定义布局',
         dmgModeHint: '官方模式使用标准图标位置；自定义模式支持拖拽和图标大小。',
+        previewDmgLayout: '预览 DMG 页面',
+        dmgPreviewCanvas: '预览窗口',
+        dmgOfficialPreviewHint: '背景沿用打包配置；图标大小和位置由官方布局自动确定，可调整窗口尺寸并实时预览。',
+        dmgBackgroundError: '背景图无法加载，请选择 PNG、JPEG 或 GIF 图片，或检查文件路径。',
         dmgVolumeIcon: '卷图标（可选）',
         dmgFileIcon: 'DMG 文件图标（可选）',
         title: '打包配置',
@@ -169,6 +173,7 @@ export default {
         appIcon: '软件图标',
         applicationsFolder: 'Applications 文件夹',
         selectBackground: '选择背景图',
+        noDmgBackground: '未选择背景图（使用默认网格背景）',
 
         assetsTitle: '资源文件',
         addFile: '添加文件',
