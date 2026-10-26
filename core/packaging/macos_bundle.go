@@ -230,7 +230,7 @@ func copyMacOSPayload(projectDir, macOSDir, src, assetType string, required bool
 		if !fsx.DirExists(from) {
 			return fmt.Errorf("asset is not a directory: %s", from)
 		}
-		return fsx.CopyDir(from, to, true)
+		return os.CopyFS(to, os.DirFS(from))
 	case "file":
 		if !fsx.FileExists(from) {
 			return fmt.Errorf("asset is not a file: %s", from)

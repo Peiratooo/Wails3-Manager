@@ -32,7 +32,7 @@ func TestLookPathFindsUserGoBinWhenPathIsMinimal(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got != expected {
+	if got != expected && (runtime.GOOS != "windows" || !strings.EqualFold(got, expected)) {
 		t.Fatalf("LookPath(%q) = %q, want %q", name, got, expected)
 	}
 }

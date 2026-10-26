@@ -67,13 +67,14 @@ Wails3 Manager 把常見的 Wails 專案操作放到一個視窗裡。你可以�
 
 開發需求：
 
-- Go **1.25.0**
-- 與 `github.com/wailsapp/wails/v3 v3.0.0-alpha.96` 相容的 Wails3 CLI
+- Go **1.27.3**
+- 與 `github.com/wailsapp/wails/v3 v3.0.0-beta.28` 相容的 Wails3 CLI
 - Node.js 和 npm
 - 目前系統所需的 Wails 平台工具鏈
 
 ```bash
 git clone <你的倉庫地址>
+go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.28
 cd wails3-manager/frontend
 npm install
 cd ..

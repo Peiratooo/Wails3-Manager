@@ -66,24 +66,25 @@ func (s *Service) RemoveProject(projectDir string, restoreOriginal bool) error {
 	if err != nil {
 		return err
 	}
+	if !restoreOriginal {
+		return project.RemoveProjectRecord(projectDir)
+	}
 	record, ok := project.LoadProjectRecord(projectDir)
 	if !ok {
 		removeStaleProjectDirs(projectDir)
 		return project.RemoveProjectRecord(projectDir)
 	}
-	if restoreOriginal {
-		cfg, cfgErr := packagingconfig.LoadPackagingConfig(projectDir)
-		if err := project.RestoreInitialSnapshot(projectDir); err != nil {
+	cfg, cfgErr := packagingconfig.LoadPackagingConfig(projectDir)
+	if err := project.RestoreInitialSnapshot(projectDir); err != nil {
+		return err
+	}
+	if cfgErr == nil {
+		if err := removeManagedPackageOutputs(projectDir, cfg, record.Project.WailsConfig); err != nil {
 			return err
 		}
-		if cfgErr == nil {
-			if err := removeManagedPackageOutputs(projectDir, cfg, record.Project.WailsConfig); err != nil {
-				return err
-			}
-		}
-		if err := removeBuilderDir(projectDir); err != nil {
-			return err
-		}
+	}
+	if err := removeBuilderDir(projectDir); err != nil {
+		return err
 	}
 	return project.RemoveProjectRecord(projectDir)
 }

@@ -117,14 +117,11 @@ func TestRemoveProjectRestoreCleansManagedPackageOutputs(t *testing.T) {
 		},
 		Artifacts: contracts.ArtifactConfig{OutputRoot: "builder/release"},
 		MacOS: contracts.MacOSConfig{
-			Enabled:       true,
-			AppBundle:     "bin/${project.name}.app",
-			DMGScript:     "builder/macos/dmg.sh",
-			OutputName:    packagingConfig.InstallerOutputNameTemplate,
-			CreateDMGPath: "create-dmg",
-			WindowWidth:   640,
-			WindowHeight:  420,
-			IconSize:      96,
+			Enabled:      true,
+			AppBundle:    "bin/${project.name}.app",
+			WindowWidth:  640,
+			WindowHeight: 420,
+			IconSize:     96,
 		},
 	}
 	if err := packagingConfig.SavePackagingConfig(projectDir, cfg); err != nil {

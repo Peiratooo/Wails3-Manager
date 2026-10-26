@@ -71,13 +71,14 @@ Wails3 Manager объединяет типовые операции с прое�
 
 Требования:
 
-- Go **1.26.5** (версия указана в go.mod)
+- Go **1.27.3** (версия указана в go.mod)
 - Wails3 CLI **v3.0.0-beta.28**, соответствующий модулю Go и среде выполнения фронтенда
 - Node.js и npm
 - Инструментарий Wails для вашей ОС
 
 ```bash
 git clone <repository-url>
+go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.28
 cd wails3-manager/frontend
 npm install
 cd ..

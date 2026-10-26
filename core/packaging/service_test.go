@@ -14,6 +14,8 @@ import (
 	"testing"
 	"time"
 
+	"gopkg.in/yaml.v3"
+
 	"wails3-manager/core/contracts"
 	packagingConfig "wails3-manager/core/packaging/config"
 	"wails3-manager/core/project"
@@ -272,7 +274,7 @@ tasks:
 	}
 }
 
-func TestSavePackagingConfigSyncsTaskfileVarsAndReleaseTask(t *testing.T) {
+func TestSavePackagingConfigSyncsVarsAndPreservesExistingTasks(t *testing.T) {
 	SetPlatformOverride(contracts.Platform("linux"))
 	defer SetPlatformOverride("")
 
@@ -342,9 +344,6 @@ tasks:
 		`APP_NAME: "next-app"`,
 		`CGO_ENABLED: "1"`,
 		`PRODUCTION: "true"`,
-		`          APP_NAME: "{{.APP_NAME}}"`,
-		`          CGO_ENABLED: "{{.CGO_ENABLED}}"`,
-		`          PRODUCTION: "{{.PRODUCTION}}"`,
 	} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("synced Taskfile is missing %q:\n%s", want, text)
@@ -353,8 +352,17 @@ tasks:
 	if got := strings.Count(text, "  release:"); got != 1 {
 		t.Fatalf("release task count = %d, want 1:\n%s", got, text)
 	}
-	if got := strings.Count(text, `          APP_NAME: "{{.APP_NAME}}"`); got < 2 {
-		t.Fatalf("APP_NAME should be passed by build and release tasks:\n%s", text)
+	var original, updated struct {
+		Tasks map[string]any `yaml:"tasks"`
+	}
+	if err := yaml.Unmarshal([]byte(taskfile), &original); err != nil {
+		t.Fatal(err)
+	}
+	if err := yaml.Unmarshal(data, &updated); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(updated.Tasks, original.Tasks) {
+		t.Fatalf("existing tasks changed: got %#v, want %#v", updated.Tasks, original.Tasks)
 	}
 }
 

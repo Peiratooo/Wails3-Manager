@@ -67,13 +67,14 @@ Wails3 Manager는 자주 하는 Wails 프로젝트 작업을 한 화면에 모�
 
 요구 사항:
 
-- Go **1.25.0**
-- `github.com/wailsapp/wails/v3 v3.0.0-alpha.96`와 호환되는 Wails3 CLI
+- Go **1.27.3**
+- `github.com/wailsapp/wails/v3 v3.0.0-beta.28`와 호환되는 Wails3 CLI
 - Node.js 및 npm
 - 현재 OS의 Wails 플랫폼 툴체인
 
 ```bash
 git clone <repository-url>
+go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.28
 cd wails3-manager/frontend
 npm install
 cd ..

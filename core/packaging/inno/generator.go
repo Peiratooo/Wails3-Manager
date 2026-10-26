@@ -43,11 +43,11 @@ func Generate(projectDir string, cfg contracts.PackagingConfig, projectConfig co
 		run = `Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent`
 	}
 	content := strings.NewReplacer(
-		"{{appName}}", projectName,
-		"{{appVersion}}", projectVersion,
-		"{{appPublisher}}", config.ProjectPublisher(projectConfig),
-		"{{appURL}}", config.RenderPlaceholders(cfg.Windows.AppURL, cfg, projectConfig),
-		"{{appExeName}}", appExeName,
+		"{{appName}}", escapeInnoString(projectName),
+		"{{appVersion}}", escapeInnoString(projectVersion),
+		"{{appPublisher}}", escapeInnoString(config.ProjectPublisher(projectConfig)),
+		"{{appURL}}", escapeInnoString(config.RenderPlaceholders(cfg.Windows.AppURL, cfg, projectConfig)),
+		"{{appExeName}}", escapeInnoString(appExeName),
 		"{{appId}}", appID,
 		"{{defaultDirName}}", config.RenderPlaceholders(cfg.Windows.DefaultDirName, cfg, projectConfig),
 		"{{privilegesRequired}}", cfg.Windows.PrivilegesRequired,

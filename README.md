@@ -71,13 +71,14 @@ Stack: Wails 3, Go, Vue 3, Vite, Naive UI, Pinia, Vue Router, Vue I18n, vue3-mov
 
 Requirements:
 
-- Go **1.26.5** (as pinned in go.mod)
+- Go **1.27.3** (as pinned in go.mod)
 - Wails3 CLI **v3.0.0-beta.28**, matching the Go module and frontend runtime
 - Node.js and npm
 - Wails platform toolchain for your OS
 
 ```bash
 git clone <repository-url>
+go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.28
 cd wails3-manager/frontend
 npm install
 cd ..

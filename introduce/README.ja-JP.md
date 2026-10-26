@@ -68,13 +68,14 @@ Wails3 Manager は、よく使う Wails プロジェクト作業をひとつの�
 
 要件:
 
-- Go **1.25.0**
-- `github.com/wailsapp/wails/v3 v3.0.0-alpha.96` と互換性のある Wails3 CLI
+- Go **1.27.3**
+- `github.com/wailsapp/wails/v3 v3.0.0-beta.28` と互換性のある Wails3 CLI
 - Node.js と npm
 - 利用 OS の Wails プラットフォームツールチェーン
 
 ```bash
 git clone <repository-url>
+go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.28
 cd wails3-manager/frontend
 npm install
 cd ..
