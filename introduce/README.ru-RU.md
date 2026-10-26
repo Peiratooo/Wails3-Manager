@@ -8,8 +8,8 @@
 
 <img src="../imgs/badge.png" alt="Значки Wails3 Manager" width="512">
 
-[English](../README.md) · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · [日本語](README.ja-JP.md) · [한국어](README.ko-KR.md) · [Français](README.fr-FR.md) · [Deutsch](README.de-DE.md) · **Русский** · 
- 
+[English](../README.md) · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · [日本語](README.ja-JP.md) · [한국어](README.ko-KR.md) · [Français](README.fr-FR.md) · [Deutsch](README.de-DE.md) · **Русский**
+
 </div>
 
 > [!IMPORTANT]

@@ -8,7 +8,7 @@ Desktop UI for creating, configuring, building, and packaging Wails 3 apps.
 
 <img src="imgs/badge.png" alt="Wails3 Manager badges" width="512">
 
-**English** · [简体中文](introduce/README.zh-CN.md) · [繁體中文](introduce/README.zh-TW.md) · [日本語](introduce/README.ja-JP.md) · [한국어](introduce/README.ko-KR.md) · [Français](introduce/README.fr-FR.md) · [Deutsch](introduce/README.de-DE.md)
+**English** · [简体中文](introduce/README.zh-CN.md) · [繁體中文](introduce/README.zh-TW.md) · [日本語](introduce/README.ja-JP.md) · [한국어](introduce/README.ko-KR.md) · [Français](introduce/README.fr-FR.md) · [Deutsch](introduce/README.de-DE.md) · [Русский](introduce/README.ru-RU.md)
 
 </div>
 
