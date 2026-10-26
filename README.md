@@ -75,6 +75,7 @@ Requirements:
 - Wails3 CLI **v3.0.0-beta.28**, matching the Go module and frontend runtime
 - Node.js and npm
 - Wails platform toolchain for your OS
+- macOS 13 Ventura or later for builds made with Go 1.27
 
 ```bash
 git clone <repository-url>
@@ -97,6 +98,8 @@ wails3 task build
 wails3 task release
 wails3 task package
 ```
+
+On macOS, use `wails3 task darwin:package:universal:dmg` to build an Intel + Apple Silicon DMG. For public distribution, run `darwin:package:universal`, then `darwin:sign:notarize`, then `darwin:create:dmg`. Signing uses the existing bundle without rebuilding it, and `create:dmg` preserves that signed bundle. Native-only packages use `darwin:package` instead of `darwin:package:universal`.
 
 ## Managed Project Files
 
