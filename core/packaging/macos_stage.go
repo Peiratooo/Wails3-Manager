@@ -137,7 +137,9 @@ func (s *Service) stageMacOSBundle(ctx context.Context, projectDir string, cfg c
 			return fail(err)
 		}
 		customLaunch := !config.SameAssetPath(macOSLaunchExecutablePath(cfg, projectConfig), config.DefaultMacOSBinaryPath(cfg), contracts.PlatformMacOS)
-		modified = len(cfg.Assets) > 0 || customLaunch || (useBuiltBinary && !officialBundle)
+		// A freshly built bundle can still contain the template's old executable
+		// name or version. Refresh its metadata even when the official task ran.
+		modified = len(cfg.Assets) > 0 || customLaunch || useBuiltBinary
 		if modified {
 			if err := filepath.WalkDir(bundle, func(path string, entry os.DirEntry, walkErr error) error {
 				if walkErr != nil {

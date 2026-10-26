@@ -71,6 +71,7 @@ Wails3 Manager 把常见的 Wails 项目操作放到一个窗口里。你可以�
 - 与 `github.com/wailsapp/wails/v3 v3.0.0-beta.28` 兼容的 Wails3 CLI
 - Node.js 和 npm
 - 当前系统所需的 Wails 平台工具链
+- 使用 Go 1.27 构建的 macOS 应用要求 macOS 13 Ventura 或更高版本
 
 ```bash
 git clone <你的仓库地址>
@@ -93,6 +94,8 @@ wails3 task build
 wails3 task release
 wails3 task package
 ```
+
+macOS 双架构 DMG 使用 `wails3 task darwin:package:universal:dmg` 构建，同时支持 Intel 和 Apple Silicon。公开分发时，依次运行 `darwin:package:universal`、`darwin:sign:notarize` 和 `darwin:create:dmg`。签名操作直接处理已有应用，不会重新构建；`create:dmg` 保留应用签名。仅构建本机架构时，将 `darwin:package:universal` 换为 `darwin:package`。
 
 ## 被管理项目文件
 

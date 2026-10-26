@@ -42,7 +42,13 @@ tasks:
         msg: "garble is required for obfuscated builds. Install it with: go install mvdan.cc/garble@v0.16.0 (requires Go 1.24+). See https://github.com/burrowers/garble/releases for version/toolchain compatibility."
     cmds:
       - wails3 tool prepare-macos-output --dir "{{.BIN_DIR}}"
-      - '{{if eq .OBFUSCATED "true"}}garble {{.GARBLE_ARGS}} build{{else}}go build{{end}} {{.BUILD_FLAGS}} -o "{{.OUTPUT}}"'
+      - |
+        set -e
+        mkdir -p "$(dirname "{{.OUTPUT}}")"
+        build_dir=$(mktemp -d "{{.OUTPUT}}.build-XXXXXX")
+        trap 'rm -rf -- "$build_dir"' EXIT
+        {{if eq .OBFUSCATED "true"}}garble {{.GARBLE_ARGS}} build{{else}}go build{{end}} {{.BUILD_FLAGS}} -o "$build_dir/app"
+        mv -f -- "$build_dir/app" "{{.OUTPUT}}"
     vars:
       BUILD_FLAGS: '{{if eq .DEV "true"}}{{if or .EXTRA_TAGS (eq .OBFUSCATED "true")}}-tags {{if eq .OBFUSCATED "true"}}wails_obfuscated{{if .EXTRA_TAGS}},{{end}}{{end}}{{.EXTRA_TAGS}} {{end}}-buildvcs=false -gcflags=all="-l"{{else}}-tags production{{if eq .OBFUSCATED "true"}},wails_obfuscated{{end}}{{if .EXTRA_TAGS}},{{.EXTRA_TAGS}}{{end}} -trimpath -buildvcs=false -ldflags="-w -s"{{end}}'
       DEFAULT_OUTPUT: '{{.BIN_DIR}}/{{.APP_NAME}}'
@@ -51,9 +57,9 @@ tasks:
       GOOS: darwin
       CGO_ENABLED: 1
       GOARCH: '{{.ARCH | default ARCH}}'
-      CGO_CFLAGS: "-mmacosx-version-min=12.0"
-      CGO_LDFLAGS: "-mmacosx-version-min=12.0"
-      MACOSX_DEPLOYMENT_TARGET: "12.0"
+      CGO_CFLAGS: "-mmacosx-version-min=13.0"
+      CGO_LDFLAGS: "-mmacosx-version-min=13.0"
+      MACOSX_DEPLOYMENT_TARGET: "13.0"
 
   build:docker:
     summary: Cross-compiles for macOS using Docker (for Linux/Windows hosts)
@@ -135,6 +141,13 @@ tasks:
     cmds:
       - task: create:dmg
 
+  package:universal:dmg:
+    summary: Packages a universal application into a styled `.dmg`
+    deps:
+      - task: package:universal
+    cmds:
+      - task: create:dmg
+
   create:dmg:
     summary: Creates a configurable `.dmg` from the `.app` bundle
     platforms: [darwin]
@@ -171,6 +184,8 @@ tasks:
         fi
       - cp "{{.BIN_DIR}}/{{.APP_NAME}}" "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/MacOS"
       - cp build/darwin/Info.plist "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents"
+      - cmd: plutil -replace CFBundleExecutable -string "{{.APP_NAME}}" -- "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/Info.plist"
+        platforms: [darwin]
       - task: '{{if eq OS "darwin"}}codesign:adhoc{{else}}codesign:skip{{end}}'
 
   codesign:adhoc:
@@ -200,6 +215,7 @@ tasks:
         fi
       - cp "{{.BIN_DIR}}/{{.APP_NAME}}" "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/MacOS"
       - cp "build/darwin/Info.dev.plist" "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/Info.plist"
+      - plutil -replace CFBundleExecutable -string "{{.APP_NAME}}" -- "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/Info.plist"
       - xattr -cr "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app"
       - codesign --force --deep --sign - "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app"
       - codesign --verify --deep --strict "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app"
@@ -208,23 +224,27 @@ tasks:
   sign:
     summary: Signs the application bundle with Developer ID
     desc: |
-      Signs the .app bundle for distribution.
+      Signs an existing .app bundle for distribution without rebuilding it.
+      Build it first with darwin:package or darwin:package:universal.
       Uses signing identity from `wails3 setup` (stored in ~/.config/wails/defaults.yaml).
       Override with: task darwin:sign -- --identity "Developer ID Application: ..."
-    deps:
-      - task: package
+    preconditions:
+      - sh: test -f "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/Info.plist"
+        msg: "Build the app first with darwin:package or darwin:package:universal."
     cmds:
       - wails3 tool sign --input "{{.BIN_DIR}}/{{.APP_NAME}}.app" {{.CLI_ARGS}}
 
   sign:notarize:
     summary: Signs and notarizes the application bundle
     desc: |
-      Signs the .app bundle and submits it for notarization.
+      Signs the existing .app bundle and submits it for notarization without rebuilding it.
+      Build it first with darwin:package or darwin:package:universal.
       Uses signing identity and keychain profile from `wails3 setup`.
 
       First-time setup:
         wails3 setup
-    deps:
-      - task: package
+    preconditions:
+      - sh: test -f "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/Info.plist"
+        msg: "Build the app first with darwin:package or darwin:package:universal."
     cmds:
       - wails3 tool sign --input "{{.BIN_DIR}}/{{.APP_NAME}}.app" --notarize {{.CLI_ARGS}}
