@@ -19,8 +19,6 @@ import (
 	"wails3-manager/core/packaging/config"
 )
 
-var buildImage = upstreamdmg.Build
-
 func DefaultBackgroundPNG() []byte {
 	return appassets.InstallGridPNG
 }
@@ -41,7 +39,7 @@ func Build(projectDir string, cfg contracts.PackagingConfig, projectConfig contr
 	}
 	defer os.RemoveAll(stage)
 	opts.OutputPath = filepath.Join(stage, filepath.Base(outputPath))
-	if err := buildImage(opts); err != nil {
+	if err := upstreamdmg.Build(opts); err != nil {
 		return "", fmt.Errorf("failed to build DMG: %w", err)
 	}
 	if err := fsx.PublishFile(opts.OutputPath, outputPath); err != nil {

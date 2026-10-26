@@ -8,12 +8,12 @@ Wails 3 앱을 생성, 설정, 빌드, 패키징하는 데스크톱 UI입니다.
 
 <img src="../imgs/badge.png" alt="Wails3 Manager badges" width="620">
 
-[English](../README.md) · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · [日本語](README.ja-JP.md) · **한국어** · [Français](README.fr-FR.md) · [Deutsch](README.de-DE.md)· [Русский](README.ru-RU.md)
+[English](../README.md) · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · [日本語](README.ja-JP.md) · **한국어** · [Français](README.fr-FR.md) · [Deutsch](README.de-DE.md) · [Русский](README.ru-RU.md)
 
 </div>
 
 > [!IMPORTANT]
-> Wails3 Manager는 개발 중이며 Wails 3 Alpha 변경 사항을 따릅니다. Windows 설치 파일은 Windows에서, macOS DMG는 macOS에서 만듭니다.
+> Wails3 Manager는 Wails 3 beta.28을 대상으로 합니다. Windows 설치 파일은 Windows에서, macOS DMG는 macOS에서 만듭니다.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="../imgs/english/dark/home.png">
@@ -29,12 +29,16 @@ Wails3 Manager는 자주 하는 Wails 프로젝트 작업을 한 화면에 모�
 
 ## 다운로드
 
-1. 운영체제에 맞는 빌드를 다운로드합니다.
+1. [Releases](https://github.com/Peiratooo/Wails3-Manager/releases)에서 운영체제에 맞는 빌드를 다운로드합니다.
 2. Wails3 Manager를 실행하고 환경 페이지를 확인합니다.
 3. 새 Wails 3 프로젝트를 만들거나 기존 프로젝트를 가져옵니다.
 4. 작업 공간에서 설정, 빌드, 패키징을 진행합니다.
 
-네이티브 패키징에는 Windows의 **Inno Setup**, macOS의 **create-dmg**가 필요합니다.
+네이티브 패키징에는 Windows의 **Inno Setup**, macOS의 Wails CLI와 시스템 디스크 이미지 및 서명 도구가 필요합니다.
+
+DMG는 공식 표준 레이아웃과 아이콘을 드래그할 수 있는 사용자 지정 레이아웃을 지원합니다. 새 설정은 공식 모드를 사용합니다. 배경, 볼륨 아이콘, DMG 파일 아이콘은 각각 설정하며, 배경을 선택하지 않으면 내장 격자 이미지를 사용합니다.
+
+패키징 전에 앱 번들을 임시 디렉터리로 복사합니다. 새 번들이나 수정된 번들은 ad-hoc 서명을 적용하고, 변경되지 않은 사전 빌드 번들은 원래 서명을 유지합니다. Developer ID 서명과 공증은 별도의 배포 단계입니다. 비어 있지 않은 새 DMG 파일을 성공적으로 만든 후에만 기존 파일을 교체합니다.
 
 ## 기능
 
@@ -69,14 +73,16 @@ Wails3 Manager는 자주 하는 Wails 프로젝트 작업을 한 화면에 모�
 
 - Go **1.27.3**
 - `github.com/wailsapp/wails/v3 v3.0.0-beta.28`와 호환되는 Wails3 CLI
-- Node.js 및 npm
+- Node.js **22.12+** 및 npm
+- Go 1.27로 빌드한 앱은 macOS 13 Ventura 이상 필요
 - 현재 OS의 Wails 플랫폼 툴체인
 
 ```bash
-git clone <repository-url>
+git clone --branch 1.1.0 https://github.com/Peiratooo/Wails3-Manager.git wails3-manager
+cd wails3-manager
 go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.28
-cd wails3-manager/frontend
-npm install
+cd frontend
+npm ci
 cd ..
 wails3 task dev
 ```
@@ -88,11 +94,13 @@ cd frontend
 npm run i18n:check
 npm run build
 cd ..
-go test ./core/... ./desktop/...
+go vet ./...
 wails3 task build
 wails3 task release
 wails3 task package
 ```
+
+macOS에서 `wails3 task darwin:package:universal:dmg`는 Intel과 Apple Silicon을 모두 지원하는 DMG를 만듭니다. 공개 배포 시 `darwin:package:universal`, `darwin:sign:notarize`, `darwin:create:dmg`를 순서대로 실행하세요. 서명 단계는 기존 번들을 사용하며 다시 빌드하지 않습니다. 네이티브 아키텍처만 필요하면 `darwin:package:universal` 대신 `darwin:package`를 사용하세요.
 
 ## 관리되는 프로젝트 파일
 
@@ -104,16 +112,17 @@ builder/
 ├── packaging.json
 ├── backup/initial/
 ├── windows/inno.iss
-├── macos/dmg.sh
+├── macos/dmg-background.png
 └── release/
 ```
 
 ## 현재 제한
 
-- Wails 3는 아직 Alpha 단계입니다.
+- Wails 3는 Beta 단계이며 API가 변경될 수 있습니다.
 - 네이티브 패키지는 대상 OS에서 만들어야 합니다.
 - Linux 패키징은 구현되지 않았습니다.
-- 코드 서명, 공증, 자동 배포, 취소, 버전별 빌드 기록은 구현되지 않았습니다.
+- 관리 화면은 Developer ID 서명과 공증을 처리하지 않습니다. 위 CLI 배포 단계를 사용하세요. 새 번들이나 수정된 번들에는 ad-hoc 서명을 적용합니다.
+- 자동 배포, 취소, 버전별 빌드 기록은 구현되지 않았습니다.
 
 ## 라이선스
 

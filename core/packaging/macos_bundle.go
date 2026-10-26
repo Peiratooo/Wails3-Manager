@@ -13,31 +13,6 @@ import (
 	"wails3-manager/core/packaging/config"
 )
 
-func prepareMacOSAppBundle(projectDir string, cfg contracts.PackagingConfig, projectConfig contracts.WailsProjectConfig) (string, error) {
-	appBundle := fsx.Resolve(projectDir, config.MacOSAppBundlePath(cfg, projectConfig))
-	if appBundle == "" {
-		return "", fmt.Errorf("macOS app bundle path is not configured")
-	}
-	if !strings.HasSuffix(strings.ToLower(strings.TrimRight(appBundle, `/\`)), ".app") {
-		return "", fmt.Errorf("macOS app bundle path must end with .app: %s", appBundle)
-	}
-
-	// A prebuilt bundle is an input. Never reconstruct it in place.
-	if fsx.DirExists(appBundle) {
-		if !fsx.FileExists(filepath.Join(appBundle, "Contents", "Info.plist")) {
-			return "", fmt.Errorf("existing app bundle is incomplete: %s", appBundle)
-		}
-		return appBundle, nil
-	}
-	if err := ensureProjectBundleDestination(projectDir, appBundle); err != nil {
-		return "", err
-	}
-	if err := populateMacOSAppBundle(projectDir, cfg, projectConfig, appBundle); err != nil {
-		return "", err
-	}
-	return appBundle, nil
-}
-
 func populateMacOSAppBundle(projectDir string, cfg contracts.PackagingConfig, projectConfig contracts.WailsProjectConfig, appBundle string) error {
 	if err := config.ValidateAssetTargets(cfg, contracts.PlatformMacOS); err != nil {
 		return err

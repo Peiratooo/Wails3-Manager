@@ -8,12 +8,12 @@
 
 <img src="../imgs/badge.png" alt="Wails3 Manager badges" width="620">
 
-[English](../README.md) · [简体中文](README.zh-CN.md) · **繁體中文** · [日本語](README.ja-JP.md) · [한국어](README.ko-KR.md) · [Français](README.fr-FR.md) · [Deutsch](README.de-DE.md)· [Русский](README.ru-RU.md)
+[English](../README.md) · [简体中文](README.zh-CN.md) · **繁體中文** · [日本語](README.ja-JP.md) · [한국어](README.ko-KR.md) · [Français](README.fr-FR.md) · [Deutsch](README.de-DE.md) · [Русский](README.ru-RU.md)
 
 </div>
 
 > [!IMPORTANT]
-> Wails3 Manager 仍在開發中，並跟隨 Wails 3 Alpha 版本變化。Windows 安裝套件需要在 Windows 上編譯，macOS DMG 需要在 macOS 上建立。
+> Wails3 Manager 以 Wails 3 beta.28 為目標。Windows 安裝套件需要在 Windows 上編譯，macOS DMG 需要在 macOS 上建立。
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="../imgs/chinese/dark/home.png">
@@ -29,12 +29,16 @@ Wails3 Manager 把常見的 Wails 專案操作放到一個視窗裡。你可以�
 
 ## 下載
 
-1. 下載符合目前系統的版本。
+1. 從 [Releases](https://github.com/Peiratooo/Wails3-Manager/releases) 下載符合目前系統的版本。
 2. 啟動 Wails3 Manager，並檢查開發環境。
 3. 建立新專案，或匯入既有 Wails 3 專案。
 4. 在工作區完成設定、建置和打包。
 
-使用原生打包功能時，需要安裝對應工具：Windows 使用 **Inno Setup**，macOS 使用 **create-dmg**。
+原生打包需要 Windows 上的 **Inno Setup**，以及 macOS 上的 Wails CLI、系統磁碟映像與簽章工具。
+
+DMG 提供官方標準配置和可拖曳圖示的自訂配置，新建設定預設使用官方模式。背景、卷宗圖示和 DMG 檔案圖示分別設定；未選擇背景時使用內建網格圖。
+
+應用程式套件會先複製到暫存目錄。新建或修改過的套件使用 ad-hoc 簽章，未修改的預先建置套件保留原簽章。Developer ID 簽章和公證是獨立的發佈步驟。只有成功產生非空的新檔案後才會替換舊 DMG。
 
 ## 功能
 
@@ -69,14 +73,16 @@ Wails3 Manager 把常見的 Wails 專案操作放到一個視窗裡。你可以�
 
 - Go **1.27.3**
 - 與 `github.com/wailsapp/wails/v3 v3.0.0-beta.28` 相容的 Wails3 CLI
-- Node.js 和 npm
+- Node.js **22.12+** 和 npm
+- 使用 Go 1.27 建置的 macOS 應用程式需要 macOS 13 Ventura 或更新版本
 - 目前系統所需的 Wails 平台工具鏈
 
 ```bash
-git clone <你的倉庫地址>
+git clone --branch 1.1.0 https://github.com/Peiratooo/Wails3-Manager.git wails3-manager
+cd wails3-manager
 go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.28
-cd wails3-manager/frontend
-npm install
+cd frontend
+npm ci
 cd ..
 wails3 task dev
 ```
@@ -88,11 +94,13 @@ cd frontend
 npm run i18n:check
 npm run build
 cd ..
-go test ./core/... ./desktop/...
+go vet ./...
 wails3 task build
 wails3 task release
 wails3 task package
 ```
+
+macOS 雙架構 DMG 使用 `wails3 task darwin:package:universal:dmg` 建置，同時支援 Intel 與 Apple Silicon。公開發佈時，依序執行 `darwin:package:universal`、`darwin:sign:notarize` 和 `darwin:create:dmg`。簽章操作使用既有套件，不會重新建置。只建置本機架構時，將 `darwin:package:universal` 換成 `darwin:package`。
 
 ## 被管理專案檔案
 
@@ -104,16 +112,17 @@ builder/
 ├── packaging.json
 ├── backup/initial/
 ├── windows/inno.iss
-├── macos/dmg.sh
+├── macos/dmg-background.png
 └── release/
 ```
 
 ## 目前限制
 
-- Wails 3 仍處於 Alpha 階段。
+- Wails 3 仍處於 Beta 階段，API 可能變更。
 - 原生安裝套件必須在目標系統上建立。
 - Linux 安裝套件尚未實作。
-- 程式碼簽章、公證、自動發布、任務取消和版本化建置歷史尚未實作。
+- 管理器介面不處理 Developer ID 簽章和公證，請使用上述 CLI 發佈步驟；新建或修改過的套件使用 ad-hoc 簽章。
+- 自動發佈、任務取消和版本化建置歷史尚未實作。
 
 ## 授權
 

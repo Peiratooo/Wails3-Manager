@@ -33,25 +33,10 @@ type ServiceOptions struct {
 	DMGBackgroundPNG []byte
 }
 
-const innoCompileMaxRetries = 10
-
-var (
+const (
+	innoCompileMaxRetries = 10
 	innoCompileRetryDelay = 3 * time.Second
-	runISCCCommand        = func(ctx context.Context, projectDir string, command []string, runner runlog.Runner) error {
-		return runner.Run(ctx, projectDir, command)
-	}
-	buildDMG = dmg.Build
 )
-
-var platformOverride contracts.Platform
-
-func SetPlatformOverride(platform contracts.Platform) {
-	platformOverride = platform
-}
-
-func NewService(log *runlog.Logger) *Service {
-	return NewServiceWithOptions(log, ServiceOptions{})
-}
 
 func NewServiceWithOptions(log *runlog.Logger, options ServiceOptions) *Service {
 	return &Service{Log: log, DMGBackgroundPNG: options.DMGBackgroundPNG}
@@ -378,7 +363,7 @@ func (s *Service) runISCC(ctx context.Context, projectDir string, cfg contracts.
 		if retry > 0 && s.Log != nil {
 			s.Log.PrintlnWithTransaction(tx, fmt.Sprintf("Retrying Inno Setup compile (%d/%d).", retry, innoCompileMaxRetries))
 		}
-		if err := runISCCCommand(ctx, projectDir, command, runner); err != nil {
+		if err := runner.Run(ctx, projectDir, command); err != nil {
 			lastErr = err
 			if !isInnoFileLock(err) {
 				return fmt.Errorf("Inno Setup compile failed: %w", err)
@@ -418,7 +403,7 @@ func (s *Service) runDMG(projectDir string, cfg contracts.PackagingConfig, proje
 	if s.Log != nil {
 		s.Log.PrintlnWithTransaction(tx, "Building macOS DMG with github.com/leaanthony/dmg.")
 	}
-	outputPath, err := buildDMG(projectDir, cfg, projectConfig, appBundle, background)
+	outputPath, err := dmg.Build(projectDir, cfg, projectConfig, appBundle, background)
 	if err != nil {
 		return "", err
 	}
@@ -519,10 +504,6 @@ func buildTaskVars(cfg contracts.PackagingConfig) []string {
 
 func validateWindowsPackagingInputs(projectDir string, cfg contracts.PackagingConfig, projectConfig contracts.WailsProjectConfig) error {
 	return validateRequiredAssets(projectDir, cfg, projectConfig, contracts.PlatformWindows)
-}
-
-func validateMacOSPackagingInputs(projectDir string, cfg contracts.PackagingConfig, projectConfig contracts.WailsProjectConfig) error {
-	return validateRequiredAssets(projectDir, cfg, projectConfig, contracts.PlatformMacOS)
 }
 
 func validateRequiredAssets(projectDir string, cfg contracts.PackagingConfig, projectConfig contracts.WailsProjectConfig, platform contracts.Platform) error {
@@ -641,9 +622,6 @@ func cgoString(v bool) string {
 }
 
 func runtimePlatform() contracts.Platform {
-	if platformOverride != "" {
-		return platformOverride
-	}
 	switch runtime.GOOS {
 	case "windows":
 		return contracts.PlatformWindows

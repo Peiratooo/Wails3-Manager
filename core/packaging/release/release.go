@@ -9,10 +9,6 @@ import (
 	"wails3-manager/core/fsx"
 )
 
-func ReleaseArtifacts(projectDir string) []contracts.Artifact {
-	return listArtifacts(filepath.Join(fsx.BuilderDir(projectDir), "release"))
-}
-
 // ArtifactsAt lists historical outputs from the configured release root.
 func ArtifactsAt(root string) []contracts.Artifact {
 	return listArtifacts(root)

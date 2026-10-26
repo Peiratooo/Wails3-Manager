@@ -8,12 +8,12 @@ Desktop-UI zum Erstellen, Konfigurieren, Bauen und Paketieren von Wails-3-Apps.
 
 <img src="../imgs/badge.png" alt="Wails3 Manager badges" width="620">
 
-[English](../README.md) · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · [日本語](README.ja-JP.md) · [한국어](README.ko-KR.md) · [Français](README.fr-FR.md) · **Deutsch**· [Русский](README.ru-RU.md)
+[English](../README.md) · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · [日本語](README.ja-JP.md) · [한국어](README.ko-KR.md) · [Français](README.fr-FR.md) · **Deutsch** · [Русский](README.ru-RU.md)
 
 </div>
 
 > [!IMPORTANT]
-> Wails3 Manager ist in Entwicklung und folgt den Alpha-Versionen von Wails 3. Windows-Installer werden unter Windows kompiliert, macOS-DMGs unter macOS erstellt.
+> Wails3 Manager verwendet Wails 3 beta.28. Windows-Installer werden unter Windows kompiliert, macOS-DMGs unter macOS erstellt.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="../imgs/english/dark/home.png">
@@ -30,12 +30,16 @@ Der Vorteil ist schlicht: weniger Wechsel zwischen Terminal, Konfigurationsdatei
 ## Download
 
 
-1. Build für das eigene Betriebssystem herunterladen.
+1. Den Build für das eigene Betriebssystem unter [Releases](https://github.com/Peiratooo/Wails3-Manager/releases) herunterladen.
 2. Wails3 Manager starten und die Umgebungsseite prüfen.
 3. Neues Wails-3-Projekt erstellen oder vorhandenes Projekt importieren.
 4. Im Arbeitsbereich konfigurieren, bauen und paketieren.
 
-Native Pakete benötigen das Plattformwerkzeug: **Inno Setup** für Windows, **create-dmg** für macOS.
+Native Pakete benötigen **Inno Setup** unter Windows sowie die Wails-CLI und macOS-Werkzeuge für Datenträgerabbilder und Signaturen.
+
+DMGs unterstützen das offizielle Standardlayout und ein eigenes Layout mit verschiebbaren Symbolen. Neue Konfigurationen verwenden den offiziellen Modus. Hintergrund, Volume-Symbol und DMG-Dateisymbol werden getrennt eingestellt; ohne ausgewählten Hintergrund wird das integrierte Rasterbild verwendet.
+
+App-Bundles werden vor dem Paketieren in ein temporäres Verzeichnis kopiert. Neue oder geänderte Bundles erhalten eine Ad-hoc-Signatur, unveränderte vorgefertigte Bundles behalten ihre Signatur. Developer-ID-Signierung und Notarisierung sind separate Veröffentlichungsschritte. Ein vorhandenes DMG wird erst durch eine erfolgreich erzeugte, nicht leere Datei ersetzt.
 
 ## Funktionen
 
@@ -70,14 +74,16 @@ Voraussetzungen:
 
 - Go **1.27.3**
 - Wails3 CLI kompatibel mit `github.com/wailsapp/wails/v3 v3.0.0-beta.28`
-- Node.js und npm
+- Node.js **22.12+** und npm
+- macOS 13 Ventura oder neuer für mit Go 1.27 erstellte Apps
 - Wails-Plattform-Toolchain für das eigene OS
 
 ```bash
-git clone <repository-url>
+git clone --branch 1.1.0 https://github.com/Peiratooo/Wails3-Manager.git wails3-manager
+cd wails3-manager
 go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.28
-cd wails3-manager/frontend
-npm install
+cd frontend
+npm ci
 cd ..
 wails3 task dev
 ```
@@ -89,11 +95,13 @@ cd frontend
 npm run i18n:check
 npm run build
 cd ..
-go test ./core/... ./desktop/...
+go vet ./...
 wails3 task build
 wails3 task release
 wails3 task package
 ```
+
+Unter macOS erstellt `wails3 task darwin:package:universal:dmg` ein DMG für Intel und Apple Silicon. Für die öffentliche Verteilung führe nacheinander `darwin:package:universal`, `darwin:sign:notarize` und `darwin:create:dmg` aus. Die Signierung verwendet das vorhandene Bundle ohne Neubau. Für nur eine native Architektur ersetze `darwin:package:universal` durch `darwin:package`.
 
 ## Verwaltete Projektdateien
 
@@ -105,16 +113,17 @@ builder/
 ├── packaging.json
 ├── backup/initial/
 ├── windows/inno.iss
-├── macos/dmg.sh
+├── macos/dmg-background.png
 └── release/
 ```
 
 ## Aktuelle Grenzen
 
-- Wails 3 ist noch Alpha.
+- Wails 3 ist in der Beta-Phase; die APIs können sich ändern.
 - Native Pakete müssen auf dem Ziel-OS erstellt werden.
 - Linux-Paketierung ist nicht implementiert.
-- Signierung, Notarisierung, automatische Veröffentlichung, Abbruch und versionierter Build-Verlauf sind nicht implementiert.
+- Die Manager-Oberfläche übernimmt keine Developer-ID-Signierung oder Notarisierung. Verwende dafür die oben beschriebenen CLI-Schritte; neue oder geänderte Bundles werden ad hoc signiert.
+- Automatische Veröffentlichung, Abbruch und versionierter Build-Verlauf sind nicht implementiert.
 
 
 ## Lizenz

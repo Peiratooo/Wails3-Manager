@@ -18,14 +18,6 @@ import (
 	"wails3-manager/core/runlog"
 )
 
-func ensureProjectBundleDestination(projectDir, destination string) error {
-	relative, err := filepath.Rel(projectDir, destination)
-	if err != nil || !filepath.IsLocal(relative) || relative == "." {
-		return fmt.Errorf("app bundle output must be inside the project: %s", destination)
-	}
-	return ensureBundleWritePath(projectDir, destination)
-}
-
 // Resolve existing ancestors before any write, including writes through symlinks.
 func ensureBundleWritePath(root, destination string) error {
 	resolvedRoot, err := filepath.EvalSymlinks(root)

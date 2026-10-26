@@ -8,12 +8,12 @@
 
 <img src="../imgs/badge.png" alt="Wails3 Manager badges" width="620">
 
-[English](../README.md) · **简体中文** · [繁體中文](README.zh-TW.md) · [日本語](README.ja-JP.md) · [한국어](README.ko-KR.md) · [Français](README.fr-FR.md) · [Deutsch](README.de-DE.md)· [Русский](README.ru-RU.md)
+[English](../README.md) · **简体中文** · [繁體中文](README.zh-TW.md) · [日本語](README.ja-JP.md) · [한국어](README.ko-KR.md) · [Français](README.fr-FR.md) · [Deutsch](README.de-DE.md) · [Русский](README.ru-RU.md)
 
 </div>
 
 > [!IMPORTANT]
-> Wails3 Manager 仍在开发中，并跟随 Wails 3 Alpha 版本变化。Windows 安装包需要在 Windows 上编译，macOS DMG 需要在 macOS 上创建。
+> Wails3 Manager 面向 Wails 3 beta.28。Windows 安装包需要在 Windows 上编译，macOS DMG 需要在 macOS 上创建。
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="../imgs/chinese/dark/home.png">
@@ -29,12 +29,16 @@ Wails3 Manager 把常见的 Wails 项目操作放到一个窗口里。你可以�
 
 ## 下载
 
-1. 下载与当前系统匹配的版本。
+1. 从 [Releases](https://github.com/Peiratooo/Wails3-Manager/releases) 下载与当前系统匹配的版本。
 2. 启动 Wails3 Manager，并检查开发环境。
 3. 创建新项目，或导入已有 Wails 3 项目。
 4. 在工作台完成配置、构建和打包。
 
-使用原生打包功能时，需要安装对应工具：Windows 使用 **Inno Setup**，macOS 使用 **create-dmg**。
+原生打包需要 Windows 上的 **Inno Setup**，以及 macOS 上的 Wails CLI、系统磁盘映像与签名工具。
+
+DMG 提供官方标准布局和可拖动图标的自定义布局，新建配置默认使用官方模式。背景、卷图标和 DMG 文件图标分别配置；未选择背景时使用内置网格图。
+
+应用包会先复制到临时目录。新建或修改过的应用包使用 ad-hoc 签名，未修改的预构建应用包保留原签名。Developer ID 签名和公证作为独立分发步骤执行。只有成功生成非空新文件后才替换旧 DMG。
 
 ## 功能
 
@@ -69,15 +73,16 @@ Wails3 Manager 把常见的 Wails 项目操作放到一个窗口里。你可以�
 
 - Go **1.27.3**
 - 与 `github.com/wailsapp/wails/v3 v3.0.0-beta.28` 兼容的 Wails3 CLI
-- Node.js 和 npm
+- Node.js **22.12+** 和 npm
 - 当前系统所需的 Wails 平台工具链
 - 使用 Go 1.27 构建的 macOS 应用要求 macOS 13 Ventura 或更高版本
 
 ```bash
-git clone <你的仓库地址>
+git clone --branch 1.1.0 https://github.com/Peiratooo/Wails3-Manager.git wails3-manager
+cd wails3-manager
 go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.28
-cd wails3-manager/frontend
-npm install
+cd frontend
+npm ci
 cd ..
 wails3 task dev
 ```
@@ -89,7 +94,7 @@ cd frontend
 npm run i18n:check
 npm run build
 cd ..
-go test ./core/... ./desktop/...
+go vet ./...
 wails3 task build
 wails3 task release
 wails3 task package
@@ -107,16 +112,17 @@ builder/
 ├── packaging.json
 ├── backup/initial/
 ├── windows/inno.iss
-├── macos/dmg.sh
+├── macos/dmg-background.png
 └── release/
 ```
 
 ## 当前限制
 
-- Wails 3 仍处于 Alpha 阶段。
+- Wails 3 仍处于 Beta 阶段，API 可能变化。
 - 原生安装包必须在目标系统上创建。
 - Linux 安装包尚未实现。
-- 代码签名、公证、自动发布、任务取消和版本化构建历史尚未实现。
+- 管理器界面不处理 Developer ID 签名和公证，请使用上面的 CLI 分发步骤；新建或修改过的应用包使用 ad-hoc 签名。
+- 自动发布、任务取消和版本化构建历史尚未实现。
 
 ## 许可证
 

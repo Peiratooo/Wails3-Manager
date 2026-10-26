@@ -100,9 +100,7 @@ build/bin/
 wailsjs/runtime/
 frontend/wailsjs/runtime/
 
-# Generated bindings can be ignored only if you regenerate them automatically.
-# 如果你的前端代码已经直接 import bindings，建议先不要忽略 bindings。
-# bindings/
+# Generated bindings are tracked alongside Go service changes.
 
 # =========================
 # Packaging / Builder Output

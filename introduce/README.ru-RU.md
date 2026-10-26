@@ -29,7 +29,7 @@ Wails3 Manager объединяет типовые операции с прое�
 
 ## Загрузка
 
-1. Скачайте сборку для своей операционной системы.
+1. Скачайте сборку для своей операционной системы со страницы [Releases](https://github.com/Peiratooo/Wails3-Manager/releases).
 2. Запустите Wails3 Manager и проверьте страницу системного окружения.
 3. Создайте новый проект Wails 3 или импортируйте существующий.
 4. Настройте, соберите и упакуйте приложение в рабочей области.
@@ -73,14 +73,16 @@ Wails3 Manager объединяет типовые операции с прое�
 
 - Go **1.27.3** (версия указана в go.mod)
 - Wails3 CLI **v3.0.0-beta.28**, соответствующий модулю Go и среде выполнения фронтенда
-- Node.js и npm
+- Node.js **22.12+** и npm
+- macOS 13 Ventura или новее для приложений, собранных с Go 1.27
 - Инструментарий Wails для вашей ОС
 
 ```bash
-git clone <repository-url>
+git clone --branch 1.1.0 https://github.com/Peiratooo/Wails3-Manager.git wails3-manager
+cd wails3-manager
 go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.28
-cd wails3-manager/frontend
-npm install
+cd frontend
+npm ci
 cd ..
 wails3 task dev
 ```
@@ -92,11 +94,13 @@ cd frontend
 npm run i18n:check
 npm run build
 cd ..
-go test ./core/... ./desktop/...
+go vet ./...
 wails3 task build
 wails3 task release
 wails3 task package
 ```
+
+В macOS команда `wails3 task darwin:package:universal:dmg` создаёт DMG для Intel и Apple Silicon. Для публичного распространения последовательно выполните `darwin:package:universal`, `darwin:sign:notarize` и `darwin:create:dmg`. Подпись использует готовое приложение без повторной сборки. Для сборки только под текущую архитектуру замените `darwin:package:universal` на `darwin:package`.
 
 ## Файлы под управлением менеджера
 
@@ -108,7 +112,7 @@ builder/
 ├── packaging.json
 ├── backup/initial/
 ├── windows/inno.iss
-├── macos/dmg.sh
+├── macos/dmg-background.png
 └── release/
 ```
 
@@ -117,7 +121,8 @@ builder/
 - Wails 3 пока находится на стадии бета-разработки.
 - Нативные пакеты необходимо создавать в целевой операционной системе.
 - Упаковка для Linux пока не реализована.
-- Подпись кода, нотариальное заверение, автоматическая публикация, отмена операций и история сборок с версиями пока не реализованы.
+- Интерфейс менеджера не выполняет подпись Developer ID и нотариальное заверение. Используйте описанные выше команды CLI; новые и изменённые приложения получают подпись ad-hoc.
+- Автоматическая публикация, отмена операций и история сборок с версиями пока не реализованы.
 
 ## Лицензия
 

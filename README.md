@@ -29,7 +29,7 @@ The convenience is simple: less switching between terminals, config files, icon 
 
 ## Download
 
-1. Download the build for your OS.
+1. Download the build for your OS from [Releases](https://github.com/Peiratooo/Wails3-Manager/releases).
 2. Start Wails3 Manager and check the environment page.
 3. Create a new Wails 3 project or import an existing one.
 4. Configure, build, and package from the workspace.
@@ -71,17 +71,18 @@ Stack: Wails 3, Go, Vue 3, Vite, Naive UI, Pinia, Vue Router, Vue I18n, vue3-mov
 
 Requirements:
 
-- Go **1.27.3** (as pinned in go.mod)
+- Go **1.27.3** (as declared in go.mod)
 - Wails3 CLI **v3.0.0-beta.28**, matching the Go module and frontend runtime
-- Node.js and npm
+- Node.js **22.12+** and npm
 - Wails platform toolchain for your OS
 - macOS 13 Ventura or later for builds made with Go 1.27
 
 ```bash
-git clone <repository-url>
+git clone --branch 1.1.0 https://github.com/Peiratooo/Wails3-Manager.git wails3-manager
+cd wails3-manager
 go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.28
-cd wails3-manager/frontend
-npm install
+cd frontend
+npm ci
 cd ..
 wails3 task dev
 ```
@@ -93,7 +94,7 @@ cd frontend
 npm run i18n:check
 npm run build
 cd ..
-go test ./core/... ./desktop/...
+go vet ./...
 wails3 task build
 wails3 task release
 wails3 task package
@@ -111,16 +112,17 @@ builder/
 ├── packaging.json
 ├── backup/initial/
 ├── windows/inno.iss
-├── macos/dmg.sh
+├── macos/dmg-background.png
 └── release/
 ```
 
 ## Current Limits
 
-- Wails 3 is still alpha.
+- Wails 3 is in beta; its APIs may change.
 - Native packages must be created on the target OS.
 - Linux packaging is not implemented.
-- Code signing, notarization, automatic publishing, cancellation, and versioned build history are not implemented.
+- The manager UI does not handle Developer ID signing or notarization. Use the CLI distribution steps above; newly created or modified bundles receive an ad-hoc signature.
+- Automatic publishing, cancellation, and versioned build history are not implemented.
 
 ## License
 

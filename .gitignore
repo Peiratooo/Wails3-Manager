@@ -30,7 +30,6 @@ go.work.sum
 /.idea/
 /.task/
 /task/
-/frontend/bindings
 /docs
 /.codex-ui-test
 /builder
