@@ -169,7 +169,17 @@ func (s *Service) stageMacOSBundle(ctx context.Context, projectDir string, cfg c
 					return fail(err)
 				}
 			}
-			if err := updateStagedBundlePlist(bundle, cfg, projectConfig, useBuiltBinary || customLaunch); err != nil {
+			useProjectIcon := useBuiltBinary && fsx.FileExists(filepath.Join(projectDir, "build", "appicon.png"))
+			if useProjectIcon {
+				icon := filepath.Join(contents, "Resources", "icons.icns")
+				if err := ensureBundleWritePath(stage, icon); err != nil {
+					return fail(err)
+				}
+				if err := copyRequiredFile(filepath.Join(projectDir, "build", "darwin", "icons.icns"), icon, "macOS icon", 0644); err != nil {
+					return fail(err)
+				}
+			}
+			if err := updateStagedBundlePlist(bundle, cfg, projectConfig, useBuiltBinary || customLaunch, useProjectIcon); err != nil {
 				return fail(err)
 			}
 		}
@@ -200,7 +210,7 @@ func (s *Service) stageMacOSBundle(ctx context.Context, projectDir string, cfg c
 	return bundle, cleanup, nil
 }
 
-func updateStagedBundlePlist(bundle string, cfg contracts.PackagingConfig, projectConfig contracts.WailsProjectConfig, changeExecutable bool) error {
+func updateStagedBundlePlist(bundle string, cfg contracts.PackagingConfig, projectConfig contracts.WailsProjectConfig, changeExecutable, useProjectIcon bool) error {
 	path := filepath.Join(bundle, "Contents", "Info.plist")
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -212,6 +222,10 @@ func updateStagedBundlePlist(bundle string, cfg contracts.PackagingConfig, proje
 	}
 	if changeExecutable {
 		values["CFBundleExecutable"] = macOSBundleExecutableName(cfg, projectConfig)
+	}
+	if useProjectIcon {
+		delete(values, "CFBundleIconName")
+		values["CFBundleIconFile"] = "icons"
 	}
 	values["CFBundleName"] = config.ProjectName(projectConfig)
 	values["CFBundleDisplayName"] = config.ProjectName(projectConfig)

@@ -186,7 +186,24 @@ tasks:
       - cp build/darwin/Info.plist "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents"
       - cmd: plutil -replace CFBundleExecutable -string "{{.APP_NAME}}" -- "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/Info.plist"
         platforms: [darwin]
+      - task: configure:bundle:icon
+        vars:
+          BUNDLE_PATH: '{{.BIN_DIR}}/{{.APP_NAME}}.app'
       - task: '{{if eq OS "darwin"}}codesign:adhoc{{else}}codesign:skip{{end}}'
+
+  configure:bundle:icon:
+    summary: Uses the generated ICNS icon instead of a stale Icon Composer icon
+    internal: true
+    platforms: [darwin]
+    cmds:
+      - |
+        set -e
+        plist="{{.BUNDLE_PATH}}/Contents/Info.plist"
+        plutil -replace CFBundleIconFile -string icons -- "$plist"
+        if plutil -extract CFBundleIconName raw -o /dev/null -- "$plist" >/dev/null 2>&1; then
+          plutil -remove CFBundleIconName -- "$plist"
+        fi
+        exit 0
 
   codesign:adhoc:
     summary: Ad-hoc signs the app bundle (macOS only)
@@ -216,6 +233,9 @@ tasks:
       - cp "{{.BIN_DIR}}/{{.APP_NAME}}" "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/MacOS"
       - cp "build/darwin/Info.dev.plist" "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/Info.plist"
       - plutil -replace CFBundleExecutable -string "{{.APP_NAME}}" -- "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/Info.plist"
+      - task: configure:bundle:icon
+        vars:
+          BUNDLE_PATH: '{{.BIN_DIR}}/{{.APP_NAME}}.dev.app'
       - xattr -cr "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app"
       - codesign --force --deep --sign - "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app"
       - codesign --verify --deep --strict "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app"
